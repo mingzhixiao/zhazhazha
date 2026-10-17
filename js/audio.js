@@ -344,5 +344,140 @@
                 this.vibrate([100, 50, 150]);
                 this.playNotes([392.00, 349.23, 329.63, 261.63], { type: 'sawtooth', vol: 0.18, gap: 0.16, dur: 0.25 });
             }
+
+            // ===== 打磨新增：按钮与专属反馈音效 =====
+            playClick() {
+                this.vibrate(10);
+                this.playNotes([880.0], { type: 'sine', vol: 0.15, gap: 0.05, dur: 0.07 });
+            }
+
+            playShield() {
+                this.vibrate([25, 20, 35]);
+                if (!this.enabled) return;
+                this.init();
+                if (!this.ctx) return;
+                const now = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(1200, now);
+                osc.frequency.exponentialRampToValueAtTime(500, now + 0.12);
+                gain.gain.setValueAtTime(0.2, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.14);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start(now);
+                osc.stop(now + 0.14);
+            }
+
+            playBlock() {
+                this.vibrate([30, 20, 40]);
+                if (!this.enabled) return;
+                this.init();
+                if (!this.ctx) return;
+                const now = this.ctx.currentTime;
+                [1567.98, 2093.0].forEach((freq, i) => {
+                    const t = now + i * 0.05;
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = 'square';
+                    osc.frequency.setValueAtTime(freq, t);
+                    gain.gain.setValueAtTime(0.12, t);
+                    gain.gain.exponentialRampToValueAtTime(0.008, t + 0.1);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start(t);
+                    osc.stop(t + 0.1);
+                });
+            }
+
+            playFever() {
+                this.vibrate([40, 30, 60, 30, 90]);
+                this.playNotes([261.63, 329.63, 392.0, 523.25, 659.25, 783.99], { type: 'sawtooth', vol: 0.16, gap: 0.06, dur: 0.22 });
+            }
+
+            playWind() {
+                this.vibrate([25, 20, 35]);
+                if (!this.enabled) return;
+                this.init();
+                if (!this.ctx) return;
+                const now = this.ctx.currentTime;
+                const bufferSize = this.ctx.sampleRate * 0.35;
+                const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+                const data = buffer.getChannelData(0);
+                for (let i = 0; i < bufferSize; i++) {
+                    data[i] = (Math.random() * 2 - 1) * Math.sin((i / bufferSize) * Math.PI);
+                }
+                const noise = this.ctx.createBufferSource();
+                noise.buffer = buffer;
+                const filter = this.ctx.createBiquadFilter();
+                filter.type = 'bandpass';
+                filter.frequency.setValueAtTime(400, now);
+                filter.frequency.exponentialRampToValueAtTime(2400, now + 0.3);
+                filter.Q.setValueAtTime(1.2, now);
+                const gain = this.ctx.createGain();
+                gain.gain.setValueAtTime(0.28, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.35);
+                noise.connect(filter);
+                filter.connect(gain);
+                gain.connect(this.ctx.destination);
+                noise.start(now);
+            }
+
+            playFreeze() {
+                this.vibrate(20);
+                this.playNotes([2093.0, 1567.98, 2093.0], { type: 'sine', vol: 0.16, gap: 0.05, dur: 0.12 });
+            }
+
+            playFlame() {
+                this.vibrate([30, 20, 40]);
+                if (!this.enabled) return;
+                this.init();
+                if (!this.ctx) return;
+                const now = this.ctx.currentTime;
+                const bufferSize = this.ctx.sampleRate * 0.3;
+                const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+                const data = buffer.getChannelData(0);
+                for (let i = 0; i < bufferSize; i++) {
+                    data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (this.ctx.sampleRate * 0.09));
+                }
+                const noise = this.ctx.createBufferSource();
+                noise.buffer = buffer;
+                const filter = this.ctx.createBiquadFilter();
+                filter.type = 'highpass';
+                filter.frequency.setValueAtTime(1200, now);
+                const gain = this.ctx.createGain();
+                gain.gain.setValueAtTime(0.22, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+                noise.connect(filter);
+                filter.connect(gain);
+                gain.connect(this.ctx.destination);
+                noise.start(now);
+            }
+
+            playSpit() {
+                this.vibrate([35, 20, 50]);
+                if (!this.enabled) return;
+                this.init();
+                if (!this.ctx) return;
+                const now = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(180, now);
+                osc.frequency.exponentialRampToValueAtTime(420, now + 0.1);
+                osc.frequency.exponentialRampToValueAtTime(120, now + 0.2);
+                gain.gain.setValueAtTime(0.25, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.22);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start(now);
+                osc.stop(now + 0.22);
+            }
+
+            playLevelStart() {
+                this.vibrate([20, 15, 30]);
+                this.playNotes([523.25, 783.99, 1046.5], { type: 'triangle', vol: 0.2, gap: 0.08, dur: 0.25 });
+            }
         }
 

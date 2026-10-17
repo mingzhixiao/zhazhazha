@@ -44,7 +44,7 @@
             {
                 id: 2, name: '中等', cols: 13, rows: 11,
                 baseEnemies: 20, perLevelAdd: 5, speedMult: 1.15, bfsRange: 7,
-                eliteRatio: 0.58, specialistRatio: 0.14,
+                eliteRatio: 0.45, specialistRatio: 0.14,
                 frostChance: 0.42, crateDensity: 0.48, initialVines: 3, vineSpreadFrames: 450,
                 itemBombSpawnCount: 3
             },

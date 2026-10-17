@@ -14,6 +14,13 @@
          * ============================================================================
          */
         class ChibiBombermanGame {
+            static LEVEL_THEMES = [
+                { name: '青青草原', light: '#a3e635', dark: '#84cc16', deco: '#65a30d', glow: 'rgba(163, 230, 53, 0.35)' },
+                { name: '金色沙漠', light: '#fde68a', dark: '#fcd34d', deco: '#d97706', glow: 'rgba(253, 230, 138, 0.35)' },
+                { name: '冰封雪原', light: '#bae6fd', dark: '#7dd3fc', deco: '#0284c7', glow: 'rgba(186, 230, 253, 0.35)' },
+                { name: '烈焰火山', light: '#6d28d9', dark: '#5b21b6', deco: '#c4b5fd', glow: 'rgba(139, 92, 246, 0.35)' }
+            ];
+
             constructor() {
                 this.canvas = document.getElementById('gameCanvas');
                 this.ctx = this.canvas.getContext('2d');
@@ -153,6 +160,7 @@
                 if (btn) {
                     btn.addEventListener('click', () => {
                         this.sound.init();
+                        this.sound.playClick();
                         this.toggleFullscreen();
                     });
                 }
@@ -214,6 +222,7 @@
 
                 btn.addEventListener('click', () => {
                     this.sound.init();
+                    this.sound.playClick();
                     this.sound.vibrate(20);
                     this.toggleRotateMode();
                 });
@@ -521,6 +530,7 @@
             initLevel(levelNum) {
                 const diffCfg = DIFFICULTY_TIERS[this.difficultyIdx];
                 this.level = levelNum;
+                this._theme = this.getLevelTheme();
                 this.mapCols = diffCfg.cols;
                 this.mapRows = diffCfg.rows;
 
@@ -852,6 +862,7 @@
                 document.querySelectorAll('.diff-btn').forEach(btn => {
                     btn.addEventListener('click', () => {
                         this.sound.init();
+                        this.sound.playClick();
                         const idx = Number(btn.getAttribute('data-diff'));
                         this.setDifficulty(idx);
                         this.score = 0;
@@ -862,6 +873,7 @@
 
                 document.getElementById('topDiffSelect').addEventListener('change', (e) => {
                     this.sound.init();
+                    this.sound.playClick();
                     const idx = Number(e.target.value);
                     this.setDifficulty(idx);
                     this.score = 0;
@@ -1005,6 +1017,7 @@
                 dpadContainer.addEventListener('pointerdown', (e) => {
                     e.preventDefault();
                     this.sound.init();
+                    this.sound.playClick();
                     this.dpadPointerId = e.pointerId;
                     dpadContainer.setPointerCapture(e.pointerId);
                     updateDpadFromPoint(e.clientX, e.clientY);
@@ -1165,11 +1178,13 @@
                 });
 
                 document.getElementById('btnPause').addEventListener('click', () => {
+                    this.sound.playClick();
                     this.togglePause();
                 });
 
                 document.getElementById('btnRestart').addEventListener('click', () => {
                     this.sound.init();
+                    this.sound.playClick();
                     this.score = 0;
                     this.coins = 0;
                     this.initLevel(1);
@@ -1181,6 +1196,7 @@
                 // 主按钮：菜单开始 / 结算重开 / 暂停继续 / 关卡通关 → 进商店
                 document.getElementById('modalActionBtn').addEventListener('click', () => {
                     this.sound.init();
+                    this.sound.playClick();
 
                     const isTouch = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
                     const portrait = window.innerHeight > window.innerWidth;
@@ -1210,6 +1226,7 @@
                 // 商店继续按钮
                 document.getElementById('shopContinueBtn').addEventListener('click', () => {
                     this.sound.init();
+                    this.sound.playClick();
                     this.hideShop();
                     this.initLevel(this.level + 1);
                     this.state = 'PLAYING';
@@ -1334,6 +1351,7 @@
 
                 container.querySelectorAll('.shop-item').forEach(btn => {
                     btn.addEventListener('click', () => {
+                        this.sound.playClick();
                         if (btn.disabled) return;
                         const key = btn.getAttribute('data-key');
                         this.buyUpgrade(key);
@@ -2454,7 +2472,7 @@
                         this.feverGauge = 0;
                         this.feverTimer = 480;
                         this.screenFlashTimer = 24;
-                        this.sound.playMagicBird();
+                        this.sound.playFever();
                         this.showToast('FEVER TIME! 狂暴时刻！', 'fire', 2000);
                         this.showComboToast(' FEVER TIME!', '火焰 6 格 · 炸弹 8 连', '#ec4899');
                     }
@@ -2532,6 +2550,17 @@
                 this.score += 100;
                 const cx = (item.col + 0.5) * TILE_SIZE;
                 const cy = (item.row + 0.5) * TILE_SIZE;
+                // 拾取闪光粒子
+                for (let i = 0; i < 10; i++) {
+                    const ang = (i / 10) * Math.PI * 2;
+                    this.particles.push({
+                        x: cx, y: cy,
+                        vx: Math.cos(ang) * 2, vy: Math.sin(ang) * 2 - 1.2,
+                        radius: 2 + Math.random() * 2.5,
+                        color: ['#fde047', '#ffffff', '#fbbf24'][i % 3],
+                        life: 22, maxLife: 22
+                    });
+                }
 
                 switch (item.type) {
                     case 'GOLDEN_BAG': {
@@ -2564,7 +2593,7 @@
                         break;
                     case POWERUP_TYPE.REMOTE_BOMB:
                         this.playerStats.hasRemote = true;
-                        this.addFloatingText(cx, cy, '⏰ 遥控炸弹! 按K引爆', '#0284c7');
+                        this.addFloatingText(cx, cy, '遥控炸弹! 按K引爆', '#0284c7');
                         break;
                     case POWERUP_TYPE.GHOST_CAPE:
                         this.playerStats.ghostTimer = 900;
@@ -2607,6 +2636,7 @@
                 if (source === 'EXPLOSION' && this.playerStats.flameVestTimer > 0) {
                     if (this.player.invincibleTimer <= 0) {
                         this.player.invincibleTimer = 25;
+                        this.sound.playBlock();
                         this.showToast('防炸衣免疫火焰!', 'vest');
                     }
                     return;
@@ -2614,17 +2644,18 @@
 
                 if (this.player.invincibleTimer > 0) return;
 
-                this.sound.playHurt();
-                this.addShake(9);
-                this.hitFlash = 14;
-
                 if (this.playerStats.hasShield) {
                     this.playerStats.hasShield = false;
                     this.player.invincibleTimer = 110;
+                    this.sound.playShield();
                     this.showToast('护盾抵消伤害!', 'shield');
                     this.updateHUD();
                     return;
                 }
+
+                this.sound.playHurt();
+                this.addShake(9);
+                this.hitFlash = 14;
 
                 this.playerStats.lives--;
                 this.updateHUD();
@@ -2858,7 +2889,7 @@
 
                 e.dir = chosen.dr < 0 ? 'UP' : chosen.dr > 0 ? 'DOWN' : chosen.dc < 0 ? 'LEFT' : 'RIGHT';
                 e.skillAnim = 26;
-                this.sound.playItemCurseSpawn();
+                this.sound.playFlame();
                 this.addFloatingText(e.x, e.y - 30, '喷火!', '#f97316', 15);
                 this.spawnSkillBolt(e.x, e.y, e.x + chosen.dc * TILE_SIZE, e.y + chosen.dr * TILE_SIZE, '#f97316');
 
@@ -2931,7 +2962,7 @@
             skillTortoiseWater(e, curCol, curRow, cfg) {
                 const target = this.findBombAround(e, curCol, curRow, 3, 'flameFirst');
                 e.skillAnim = 26;
-                this.sound.playPortalLocked();
+                this.sound.playFreeze();
                 const dirText = target ? '喷水冻结炸弹!' : '喷水!';
                 this.addFloatingText(e.x, e.y - 30, dirText, '#38bdf8', 15);
                 this.spawnSkillBolt(e.x, e.y, target ? (target.bomb.col + 0.5) * TILE_SIZE : e.x, target ? (target.bomb.row + 0.5) * TILE_SIZE : e.y, '#38bdf8');
@@ -2966,7 +2997,7 @@
             skillAzureBirdWind(e, curCol, curRow, cfg) {
                 const target = this.findBombAround(e, curCol, curRow, 3, 'nearest');
                 e.skillAnim = 24;
-                this.sound.playRemoteBeep();
+                this.sound.playWind();
                 this.addFloatingText(e.x, e.y - 30, target ? '吹退炸弹!' : '刮风!', '#22d3ee', 15);
 
                 if (!target) return;
@@ -3224,6 +3255,7 @@
                         refund++;
                     }
                     if (refund > 0) {
+                        this.sound.playSpit();
                         this.addFloatingText(e.x, e.y - 30, `吐出 ${refund} 颗炸弹!`, '#9333ea', 16);
                     }
                 }
@@ -3244,6 +3276,19 @@
 
                 this.enemies.splice(index, 1);
                 this.sound.playEnemyDefeat();
+                // 敌人死亡粒子爆发
+                for (let i = 0; i < 14; i++) {
+                    const ang = (i / 14) * Math.PI * 2 + Math.random() * 0.4;
+                    const spd = 1.5 + Math.random() * 2.5;
+                    this.particles.push({
+                        x: e.x, y: e.y - 4,
+                        vx: Math.cos(ang) * spd, vy: Math.sin(ang) * spd - 1,
+                        radius: 2.5 + Math.random() * 3,
+                        color: ['#f472b6', '#fbbf24', '#ffffff', '#f43f5e'][i % 4],
+                        life: 28, maxLife: 28
+                    });
+                }
+                this.addShake(3);
 
                 this.save.data.totalKills++;
                 if (this.save.data.totalKills % 25 === 0) this.save.save();
@@ -3390,12 +3435,11 @@
                         const x = c * TILE_SIZE;
                         const y = r * TILE_SIZE;
                         const isLight = (r + c) % 2 === 0;
-                        const theme = this.getLevelTheme();
-                        ctx.fillStyle = isLight ? theme.light : theme.dark;
+                        ctx.fillStyle = isLight ? this._theme.light : this._theme.dark;
                         ctx.fillRect(x, y, TILE_SIZE, TILE_SIZE);
 
                         if (this.grid[r] && this.grid[r][c] === TILE.EMPTY && (r * 7 + c * 13) % 5 === 0) {
-                            ctx.fillStyle = theme.deco;
+                            ctx.fillStyle = this._theme.deco;
                             ctx.beginPath();
                             ctx.arc(x + 14, y + 46, 3, 0, Math.PI * 2);
                             ctx.arc(x + 20, y + 48, 2.2, 0, Math.PI * 2);
@@ -3447,7 +3491,9 @@
 
                 ctx.restore();
 
-                this.drawMinimap();
+                // 小地图节流：每 6 帧重绘一次
+                this._minimapTick = (this._minimapTick || 0) + 1;
+                if (this._minimapTick % 6 === 0) this.drawMinimap();
 
                 if (this.screenFlashTimer > 0) {
                     this.screenFlashTimer--;
@@ -4926,6 +4972,7 @@
                 const theme = this.getLevelTheme();
                 numEl.textContent = `第 ${this.level} 关`;
                 themeEl.textContent = theme.name;
+                this.sound.playLevelStart();
                 banner.classList.remove('hidden', 'level-banner-hide');
                 // 重新触发入场动画
                 const card = banner.querySelector('.level-banner-card');
@@ -4946,13 +4993,7 @@
             // ============================================================
             getLevelTheme() {
                 const stage = Math.min(3, Math.floor((this.level - 1) / 3));
-                const themes = [
-                    { name: '青青草原', light: '#a3e635', dark: '#84cc16', deco: '#65a30d', glow: 'rgba(163, 230, 53, 0.35)' },
-                    { name: '金色沙漠', light: '#fde68a', dark: '#fcd34d', deco: '#d97706', glow: 'rgba(253, 230, 138, 0.35)' },
-                    { name: '冰封雪原', light: '#bae6fd', dark: '#7dd3fc', deco: '#0284c7', glow: 'rgba(186, 230, 253, 0.35)' },
-                    { name: '烈焰火山', light: '#6d28d9', dark: '#5b21b6', deco: '#c4b5fd', glow: 'rgba(139, 92, 246, 0.35)' }
-                ];
-                return themes[stage];
+                return ChibiBombermanGame.LEVEL_THEMES[stage];
             }
 
             drawPlayer(p) {
