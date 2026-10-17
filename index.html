@@ -21,11 +21,11 @@
                     <div class="flex items-center gap-1">
                         <h1 class="text-xs sm:text-base font-black text-slate-800 tracking-wide leading-tight">Q版炸弹人</h1>
                         <select id="topDiffSelect" class="bg-indigo-100 text-indigo-800 font-black text-[10px] sm:text-xs px-1.5 py-0.5 rounded-lg border border-indigo-300 outline-none cursor-pointer">
-                            <option value="0">🌱新手(8怪)</option>
-                            <option value="1">🍀简单(14怪)</option>
-                            <option value="2">⚔️中等(20精英)</option>
-                            <option value="3">🔥困难1(5倍图·68怪)</option>
-                            <option value="4">💀困难2(10倍图·145怪)</option>
+                            <option value="0">新手 · 8怪</option>
+                            <option value="1">简单 · 14怪</option>
+                            <option value="2">中等 · 20精英</option>
+                            <option value="3">困难1 · 68怪</option>
+                            <option value="4">困难2 · 145怪</option>
                         </select>
                     </div>
                     <p class="text-[10px] text-slate-500 font-bold hidden lg:block">千鸟破冰 · 炸道具爆怪惩罚 · 百怪军团围堵 · 全屏超必杀 · 强化商店</p>
@@ -96,7 +96,7 @@
             </div>
             <div class="candy-panel rounded-xl px-1.5 py-0.5 sm:px-2 sm:py-1 flex flex-col justify-center gap-0.5">
                 <div class="flex items-center justify-between text-[9px] sm:text-[10px] font-black text-fuchsia-600 leading-none">
-                    <span id="feverLabel">🎵狂暴</span>
+                    <span id="feverLabel">狂暴</span>
                     <span id="buffIcons" class="tracking-tighter text-[10px]"></span>
                 </div>
                 <div class="w-full h-2 bg-slate-200 rounded-full overflow-hidden border border-white">
@@ -118,6 +118,14 @@
             <!-- 危险预警红色呼吸描边 -->
             <div id="dangerRing" class="hidden absolute inset-0 pointer-events-none z-20 danger-ring" style="border-radius: 1.1rem; box-shadow: inset 0 0 34px 10px rgba(244, 63, 94, 0.85); border: 4px solid rgba(244, 63, 94, 0.7);"></div>
 
+            <!-- 关卡开场横幅 -->
+            <div id="levelBanner" class="hidden absolute inset-x-0 top-[18%] z-20 pointer-events-none flex justify-center">
+                <div class="level-banner-card">
+                    <div id="levelBannerNum" class="level-banner-num">第 1 关</div>
+                    <div id="levelBannerTheme" class="level-banner-theme">青青草原</div>
+                </div>
+            </div>
+
             <!-- 连杀 / 挑战达成 中央播报 -->
             <div id="comboToast" class="hidden absolute left-1/2 top-[12%] -translate-x-1/2 z-20 pointer-events-none">
                 <div class="px-4 py-1.5 rounded-2xl bg-white/95 border-4 border-amber-300 shadow-2xl text-center">
@@ -135,8 +143,8 @@
 
             <div id="overlayModal" class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-2.5 z-30">
                 <div class="candy-panel rounded-3xl p-3.5 sm:p-5 max-w-lg w-full text-center flex flex-col items-center gap-2 sm:gap-2.5 float-anim max-h-full overflow-y-auto">
-                    <div id="modalBadge" class="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-gradient-to-tr from-amber-400 to-rose-400 flex items-center justify-center text-2xl sm:text-3xl shadow-lg border-4 border-white shrink-0">
-                        💣
+                    <div id="modalBadge" class="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-gradient-to-tr from-amber-400 to-rose-400 flex items-center justify-center shadow-lg border-4 border-white shrink-0">
+                        <canvas id="modalBadgeCanvas" width="44" height="44"></canvas>
                     </div>
                     <h2 id="modalTitle" class="text-lg sm:text-2xl font-black text-slate-800">Q版炸弹人大冒险 · 百怪狂暴版</h2>
                     <p id="modalDesc" class="text-[11px] sm:text-xs text-slate-600 leading-relaxed font-medium">
@@ -147,23 +155,23 @@
 
                     <div id="difficultyPicker" class="w-full grid grid-cols-5 gap-1 text-center">
                         <button data-diff="0" class="diff-btn candy-btn py-1.5 px-1 rounded-xl bg-emerald-500 text-white border-2 border-white flex flex-col items-center">
-                            <span class="text-xs sm:text-sm font-black">🌱新手</span>
+                            <span class="text-xs sm:text-sm font-black">新手</span>
                             <span class="text-[9px] opacity-90">13×11·8怪</span>
                         </button>
                         <button data-diff="1" class="diff-btn candy-btn py-1.5 px-1 rounded-xl bg-slate-100 text-slate-700 border-2 border-white flex flex-col items-center">
-                            <span class="text-xs sm:text-sm font-black">🍀简单</span>
+                            <span class="text-xs sm:text-sm font-black">简单</span>
                             <span class="text-[9px] opacity-75">13×11·14怪</span>
                         </button>
                         <button data-diff="2" class="diff-btn candy-btn py-1.5 px-1 rounded-xl bg-slate-100 text-slate-700 border-2 border-white flex flex-col items-center">
-                            <span class="text-xs sm:text-sm font-black">⚔️中等</span>
+                            <span class="text-xs sm:text-sm font-black">中等</span>
                             <span class="text-[9px] opacity-75">20只精英怪</span>
                         </button>
                         <button data-diff="3" class="diff-btn candy-btn py-1.5 px-1 rounded-xl bg-slate-100 text-slate-700 border-2 border-white flex flex-col items-center">
-                            <span class="text-xs sm:text-sm font-black">🔥困难1</span>
+                            <span class="text-xs sm:text-sm font-black">困难1</span>
                             <span class="text-[9px] opacity-75">5倍图·68怪</span>
                         </button>
                         <button data-diff="4" class="diff-btn candy-btn py-1.5 px-1 rounded-xl bg-slate-100 text-slate-700 border-2 border-white flex flex-col items-center">
-                            <span class="text-xs sm:text-sm font-black">💀困难2</span>
+                            <span class="text-xs sm:text-sm font-black">困难2</span>
                             <span class="text-[9px] opacity-75">10倍·145怪</span>
                         </button>
                     </div>
@@ -171,7 +179,7 @@
                     <div class="w-full bg-sky-50/95 rounded-2xl p-2 border-2 border-sky-100 grid grid-cols-2 gap-1.5 text-left text-[10px] sm:text-[11px]">
                         <div class="flex items-center gap-1.5">
                             <span class="w-5 h-5 rounded-lg bg-sky-500 text-white flex items-center justify-center font-bold shrink-0">⏰</span>
-                            <span class="text-slate-700 font-bold truncate">遥控炸弹：按 <b>K/📡引爆</b> 全引爆</span>
+                            <span class="text-slate-700 font-bold truncate">遥控炸弹：按 <b>K 引爆</b> 全引爆</span>
                         </div>
                         <div class="flex items-center gap-1.5">
                             <span class="w-5 h-5 rounded-lg bg-purple-500 text-white flex items-center justify-center font-bold shrink-0">👻</span>

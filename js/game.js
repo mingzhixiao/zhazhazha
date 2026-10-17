@@ -314,7 +314,7 @@
                 const maxB = this.feverTimer > 0 ? 8 : this.playerStats.maxBombs;
                 const rng = this.feverTimer > 0 ? Math.max(this.playerStats.bombRange, 6) : this.playerStats.bombRange;
 
-                set('mobaLives', this.playerStats.hasShield ? `${this.playerStats.lives}🛡️` : this.playerStats.lives);
+                set('mobaLives', this.playerStats.hasShield ? `${this.playerStats.lives}(盾)` : this.playerStats.lives);
                 set('mobaCoins', this.coins);
                 set('mobaLevel', this.level);
                 set('mobaBombs', `${Math.max(0, maxB - this.bombs.length)}/${maxB}`);
@@ -333,11 +333,11 @@
                 const buffsEl = document.getElementById('mobaBuffs');
                 if (buffsEl) {
                     let html = '';
-                    if (this.playerStats.hasRemote) html += '<div class="moba-buff">⏰</div>';
-                    if (this.playerStats.ghostTimer > 0) html += `<div class="moba-buff">👻${Math.ceil(this.playerStats.ghostTimer / 60)}</div>`;
-                    if (this.playerStats.flameVestTimer > 0) html += `<div class="moba-buff">🧥${Math.ceil(this.playerStats.flameVestTimer / 60)}</div>`;
-                    if (this.feverTimer > 0) html += '<div class="moba-buff">🔥</div>';
-                    if (this.megaCharge >= MEGA_COST) html += '<div class="moba-buff">💥</div>';
+                    if (this.playerStats.hasRemote) html += '<div class="moba-buff">遥控</div>';
+                    if (this.playerStats.ghostTimer > 0) html += `<div class="moba-buff">穿墙${Math.ceil(this.playerStats.ghostTimer / 60)}s</div>`;
+                    if (this.playerStats.flameVestTimer > 0) html += `<div class="moba-buff">防炸${Math.ceil(this.playerStats.flameVestTimer / 60)}s</div>`;
+                    if (this.feverTimer > 0) html += '<div class="moba-buff">狂暴</div>';
+                    if (this.megaCharge >= MEGA_COST) html += '<div class="moba-buff">必杀</div>';
                     if (buffsEl.innerHTML !== html) buffsEl.innerHTML = html;
                 }
 
@@ -543,6 +543,7 @@
                 this.nextGoldenAt = this.goldenQuota;
                 this.hideComboToast();
                 this.updateComboMeter();
+                this.showLevelBanner();
 
                 if (this.difficultyIdx === 0 && levelNum === 1) {
                     this.playerStats.flameVestTimer = 600;
@@ -882,7 +883,7 @@
                         this.touchDir = null;
                         this.joystickVector = { x: 0, y: 0 };
                         joystickKnob.style.transform = `translate(-50%, -50%)`;
-                        joystickDirLabel.textContent = '🕹️';
+                        joystickDirLabel.textContent = '·';
                         return;
                     }
 
@@ -913,7 +914,7 @@
                     this.joystickVector = { x: 0, y: 0 };
                     joystickKnob.style.transition = 'transform 0.12s ease-out';
                     joystickKnob.style.transform = `translate(-50%, -50%)`;
-                    joystickDirLabel.textContent = '🕹️';
+                    joystickDirLabel.textContent = '·';
                 };
 
                 const handleJoystickDown = (e) => {
@@ -1218,7 +1219,7 @@
                     show(joyEl, true);
                     show(dpadEl, false);
                     if (modeText) modeText.textContent = '摇杆';
-                    if (modeIcon) modeIcon.textContent = '🕹️';
+                    if (modeIcon) modeIcon.textContent = '摇杆';
                 } else if (this.controlMode === 'DPAD') {
                     show(joyEl, false);
                     show(dpadEl, true);
@@ -1228,7 +1229,7 @@
                     show(joyEl, false);
                     show(dpadEl, false);
                     if (modeText) modeText.textContent = '手势';
-                    if (modeIcon) modeIcon.textContent = '👆';
+                    if (modeIcon) modeIcon.textContent = '手势';
                 }
                 if (hint) hint.classList.toggle('hidden', this.controlMode !== 'GESTURE');
             }
@@ -1236,18 +1237,26 @@
             togglePause() {
                 if (this.state === 'PLAYING') {
                     this.state = 'PAUSED';
-                    this.showModal('⏸️ 游戏已暂停', '喝口奶茶休息一下，随时切换难度或继续炸翻全场！', '▶️ 继续游戏', '☕');
+                    this.showModal('游戏已暂停', '喝口奶茶休息一下，随时切换难度或继续炸翻全场！', '继续游戏', '');
                 } else if (this.state === 'PAUSED') {
                     this.state = 'PLAYING';
                     this.hideModal();
                 }
             }
 
-            showModal(title, desc, btnText, badgeEmoji = '💣') {
+            showModal(title, desc, btnText, badgeIcon = 'bomb') {
                 document.getElementById('modalTitle').textContent = title;
                 document.getElementById('modalDesc').innerHTML = desc;
                 document.getElementById('modalActionBtn').textContent = btnText;
-                document.getElementById('modalBadge').textContent = badgeEmoji;
+                // 徽章用矢量图标绘制
+                const badgeCanvas = document.getElementById('modalBadgeCanvas');
+                if (badgeCanvas) {
+                    const bctx = badgeCanvas.getContext('2d');
+                    bctx.clearRect(0, 0, 44, 44);
+                    if (badgeIcon) {
+                        this.drawIcon(badgeIcon, 22, 22, 36, bctx);
+                    }
+                }
                 document.getElementById('overlayModal').classList.remove('hidden');
             }
 
@@ -1281,7 +1290,7 @@
                         : (canBuy ? 'shop-item buyable candy-btn' : 'shop-item');
                     const costLabel = maxed
                         ? '<span class="text-[11px] font-black text-emerald-500">已满级</span>'
-                        : `<span class="text-[11px] font-black ${canBuy ? 'text-yellow-600' : 'text-slate-400'}">${cost}💰</span>`;
+                        : `<span class="text-[11px] font-black ${canBuy ? 'text-yellow-600' : 'text-slate-400'}">${cost} 金币</span>`;
 
                     html += `
                         <button data-key="${item.key}" class="${cls}" ${canBuy ? '' : 'disabled'}>
@@ -1309,7 +1318,7 @@
                 });
 
                 document.getElementById('shopCoins').textContent = this.coins;
-                document.getElementById('shopContinueBtn').textContent = `🚀 进入第 ${this.level + 1} 关`;
+                document.getElementById('shopContinueBtn').textContent = `进入第 ${this.level + 1} 关`;
             }
 
             buyUpgrade(key) {
@@ -1350,7 +1359,7 @@
 
                 document.getElementById('hudLevel').textContent = this.level;
                 document.getElementById('hudScore').textContent = this.score;
-                document.getElementById('hudCoins').textContent = this.coins > 0 ? `${this.coins}💰` : 0;
+                document.getElementById('hudCoins').textContent = this.coins > 0 ? `${this.coins}` : 0;
                 document.getElementById('hudLives').textContent = this.playerStats.hasShield
                     ? `${this.playerStats.lives}🛡️`
                     : this.playerStats.lives;
@@ -1363,10 +1372,10 @@
                 if (this.feverTimer > 0) {
                     const pct = Math.min(100, (this.feverTimer / 480) * 100);
                     feverBar.style.width = `${pct}%`;
-                    feverLabel.textContent = '🔥狂暴中!';
+                    feverLabel.textContent = '狂暴中!';
                 } else {
                     feverBar.style.width = `${Math.min(100, this.feverGauge)}%`;
-                    feverLabel.textContent = '🎵狂暴';
+                    feverLabel.textContent = '狂暴';
                 }
 
                 const megaBar = document.getElementById('hudMegaBar');
@@ -1385,10 +1394,10 @@
                 }
 
                 let buffs = '';
-                if (this.playerStats.hasRemote) buffs += '⏰';
-                if (this.playerStats.ghostTimer > 0) buffs += `👻${Math.ceil(this.playerStats.ghostTimer / 60)}s`;
-                if (this.playerStats.flameVestTimer > 0) buffs += `🧥${Math.ceil(this.playerStats.flameVestTimer / 60)}s`;
-                if (megaReady) buffs += '💥';
+                if (this.playerStats.hasRemote) buffs += '遥控 ';
+                if (this.playerStats.ghostTimer > 0) buffs += `穿墙${Math.ceil(this.playerStats.ghostTimer / 60)}s `;
+                if (this.playerStats.flameVestTimer > 0) buffs += `防炸${Math.ceil(this.playerStats.flameVestTimer / 60)}s `;
+                if (megaReady) buffs += '必杀!';
                 document.getElementById('buffIcons').textContent = buffs;
 
                 const mobileHint = document.getElementById('mobileBuffHint');
@@ -2550,6 +2559,10 @@
             }
 
             addFloatingText(x, y, text, color = '#ffffff', fontSize = 15) {
+                // 统一去除 emoji，保持界面干净精致（图标已用矢量绘制）
+                if (typeof text === 'string') {
+                    text = text.replace(/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{FE0F}\u{200D}]/gu, '').replace(/\s{2,}/g, ' ').trim();
+                }
                 const worldW = this.mapCols * TILE_SIZE;
                 const clampedX = Math.max(85, Math.min(worldW - 85, x));
                 const clampedY = Math.max(30, y);
@@ -2604,12 +2617,12 @@
                     this.updateCareerPanel();
 
                     this.showModal(
-                        '💥 挑战失败啦',
+                        '挑战失败啦',
                         `你在【${DIFFICULTY_TIERS[this.difficultyIdx].name}】第 <span class="text-indigo-600 font-black">${this.level}</span> 关惜败！<br>
-                         总分：<span class="text-amber-500 font-black">${this.score}</span> · 金币：<span class="text-yellow-600 font-black">${this.coins}💰</span> · 最高连杀：<span class="text-fuchsia-600 font-black">x${this.bestChain}</span><br>
-                         善用⏰遥控炸弹、👻穿墙披风、🧥防炸衣与💥超必杀再来一局吧！`,
-                        '🔄 重新开始冒险',
-                        '😵'
+                         总分：<span class="text-amber-500 font-black">${this.score}</span> · 金币：<span class="text-yellow-600 font-black">${this.coins}</span> · 最高连杀：<span class="text-fuchsia-600 font-black">x${this.bestChain}</span><br>
+                         善用遥控炸弹、穿墙披风、防炸衣与超必杀再来一局吧！`,
+                        '重新开始冒险',
+                        'ghost'
                     );
                 } else {
                     this.player.invincibleTimer = 140;
@@ -3305,12 +3318,12 @@
                 this.updateCareerPanel();
 
                 this.showModal(
-                    `🎉 第 ${this.level} 关完美通关！`,
+                    `第 ${this.level} 关完美通关！`,
                     `成功消灭所有怪物并踏入魔法传送门！<br>
                      通关奖励 <span class="text-amber-500 font-black">+${500 * this.level}</span> 分 · 本关用时 <span class="text-indigo-600 font-black">${this.levelElapsed.toFixed(1)}s</span><br>
-                     总分：<span class="text-amber-500 font-black">${this.score}</span> · 金币：<span class="text-yellow-600 font-black">${this.coins}💰</span> · 最高连杀：<span class="text-fuchsia-600 font-black">x${this.bestChain}</span>`,
-                    `🛒 进入强化商店`,
-                    '🏆'
+                     总分：<span class="text-amber-500 font-black">${this.score}</span> · 金币：<span class="text-yellow-600 font-black">${this.coins}</span> · 最高连杀：<span class="text-fuchsia-600 font-black">x${this.bestChain}</span>`,
+                    `进入强化商店`,
+                    'star'
                 );
             }
 
@@ -3354,11 +3367,12 @@
                         const x = c * TILE_SIZE;
                         const y = r * TILE_SIZE;
                         const isLight = (r + c) % 2 === 0;
-                        ctx.fillStyle = isLight ? '#a3e635' : '#84cc16';
+                        const theme = this.getLevelTheme();
+                        ctx.fillStyle = isLight ? theme.light : theme.dark;
                         ctx.fillRect(x, y, TILE_SIZE, TILE_SIZE);
 
                         if (this.grid[r] && this.grid[r][c] === TILE.EMPTY && (r * 7 + c * 13) % 5 === 0) {
-                            ctx.fillStyle = isLight ? '#84cc16' : '#65a30d';
+                            ctx.fillStyle = theme.deco;
                             ctx.beginPath();
                             ctx.arc(x + 14, y + 46, 3, 0, Math.PI * 2);
                             ctx.arc(x + 20, y + 48, 2.2, 0, Math.PI * 2);
@@ -3393,11 +3407,7 @@
                     ctx.font = '900 15px "Fredoka", "Noto Sans SC", sans-serif';
                     ctx.textAlign = 'center';
                     ctx.textBaseline = 'middle';
-                    ctx.strokeStyle = '#ffffff';
-                    ctx.lineWidth = 3.5;
-                    ctx.strokeText('💰', gx, gy - 24 + bob);
-                    ctx.fillStyle = '#eab308';
-                    ctx.fillText('💰', gx, gy - 24 + bob);
+                    this.drawIcon('coin', gx, gy - 24 + bob, 26);
                 }
 
                 this.powerups.forEach(item => this.drawPowerup(item));
@@ -3466,8 +3476,20 @@
                 drawRoundRect(ctx, x + 5, y + 4, TILE_SIZE - 10, TILE_SIZE - 14, 12);
                 ctx.fill();
 
-                ctx.fillStyle = '#cbd5e1';
-                drawRoundRect(ctx, x + 9, y + 7, TILE_SIZE - 18, 14, 7);
+                // 砖缝：两横一竖
+                ctx.strokeStyle = 'rgba(71, 85, 105, 0.6)';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(x + 7, y + 20); ctx.lineTo(x + TILE_SIZE - 7, y + 20);
+                ctx.moveTo(x + 7, y + 36); ctx.lineTo(x + TILE_SIZE - 7, y + 36);
+                ctx.moveTo(x + TILE_SIZE / 2, y + 20); ctx.lineTo(x + TILE_SIZE / 2, y + 36);
+                ctx.moveTo(x + 16, y + 6); ctx.lineTo(x + 16, y + 20);
+                ctx.moveTo(x + TILE_SIZE - 16, y + 36); ctx.lineTo(x + TILE_SIZE - 16, y + 50);
+                ctx.stroke();
+
+                // 顶部高光
+                ctx.fillStyle = 'rgba(203, 213, 225, 0.55)';
+                drawRoundRect(ctx, x + 9, y + 6, TILE_SIZE - 18, 6, 3);
                 ctx.fill();
 
                 ctx.fillStyle = '#475569';
@@ -3486,21 +3508,43 @@
                 drawRoundRect(ctx, x + 4, y + 7, TILE_SIZE - 8, TILE_SIZE - 8, 12);
                 ctx.fill();
 
+                // 箱体底色
                 ctx.fillStyle = '#b45309';
                 drawRoundRect(ctx, x + 4, y + 4, TILE_SIZE - 8, TILE_SIZE - 10, 12);
                 ctx.fill();
 
-                ctx.fillStyle = '#f59e0b';
+                ctx.fillStyle = '#d97706';
                 drawRoundRect(ctx, x + 8, y + 7, TILE_SIZE - 16, TILE_SIZE - 17, 9);
                 ctx.fill();
 
-                ctx.fillStyle = '#d97706';
-                ctx.fillRect(x + 8, y + 21, TILE_SIZE - 16, 4);
-                ctx.fillRect(x + 8, y + 34, TILE_SIZE - 16, 4);
+                // 木板纹理：竖向木纹线
+                ctx.strokeStyle = 'rgba(146, 64, 14, 0.55)';
+                ctx.lineWidth = 1.6;
+                const px = [x + 17, x + 28, x + 39];
+                px.forEach((lx, i) => {
+                    ctx.beginPath();
+                    ctx.moveTo(lx, y + 10);
+                    ctx.bezierCurveTo(lx + (i % 2 ? 2 : -2), y + 20, lx + (i % 2 ? -2 : 2), y + 32, lx, y + 42);
+                    ctx.stroke();
+                });
 
-                ctx.fillStyle = '#fde68a';
-                ctx.beginPath();
-                ctx.arc(x + 14, y + 13, 3, 0, Math.PI * 2);
+                // 金属包边
+                ctx.fillStyle = '#92400e';
+                ctx.fillRect(x + 8, y + 7, TILE_SIZE - 16, 4);
+                ctx.fillRect(x + 8, y + TILE_SIZE - 14, TILE_SIZE - 16, 4);
+
+                // 四角铆钉
+                ctx.fillStyle = '#78716c';
+                [[x + 13, y + 12], [x + TILE_SIZE - 13, y + 12], [x + 13, y + TILE_SIZE - 13], [x + TILE_SIZE - 13, y + TILE_SIZE - 13]].forEach(([nx, ny]) => {
+                    ctx.beginPath(); ctx.arc(nx, ny, 2.6, 0, Math.PI * 2); ctx.fill();
+                    ctx.fillStyle = '#d6d3d1';
+                    ctx.beginPath(); ctx.arc(nx - 0.8, ny - 0.8, 1, 0, Math.PI * 2); ctx.fill();
+                    ctx.fillStyle = '#78716c';
+                });
+
+                // 高光
+                ctx.fillStyle = 'rgba(253, 230, 138, 0.5)';
+                drawRoundRect(ctx, x + 10, y + 9, 8, TILE_SIZE - 22, 4);
                 ctx.fill();
             }
 
@@ -3523,10 +3567,7 @@
                 drawRoundRect(ctx, x + 9, y + 8, TILE_SIZE - 26, 8, 4);
                 ctx.fill();
 
-                ctx.font = '20px sans-serif';
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-                ctx.fillText('❄️', x + TILE_SIZE / 2, y + TILE_SIZE / 2 + 1);
+                this.drawIcon('snow', x + TILE_SIZE / 2, y + TILE_SIZE / 2 + 1, 22);
             }
 
             drawVineTile(col, row) {
@@ -3553,10 +3594,7 @@
                 ctx.arc(cx + 13, cy + 9, 5, 0, Math.PI * 2);
                 ctx.fill();
 
-                ctx.font = '22px sans-serif';
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-                ctx.fillText('🌿', cx + sway * 0.4, cy);
+                this.drawIcon('leaf', cx + sway * 0.4, cy, 24);
             }
 
             drawPortal(portal) {
@@ -3599,7 +3637,7 @@
                     ctx.font = '15px sans-serif';
                     ctx.textAlign = 'center';
                     ctx.textBaseline = 'middle';
-                    ctx.fillText('🔒', 0, 1);
+                    this.drawIcon('lock', 0, 1, 20);
 
                     ctx.restore();
                 } else {
@@ -3654,9 +3692,9 @@
                     ctx.textAlign = 'center';
                     ctx.strokeStyle = '#ffffff';
                     ctx.lineWidth = 3.5;
-                    ctx.strokeText('✨进入过关▼', cx, floatY);
+                    ctx.strokeText('进入过关 ▼', cx, floatY);
                     ctx.fillStyle = '#7e22ce';
-                    ctx.fillText('✨进入过关▼', cx, floatY);
+                    ctx.fillText('进入过关 ▼', cx, floatY);
                 }
             }
 
@@ -3692,10 +3730,7 @@
                     ctx.arc(cx - 6, cy - 6, 4.5, 0, Math.PI * 2);
                     ctx.fill();
 
-                    ctx.font = '19px sans-serif';
-                    ctx.textAlign = 'center';
-                    ctx.textBaseline = 'middle';
-                    ctx.fillText('💰', cx, cy + 1);
+                    this.drawIcon('coin', cx, cy, 24);
                     return;
                 }
 
@@ -3710,14 +3745,14 @@
                     [POWERUP_TYPE.MAGIC_BIRD]: '#ec4899'
                 };
                 const icons = {
-                    [POWERUP_TYPE.BOMB_UP]: '💣',
-                    [POWERUP_TYPE.FIRE_UP]: '🔥',
-                    [POWERUP_TYPE.SPEED_UP]: '⚡',
-                    [POWERUP_TYPE.SHIELD]: '🛡️',
-                    [POWERUP_TYPE.REMOTE_BOMB]: '⏰',
-                    [POWERUP_TYPE.GHOST_CAPE]: '👻',
-                    [POWERUP_TYPE.FLAME_VEST]: '🧥',
-                    [POWERUP_TYPE.MAGIC_BIRD]: '🌈'
+                    [POWERUP_TYPE.BOMB_UP]: 'bomb',
+                    [POWERUP_TYPE.FIRE_UP]: 'fire',
+                    [POWERUP_TYPE.SPEED_UP]: 'bolt',
+                    [POWERUP_TYPE.SHIELD]: 'shield',
+                    [POWERUP_TYPE.REMOTE_BOMB]: 'clock',
+                    [POWERUP_TYPE.GHOST_CAPE]: 'ghost',
+                    [POWERUP_TYPE.FLAME_VEST]: 'vest',
+                    [POWERUP_TYPE.MAGIC_BIRD]: 'bird'
                 };
 
                 ctx.fillStyle = '#ffffff';
@@ -3738,7 +3773,7 @@
                 ctx.font = '18px sans-serif';
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
-                ctx.fillText(icons[item.type] || '⭐', cx, cy + 1);
+                this.drawIcon(icons[item.type] || 'star', cx, cy, 22);
             }
 
             drawBomb(bomb) {
@@ -3863,11 +3898,7 @@
                     ctx.font = '900 15px "Fredoka", "Noto Sans SC", sans-serif';
                     ctx.textAlign = 'center';
                     ctx.textBaseline = 'middle';
-                    ctx.strokeStyle = '#ffffff';
-                    ctx.lineWidth = 3.5;
-                    ctx.strokeText('🧊', cx, cy - 44);
-                    ctx.fillStyle = '#0284c7';
-                    ctx.fillText('🧊', cx, cy - 44);
+                    this.drawIcon('snow', cx, cy - 44, 20);
 
                     const maxF = SPECIALIST_CFG.TORTOISE.freezeTicks;
                     const pct = Math.max(0, Math.min(1, bomb.frozenTimer / maxF));
@@ -4294,24 +4325,15 @@
                 ctx.globalAlpha = 1.0;
 
                 if (e.enrageTimer > 0) {
-                    ctx.font = '900 13px "Fredoka", "Noto Sans SC", sans-serif';
-                    ctx.textAlign = 'center';
-                    ctx.textBaseline = 'middle';
-                    ctx.fillText('😡', e.x + 17, e.y - 21);
+                    this.drawIcon('angry', e.x + 17, e.y - 21, 18);
                 }
 
                 if (this.isSpecialist(e.type)) {
-                    const badge = e.type === 'SALAMANDER' ? '🔥'
-                                : e.type === 'TORTOISE' ? '💧'
-                                : e.type === 'AZUREBIRD' ? '🌬️' : '🌀';
-                    ctx.font = '900 14px "Fredoka", "Noto Sans SC", sans-serif';
-                    ctx.textAlign = 'center';
-                    ctx.textBaseline = 'middle';
-                    ctx.strokeStyle = '#ffffff';
-                    ctx.lineWidth = 3;
+                    const badge = e.type === 'SALAMANDER' ? 'fire'
+                                : e.type === 'TORTOISE' ? 'water'
+                                : e.type === 'AZUREBIRD' ? 'wind' : 'swirl';
                     if (e.windUp > 0) {
-                        ctx.strokeText(badge, e.x - 18, e.y - 20);
-                        ctx.fillText(badge, e.x - 18, e.y - 20);
+                        this.drawIcon(badge, e.x - 18, e.y - 20, 20);
                         const pct = 1 - e.windUp / Math.max(1, e.windUpMax);
                         ctx.strokeStyle = 'rgba(250, 204, 21, 0.95)';
                         ctx.lineWidth = 3.5;
@@ -4319,8 +4341,7 @@
                         ctx.arc(e.x, e.y - 2, 26, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * pct);
                         ctx.stroke();
                     } else if (e.skillCd <= 0) {
-                        ctx.strokeText(badge, e.x - 18, e.y - 20);
-                        ctx.fillText(badge, e.x - 18, e.y - 20);
+                        this.drawIcon(badge, e.x - 18, e.y - 20, 20);
                     }
                 }
 
@@ -4358,6 +4379,346 @@
                         ctx.fillRect(bx + s * segW + 1, by, segW - 2, barH);
                     }
                 }
+            }
+
+            // ============================================================
+            // 矢量图标系统：糖果风小图标，替代 emoji（精致游戏质感）
+            // 所有图标绘制在 24x24 网格上，(x,y) 为中心，s 为目标尺寸
+            // ============================================================
+            drawIcon(name, x, y, s, targetCtx = null) {
+                const ctx = targetCtx || this.ctx;
+                ctx.save();
+                ctx.translate(x, y);
+                const u = s / 24;
+                ctx.lineJoin = 'round';
+                ctx.lineCap = 'round';
+
+                const circle = (r, fill) => {
+                    if (!fill) return;
+                    ctx.fillStyle = fill;
+                    ctx.beginPath(); ctx.arc(0, 0, r * u, 0, Math.PI * 2); ctx.fill();
+                };
+                const shine = (sx, sy, r, a = 0.55) => {
+                    ctx.fillStyle = `rgba(255,255,255,${a})`;
+                    ctx.beginPath(); ctx.arc(sx * u, sy * u, r * u, 0, Math.PI * 2); ctx.fill();
+                };
+
+                switch (name) {
+                    case 'coin': {
+                        circle(11, '#92400e');
+                        circle(9.2, '#f59e0b');
+                        circle(7, '#fcd34d');
+                        ctx.strokeStyle = '#b45309';
+                        ctx.lineWidth = 1.4 * u;
+                        ctx.beginPath(); ctx.arc(0, 0, 4.6 * u, 0, Math.PI * 2); ctx.stroke();
+                        shine(-2.6, -3.2, 2, 0.65);
+                        break;
+                    }
+                    case 'bomb': {
+                        // 引线
+                        ctx.strokeStyle = '#92400e';
+                        ctx.lineWidth = 2.2 * u;
+                        ctx.beginPath(); ctx.moveTo(4 * u, -7 * u); ctx.quadraticCurveTo(8 * u, -11 * u, 10 * u, -8 * u); ctx.stroke();
+                        // 火花
+                        ctx.fillStyle = '#fbbf24';
+                        ctx.beginPath(); ctx.arc(10.5 * u, -8.5 * u, 2.6 * u, 0, Math.PI * 2); ctx.fill();
+                        ctx.fillStyle = '#f97316';
+                        ctx.beginPath(); ctx.arc(10.5 * u, -8.5 * u, 1.4 * u, 0, Math.PI * 2); ctx.fill();
+                        // 本体
+                        circle(9.2, '#1f2937');
+                        circle(9.2, null);
+                        ctx.fillStyle = '#374151';
+                        ctx.beginPath(); ctx.arc(0, 0, 9.2 * u, 0, Math.PI * 2); ctx.fill();
+                        ctx.fillStyle = '#111827';
+                        ctx.beginPath(); ctx.arc(1 * u, 1.5 * u, 7.6 * u, 0, Math.PI * 2); ctx.fill();
+                        shine(-3, -3.4, 2.4, 0.5);
+                        // 顶部盖
+                        ctx.fillStyle = '#6b7280';
+                        drawRoundRect(ctx, -3.4 * u, -11.6 * u, 6.8 * u, 3.4 * u, 1.4 * u);
+                        ctx.fill();
+                        break;
+                    }
+                    case 'fire': {
+                        // 外焰
+                        ctx.fillStyle = '#f97316';
+                        ctx.beginPath();
+                        ctx.moveTo(0, -11 * u);
+                        ctx.bezierCurveTo(7 * u, -4 * u, 9 * u, 2 * u, 6 * u, 8 * u);
+                        ctx.bezierCurveTo(4 * u, 11 * u, -4 * u, 11 * u, -6 * u, 8 * u);
+                        ctx.bezierCurveTo(-9 * u, 2 * u, -7 * u, -4 * u, 0, -11 * u);
+                        ctx.fill();
+                        // 内焰
+                        ctx.fillStyle = '#fde047';
+                        ctx.beginPath();
+                        ctx.moveTo(0, -5 * u);
+                        ctx.bezierCurveTo(4 * u, 0, 5 * u, 4 * u, 3 * u, 8 * u);
+                        ctx.bezierCurveTo(1.5 * u, 10 * u, -1.5 * u, 10 * u, -3 * u, 8 * u);
+                        ctx.bezierCurveTo(-5 * u, 4 * u, -4 * u, 0, 0, -5 * u);
+                        ctx.fill();
+                        break;
+                    }
+                    case 'bolt': {
+                        ctx.fillStyle = '#facc15';
+                        ctx.strokeStyle = '#b45309';
+                        ctx.lineWidth = 1.6 * u;
+                        ctx.beginPath();
+                        ctx.moveTo(4 * u, -11 * u);
+                        ctx.lineTo(-5 * u, 2 * u);
+                        ctx.lineTo(-1 * u, 2 * u);
+                        ctx.lineTo(-4 * u, 11 * u);
+                        ctx.lineTo(5 * u, -2 * u);
+                        ctx.lineTo(1 * u, -2 * u);
+                        ctx.closePath();
+                        ctx.fill(); ctx.stroke();
+                        break;
+                    }
+                    case 'shield': {
+                        ctx.fillStyle = '#10b981';
+                        ctx.strokeStyle = '#065f46';
+                        ctx.lineWidth = 1.6 * u;
+                        ctx.beginPath();
+                        ctx.moveTo(0, -10 * u);
+                        ctx.lineTo(8 * u, -6 * u);
+                        ctx.lineTo(8 * u, 1 * u);
+                        ctx.bezierCurveTo(8 * u, 7 * u, 4 * u, 10 * u, 0, 11.5 * u);
+                        ctx.bezierCurveTo(-4 * u, 10 * u, -8 * u, 7 * u, -8 * u, 1 * u);
+                        ctx.lineTo(-8 * u, -6 * u);
+                        ctx.closePath();
+                        ctx.fill(); ctx.stroke();
+                        shine(-2.6, -3.4, 1.8, 0.5);
+                        break;
+                    }
+                    case 'clock': {
+                        circle(9.4, '#e0f2fe');
+                        ctx.strokeStyle = '#0284c7';
+                        ctx.lineWidth = 2 * u;
+                        ctx.beginPath(); ctx.arc(0, 0, 9.4 * u, 0, Math.PI * 2); ctx.stroke();
+                        ctx.strokeStyle = '#0c4a6e';
+                        ctx.lineWidth = 2 * u;
+                        ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(0, -5.5 * u); ctx.stroke();
+                        ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(4 * u, 1.5 * u); ctx.stroke();
+                        circle(1.6, '#0c4a6e');
+                        break;
+                    }
+                    case 'ghost': {
+                        ctx.fillStyle = '#a78bfa';
+                        ctx.beginPath();
+                        ctx.arc(0, -2 * u, 8 * u, Math.PI, 0);
+                        ctx.lineTo(8 * u, 7 * u);
+                        // 波浪底边
+                        for (let i = 0; i < 3; i++) {
+                            ctx.arc((8 - (i * 2 + 1) * 16 / 6) * u, 7 * u, (16 / 6 / 2) * u, 0, Math.PI, true);
+                        }
+                        ctx.closePath();
+                        ctx.fill();
+                        // 眼睛
+                        ctx.fillStyle = '#1e1b4b';
+                        ctx.beginPath(); ctx.arc(-3 * u, -3 * u, 1.8 * u, 0, Math.PI * 2); ctx.fill();
+                        ctx.beginPath(); ctx.arc(3 * u, -3 * u, 1.8 * u, 0, Math.PI * 2); ctx.fill();
+                        shine(-3.4, -6, 1.6, 0.5);
+                        break;
+                    }
+                    case 'vest': {
+                        // 火焰纹章盾
+                        ctx.fillStyle = '#f59e0b';
+                        ctx.strokeStyle = '#92400e';
+                        ctx.lineWidth = 1.6 * u;
+                        ctx.beginPath();
+                        ctx.moveTo(0, -10 * u);
+                        ctx.lineTo(8 * u, -6 * u);
+                        ctx.lineTo(8 * u, 1 * u);
+                        ctx.bezierCurveTo(8 * u, 7 * u, 4 * u, 10 * u, 0, 11.5 * u);
+                        ctx.bezierCurveTo(-4 * u, 10 * u, -8 * u, 7 * u, -8 * u, 1 * u);
+                        ctx.lineTo(-8 * u, -6 * u);
+                        ctx.closePath();
+                        ctx.fill(); ctx.stroke();
+                        // 小火焰
+                        ctx.fillStyle = '#ef4444';
+                        ctx.beginPath();
+                        ctx.moveTo(0, -5 * u);
+                        ctx.bezierCurveTo(3.4 * u, -1 * u, 4 * u, 3 * u, 2.4 * u, 6 * u);
+                        ctx.bezierCurveTo(1 * u, 8 * u, -1 * u, 8 * u, -2.4 * u, 6 * u);
+                        ctx.bezierCurveTo(-4 * u, 3 * u, -3.4 * u, -1 * u, 0, -5 * u);
+                        ctx.fill();
+                        break;
+                    }
+                    case 'bird': {
+                        // 魔力鸟：圆身 + 翅膀 + 喙
+                        ctx.fillStyle = '#f472b6';
+                        ctx.beginPath(); ctx.ellipse(0, 1 * u, 7.5 * u, 6 * u, 0, 0, Math.PI * 2); ctx.fill();
+                        ctx.fillStyle = '#ec4899';
+                        ctx.beginPath(); ctx.ellipse(-5 * u, -1 * u, 4.5 * u, 3 * u, -0.5, 0, Math.PI * 2); ctx.fill();
+                        // 眼睛
+                        ctx.fillStyle = '#ffffff';
+                        ctx.beginPath(); ctx.arc(3 * u, -1 * u, 2.6 * u, 0, Math.PI * 2); ctx.fill();
+                        ctx.fillStyle = '#0f172a';
+                        ctx.beginPath(); ctx.arc(3.6 * u, -1 * u, 1.3 * u, 0, Math.PI * 2); ctx.fill();
+                        // 喙
+                        ctx.fillStyle = '#fbbf24';
+                        ctx.beginPath();
+                        ctx.moveTo(8.5 * u, 0); ctx.lineTo(11.5 * u, 1.6 * u); ctx.lineTo(8.5 * u, 3.2 * u);
+                        ctx.closePath(); ctx.fill();
+                        // 彩虹尾
+                        ctx.strokeStyle = '#a78bfa'; ctx.lineWidth = 2 * u;
+                        ctx.beginPath(); ctx.moveTo(-7 * u, 4 * u); ctx.quadraticCurveTo(-11 * u, 7 * u, -10 * u, 10 * u); ctx.stroke();
+                        break;
+                    }
+                    case 'snow': {
+                        ctx.strokeStyle = '#e0f2fe';
+                        ctx.lineWidth = 2.2 * u;
+                        for (let i = 0; i < 6; i++) {
+                            const a = (i / 6) * Math.PI * 2;
+                            ctx.beginPath();
+                            ctx.moveTo(0, 0);
+                            ctx.lineTo(Math.cos(a) * 9 * u, Math.sin(a) * 9 * u);
+                            ctx.stroke();
+                            // 小分叉
+                            const bx = Math.cos(a) * 6 * u, by = Math.sin(a) * 6 * u;
+                            ctx.lineWidth = 1.6 * u;
+                            ctx.beginPath();
+                            ctx.moveTo(bx, by);
+                            ctx.lineTo(bx + Math.cos(a + 0.5) * 2.6 * u, by + Math.sin(a + 0.5) * 2.6 * u);
+                            ctx.moveTo(bx, by);
+                            ctx.lineTo(bx + Math.cos(a - 0.5) * 2.6 * u, by + Math.sin(a - 0.5) * 2.6 * u);
+                            ctx.stroke();
+                            ctx.lineWidth = 2.2 * u;
+                        }
+                        circle(1.8, '#ffffff');
+                        break;
+                    }
+                    case 'leaf': {
+                        ctx.fillStyle = '#22c55e';
+                        ctx.beginPath();
+                        ctx.moveTo(0, -10 * u);
+                        ctx.bezierCurveTo(8 * u, -4 * u, 8 * u, 6 * u, 0, 10 * u);
+                        ctx.bezierCurveTo(-8 * u, 6 * u, -8 * u, -4 * u, 0, -10 * u);
+                        ctx.fill();
+                        ctx.strokeStyle = '#15803d';
+                        ctx.lineWidth = 1.4 * u;
+                        ctx.beginPath(); ctx.moveTo(0, -8 * u); ctx.lineTo(0, 8 * u); ctx.stroke();
+                        shine(-2.4, -3, 1.6, 0.5);
+                        break;
+                    }
+                    case 'lock': {
+                        // 锁体
+                        ctx.fillStyle = '#64748b';
+                        drawRoundRect(ctx, -7 * u, -2 * u, 14 * u, 11 * u, 3 * u);
+                        ctx.fill();
+                        ctx.fillStyle = '#475569';
+                        drawRoundRect(ctx, -7 * u, -2 * u, 14 * u, 4 * u, 3 * u);
+                        ctx.fill();
+                        // 锁梁
+                        ctx.strokeStyle = '#cbd5e1';
+                        ctx.lineWidth = 3 * u;
+                        ctx.beginPath(); ctx.arc(0, -2 * u, 5 * u, Math.PI, 0); ctx.stroke();
+                        // 钥匙孔
+                        ctx.fillStyle = '#f8fafc';
+                        ctx.beginPath(); ctx.arc(0, 2.5 * u, 1.8 * u, 0, Math.PI * 2); ctx.fill();
+                        ctx.fillRect(-0.9 * u, 2.5 * u, 1.8 * u, 3.4 * u);
+                        break;
+                    }
+                    case 'angry': {
+                        // 怒气青筋（动漫式）
+                        ctx.strokeStyle = '#ef4444';
+                        ctx.lineWidth = 3.2 * u;
+                        const bump = (cx, cy, r) => {
+                            ctx.beginPath(); ctx.arc(cx * u, cy * u, r * u, 0, Math.PI * 2); ctx.stroke();
+                        };
+                        bump(-3.4, -2.4, 3.4); bump(3.4, -2.4, 3.4);
+                        bump(-3.4, 3.6, 3.4); bump(3.4, 3.6, 3.4);
+                        break;
+                    }
+                    case 'star': {
+                        ctx.fillStyle = '#facc15';
+                        ctx.strokeStyle = '#b45309';
+                        ctx.lineWidth = 1.4 * u;
+                        ctx.beginPath();
+                        for (let i = 0; i < 10; i++) {
+                            const r = (i % 2 === 0 ? 10 : 4.4) * u;
+                            const a = -Math.PI / 2 + (i / 10) * Math.PI * 2;
+                            const px = Math.cos(a) * r, py = Math.sin(a) * r;
+                            if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+                        }
+                        ctx.closePath(); ctx.fill(); ctx.stroke();
+                        shine(-2.4, -3, 1.6, 0.6);
+                        break;
+                    }
+                    case 'water': {
+                        ctx.fillStyle = '#38bdf8';
+                        ctx.beginPath();
+                        ctx.moveTo(0, -10 * u);
+                        ctx.bezierCurveTo(6 * u, -2 * u, 8 * u, 3 * u, 8 * u, 6 * u);
+                        ctx.bezierCurveTo(8 * u, 10 * u, 4 * u, 11.5 * u, 0, 11.5 * u);
+                        ctx.bezierCurveTo(-4 * u, 11.5 * u, -8 * u, 10 * u, -8 * u, 6 * u);
+                        ctx.bezierCurveTo(-8 * u, 3 * u, -6 * u, -2 * u, 0, -10 * u);
+                        ctx.fill();
+                        shine(-2.6, 3.4, 1.8, 0.55);
+                        break;
+                    }
+                    case 'wind': {
+                        ctx.strokeStyle = '#7dd3fc';
+                        ctx.lineWidth = 2.4 * u;
+                        const gust = (yOff, len) => {
+                            ctx.beginPath();
+                            ctx.moveTo(-9 * u, yOff * u);
+                            ctx.bezierCurveTo(-3 * u, (yOff - 3) * u, 3 * u, (yOff + 3) * u, (len) * u, yOff * u);
+                            ctx.stroke();
+                        };
+                        gust(-5, 7); gust(0, 9); gust(5, 6);
+                        break;
+                    }
+                    case 'swirl': {
+                        ctx.strokeStyle = '#c4b5fd';
+                        ctx.lineWidth = 2.6 * u;
+                        ctx.beginPath();
+                        for (let a = 0; a < Math.PI * 3.4; a += 0.15) {
+                            const r = (1 + a * 1.9) * u;
+                            const px = Math.cos(a) * r, py = Math.sin(a) * r;
+                            if (a === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+                        }
+                        ctx.stroke();
+                        break;
+                    }
+                }
+                ctx.restore();
+            }
+
+            // 关卡开场横幅：显示关卡数 + 场景主题
+            showLevelBanner() {
+                const banner = document.getElementById('levelBanner');
+                const numEl = document.getElementById('levelBannerNum');
+                const themeEl = document.getElementById('levelBannerTheme');
+                if (!banner || !numEl || !themeEl) return;
+                const theme = this.getLevelTheme();
+                numEl.textContent = `第 ${this.level} 关`;
+                themeEl.textContent = theme.name;
+                banner.classList.remove('hidden', 'level-banner-hide');
+                // 重新触发入场动画
+                const card = banner.querySelector('.level-banner-card');
+                if (card) {
+                    card.style.animation = 'none';
+                    void card.offsetWidth;
+                    card.style.animation = '';
+                }
+                clearTimeout(this._levelBannerTimer);
+                this._levelBannerTimer = setTimeout(() => {
+                    banner.classList.add('level-banner-hide');
+                    setTimeout(() => banner.classList.add('hidden'), 420);
+                }, 1600);
+            }
+
+            // ============================================================
+            // 关卡主题：随关卡推进切换场景配色（草原→沙漠→冰原→火山）
+            // ============================================================
+            getLevelTheme() {
+                const stage = Math.min(3, Math.floor((this.level - 1) / 3));
+                const themes = [
+                    { name: '青青草原', light: '#a3e635', dark: '#84cc16', deco: '#65a30d', glow: 'rgba(163, 230, 53, 0.35)' },
+                    { name: '金色沙漠', light: '#fde68a', dark: '#fcd34d', deco: '#d97706', glow: 'rgba(253, 230, 138, 0.35)' },
+                    { name: '冰封雪原', light: '#bae6fd', dark: '#7dd3fc', deco: '#0284c7', glow: 'rgba(186, 230, 253, 0.35)' },
+                    { name: '烈焰火山', light: '#6d28d9', dark: '#5b21b6', deco: '#c4b5fd', glow: 'rgba(139, 92, 246, 0.35)' }
+                ];
+                return themes[stage];
             }
 
             drawPlayer(p) {
