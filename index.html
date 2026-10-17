@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Q版炸弹人大冒险 - 百怪狂暴升级版 · 趣味加强版</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;700&family=Noto+Sans+SC:wght@500;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body id="appBody" class="w-full flex flex-col justify-between items-center p-1 sm:p-2.5 select-none overflow-hidden" style="height: var(--app-h, 100dvh);">
+
+    <!-- 顶部状态栏 & 任务指引 HUD -->
+    <header id="topHeader" class="w-full max-w-[860px] flex flex-col gap-1 shrink-0 z-10">
+        <div class="flex items-center justify-between candy-panel rounded-2xl px-2.5 py-1 sm:px-3.5 sm:py-1.5 gap-1.5">
+            <div class="flex items-center gap-1.5 shrink-0">
+                <div class="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-gradient-to-tr from-rose-500 to-orange-400 flex items-center justify-center text-white text-base sm:text-lg shadow-sm">
+                    💣
+                </div>
+                <div>
+                    <div class="flex items-center gap-1">
+                        <h1 class="text-xs sm:text-base font-black text-slate-800 tracking-wide leading-tight">Q版炸弹人</h1>
+                        <select id="topDiffSelect" class="bg-indigo-100 text-indigo-800 font-black text-[10px] sm:text-xs px-1.5 py-0.5 rounded-lg border border-indigo-300 outline-none cursor-pointer">
+                            <option value="0">🌱新手(8怪)</option>
+                            <option value="1">🍀简单(14怪)</option>
+                            <option value="2">⚔️中等(20精英)</option>
+                            <option value="3">🔥困难1(5倍图·68怪)</option>
+                            <option value="4">💀困难2(10倍图·145怪)</option>
+                        </select>
+                    </div>
+                    <p class="text-[10px] text-slate-500 font-bold hidden lg:block">千鸟破冰 · 炸道具爆怪惩罚 · 百怪军团围堵 · 全屏超必杀 · 强化商店</p>
+                </div>
+            </div>
+
+            <div id="questBanner" class="flex-1 max-w-[320px] mx-1 px-2 py-1 rounded-xl bg-amber-100/90 border-2 border-amber-300 text-amber-900 font-black text-[10px] sm:text-xs text-center truncate shadow-inner transition-colors duration-300">
+                🔒 消灭剩余怪物 (8) 以激活传送门！
+            </div>
+
+            <div class="flex items-center gap-1 shrink-0">
+                <button id="btnRotate" title="横屏模式：旋转画面，手机竖握即可 MOBA 操作" class="candy-btn bg-violet-500 hover:bg-violet-400 text-white font-bold px-2 py-1 rounded-xl text-xs flex items-center gap-1 border-2 border-white">
+                    <span>📱</span>
+                    <span class="hidden md:inline">横屏</span>
+                </button>
+                <button id="btnFullscreen" title="全屏游戏 (F)" class="candy-btn bg-violet-500 hover:bg-violet-400 text-white font-bold px-2 py-1 rounded-xl text-xs flex items-center gap-1 border-2 border-white">
+                    <span>⛶</span>
+                    <span class="hidden md:inline">全屏</span>
+                </button>
+                <button id="btnControlMode" title="切换摇杆 / 十字键 / 手势" class="candy-btn bg-indigo-500 hover:bg-indigo-400 text-white font-bold px-2 py-1 rounded-xl text-xs flex items-center gap-1 border-2 border-white">
+                    <span id="controlModeIcon">🕹️</span>
+                    <span class="hidden sm:inline" id="controlModeText">摇杆</span>
+                </button>
+                <button id="btnSound" class="candy-btn bg-amber-400 hover:bg-amber-300 text-slate-900 font-bold px-2 py-1 rounded-xl text-xs flex items-center gap-1 border-2 border-white">
+                    <span id="soundIcon">🔊</span>
+                    <span class="hidden md:inline" id="soundText">音效</span>
+                </button>
+                <button id="btnPause" class="candy-btn bg-sky-400 hover:bg-sky-300 text-white font-bold px-2 py-1 rounded-xl text-xs flex items-center gap-1 border-2 border-white">
+                    <span id="pauseIcon">⏸️</span>
+                    <span class="hidden md:inline" id="pauseText">暂停</span>
+                </button>
+                <button id="btnRestart" class="candy-btn bg-rose-500 hover:bg-rose-400 text-white font-bold px-2 py-1 rounded-xl text-xs flex items-center gap-1 border-2 border-white">
+                    <span>🔄</span>
+                    <span class="hidden md:inline">重玩</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- 8项实时属性胶囊条 -->
+        <div id="hudGrid" class="grid grid-cols-8 gap-1 sm:gap-1.5">
+            <div class="candy-panel rounded-xl px-1.5 py-0.5 sm:px-2 sm:py-1 flex flex-col sm:flex-row items-center justify-between">
+                <span class="text-[9px] sm:text-[11px] font-bold text-slate-500">🚩关卡</span>
+                <span id="hudLevel" class="text-[11px] sm:text-xs font-black text-indigo-600">1</span>
+            </div>
+            <div class="candy-panel rounded-xl px-1.5 py-0.5 sm:px-2 sm:py-1 flex flex-col sm:flex-row items-center justify-between">
+                <span class="text-[9px] sm:text-[11px] font-bold text-slate-500">⭐得分</span>
+                <span id="hudScore" class="text-[11px] sm:text-xs font-black text-amber-500">0</span>
+            </div>
+            <div class="candy-panel rounded-xl px-1.5 py-0.5 sm:px-2 sm:py-1 flex flex-col sm:flex-row items-center justify-between">
+                <span class="text-[9px] sm:text-[11px] font-bold text-slate-500">💰金币</span>
+                <span id="hudCoins" class="text-[11px] sm:text-xs font-black text-yellow-600">0</span>
+            </div>
+            <div class="candy-panel rounded-xl px-1.5 py-0.5 sm:px-2 sm:py-1 flex flex-col sm:flex-row items-center justify-between">
+                <span class="text-[9px] sm:text-[11px] font-bold text-slate-500">❤️生命</span>
+                <span id="hudLives" class="text-[11px] sm:text-xs font-black text-rose-500">3</span>
+            </div>
+            <div class="candy-panel rounded-xl px-1.5 py-0.5 sm:px-2 sm:py-1 flex flex-col sm:flex-row items-center justify-between">
+                <span class="text-[9px] sm:text-[11px] font-bold text-slate-500">💣炸弹</span>
+                <span id="hudBombs" class="text-[11px] sm:text-xs font-black text-slate-700">1/1</span>
+            </div>
+            <div class="candy-panel rounded-xl px-1.5 py-0.5 sm:px-2 sm:py-1 flex flex-col sm:flex-row items-center justify-between">
+                <span class="text-[9px] sm:text-[11px] font-bold text-slate-500">🔥威力</span>
+                <span id="hudRange" class="text-[11px] sm:text-xs font-black text-orange-500">1</span>
+            </div>
+            <div class="candy-panel rounded-xl px-1.5 py-0.5 sm:px-2 sm:py-1 flex flex-col sm:flex-row items-center justify-between">
+                <span class="text-[9px] sm:text-[11px] font-bold text-slate-500">👾怪物</span>
+                <span id="hudEnemies" class="text-[11px] sm:text-xs font-black text-emerald-600">8</span>
+            </div>
+            <div class="candy-panel rounded-xl px-1.5 py-0.5 sm:px-2 sm:py-1 flex flex-col justify-center gap-0.5">
+                <div class="flex items-center justify-between text-[9px] sm:text-[10px] font-black text-fuchsia-600 leading-none">
+                    <span id="feverLabel">🎵狂暴</span>
+                    <span id="buffIcons" class="tracking-tighter text-[10px]"></span>
+                </div>
+                <div class="w-full h-2 bg-slate-200 rounded-full overflow-hidden border border-white">
+                    <div id="hudFeverBar" class="h-full fever-gradient transition-all duration-200" style="width: 0%"></div>
+                </div>
+                <div class="w-full h-2 bg-slate-200 rounded-full overflow-hidden border border-white">
+                    <div id="hudMegaBar" class="h-full mega-gradient transition-all duration-200" style="width: 0%"></div>
+                </div>
+            </div>
+        </div>
+
+    </header>
+
+    <!-- 中央自适应画布主舞台 -->
+    <main id="stageArea" class="w-full flex-1 min-h-0 flex items-center justify-center my-0.5 overflow-hidden relative">
+        <div id="canvasWrapper" class="canvas-wrapper">
+            <canvas id="gameCanvas" width="780" height="660"></canvas>
+
+            <!-- 危险预警红色呼吸描边 -->
+            <div id="dangerRing" class="hidden absolute inset-0 pointer-events-none z-20 danger-ring" style="border-radius: 1.1rem; box-shadow: inset 0 0 34px 10px rgba(244, 63, 94, 0.85); border: 4px solid rgba(244, 63, 94, 0.7);"></div>
+
+            <!-- 连杀 / 挑战达成 中央播报 -->
+            <div id="comboToast" class="hidden absolute left-1/2 top-[12%] -translate-x-1/2 z-20 pointer-events-none">
+                <div class="px-4 py-1.5 rounded-2xl bg-white/95 border-4 border-amber-300 shadow-2xl text-center">
+                    <div id="comboToastText" class="text-xl sm:text-3xl font-black text-fuchsia-600 tracking-wider whitespace-nowrap">COMBO x3!</div>
+                    <div id="comboToastSub" class="text-[10px] sm:text-xs font-black text-slate-500"></div>
+                </div>
+            </div>
+
+            <!-- 连击倍率浮标 -->
+            <div id="comboMeter" class="hidden">
+                <div class="px-3 py-1 rounded-full bg-gradient-to-r from-fuchsia-500 to-rose-500 border-2 border-white shadow-xl">
+                    <span class="text-white font-black text-sm tracking-wide" id="comboMeterText">COMBO ×3 · 得分 ×1.2</span>
+                </div>
+            </div>
+
+            <div id="overlayModal" class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-2.5 z-30">
+                <div class="candy-panel rounded-3xl p-3.5 sm:p-5 max-w-lg w-full text-center flex flex-col items-center gap-2 sm:gap-2.5 float-anim max-h-full overflow-y-auto">
+                    <div id="modalBadge" class="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-gradient-to-tr from-amber-400 to-rose-400 flex items-center justify-center text-2xl sm:text-3xl shadow-lg border-4 border-white shrink-0">
+                        💣
+                    </div>
+                    <h2 id="modalTitle" class="text-lg sm:text-2xl font-black text-slate-800">Q版炸弹人大冒险 · 百怪狂暴版</h2>
+                    <p id="modalDesc" class="text-[11px] sm:text-xs text-slate-600 leading-relaxed font-medium">
+                        ⚠️ <span class="text-rose-600 font-black">注意：炸毁地上的道具会异变涌出多只愤怒怪物！</span><br>
+                        🌈 魔力鸟千鸟闪电可全屏震碎一层糖霜冰封；清光怪物军团解封<span class="text-purple-600 font-black">魔法传送门</span>即可过关！<br>
+                        💥 击杀怪物累积<span class="text-fuchsia-600 font-black">必杀魔力</span>，攒满 5 点即可发动<span class="text-fuchsia-600 font-black">全屏超必杀</span>！
+                    </p>
+
+                    <div id="difficultyPicker" class="w-full grid grid-cols-5 gap-1 text-center">
+                        <button data-diff="0" class="diff-btn candy-btn py-1.5 px-1 rounded-xl bg-emerald-500 text-white border-2 border-white flex flex-col items-center">
+                            <span class="text-xs sm:text-sm font-black">🌱新手</span>
+                            <span class="text-[9px] opacity-90">13×11·8怪</span>
+                        </button>
+                        <button data-diff="1" class="diff-btn candy-btn py-1.5 px-1 rounded-xl bg-slate-100 text-slate-700 border-2 border-white flex flex-col items-center">
+                            <span class="text-xs sm:text-sm font-black">🍀简单</span>
+                            <span class="text-[9px] opacity-75">13×11·14怪</span>
+                        </button>
+                        <button data-diff="2" class="diff-btn candy-btn py-1.5 px-1 rounded-xl bg-slate-100 text-slate-700 border-2 border-white flex flex-col items-center">
+                            <span class="text-xs sm:text-sm font-black">⚔️中等</span>
+                            <span class="text-[9px] opacity-75">20只精英怪</span>
+                        </button>
+                        <button data-diff="3" class="diff-btn candy-btn py-1.5 px-1 rounded-xl bg-slate-100 text-slate-700 border-2 border-white flex flex-col items-center">
+                            <span class="text-xs sm:text-sm font-black">🔥困难1</span>
+                            <span class="text-[9px] opacity-75">5倍图·68怪</span>
+                        </button>
+                        <button data-diff="4" class="diff-btn candy-btn py-1.5 px-1 rounded-xl bg-slate-100 text-slate-700 border-2 border-white flex flex-col items-center">
+                            <span class="text-xs sm:text-sm font-black">💀困难2</span>
+                            <span class="text-[9px] opacity-75">10倍·145怪</span>
+                        </button>
+                    </div>
+
+                    <div class="w-full bg-sky-50/95 rounded-2xl p-2 border-2 border-sky-100 grid grid-cols-2 gap-1.5 text-left text-[10px] sm:text-[11px]">
+                        <div class="flex items-center gap-1.5">
+                            <span class="w-5 h-5 rounded-lg bg-sky-500 text-white flex items-center justify-center font-bold shrink-0">⏰</span>
+                            <span class="text-slate-700 font-bold truncate">遥控炸弹：按 <b>K/📡引爆</b> 全引爆</span>
+                        </div>
+                        <div class="flex items-center gap-1.5">
+                            <span class="w-5 h-5 rounded-lg bg-purple-500 text-white flex items-center justify-center font-bold shrink-0">👻</span>
+                            <span class="text-slate-700 font-bold truncate">穿墙披风：穿箱/冰/藤蔓不减速</span>
+                        </div>
+                        <div class="flex items-center gap-1.5">
+                            <span class="w-5 h-5 rounded-lg bg-amber-500 text-white flex items-center justify-center font-bold shrink-0">🧥</span>
+                            <span class="text-slate-700 font-bold truncate">火焰防炸衣：金盾免疫一切炸弹</span>
+                        </div>
+                        <div class="flex items-center gap-1.5">
+                            <span class="w-5 h-5 rounded-lg bg-pink-500 text-white flex items-center justify-center font-bold shrink-0">🌈</span>
+                            <span class="text-slate-700 font-bold truncate">魔力鸟千鸟：全屏破除1层冰封</span>
+                        </div>
+                        <div class="flex items-center gap-1.5">
+                            <span class="w-5 h-5 rounded-lg bg-cyan-500 text-white flex items-center justify-center font-bold shrink-0">🧊</span>
+                            <span class="text-slate-700 font-bold truncate">糖霜冰块：第1次碎冰第2次毁箱</span>
+                        </div>
+                        <div class="flex items-center gap-1.5">
+                            <span class="w-5 h-5 rounded-lg bg-rose-600 text-white flex items-center justify-center font-bold shrink-0">👾</span>
+                            <span class="text-rose-700 font-bold truncate">炸毁道具：异变生成2~5只怪物!</span>
+                        </div>
+                        <div class="flex items-center gap-1.5">
+                            <span class="w-5 h-5 rounded-lg bg-yellow-500 text-white flex items-center justify-center font-bold shrink-0">💰</span>
+                            <span class="text-slate-700 font-bold truncate">金币：木箱18%掉落，可去商店永久强化</span>
+                        </div>
+                        <div class="flex items-center gap-1.5">
+                            <span class="w-5 h-5 rounded-lg bg-fuchsia-600 text-white flex items-center justify-center font-bold shrink-0">💥</span>
+                            <span class="text-slate-700 font-bold truncate">超必杀：魔力攒满5点全屏巨爆</span>
+                        </div>
+                    </div>
+
+                    <!-- 🐉 特化怪图鉴 -->
+                    <div class="w-full bg-rose-50/95 rounded-2xl p-2 border-2 border-rose-100 text-left">
+                        <div class="text-[10px] sm:text-[11px] font-black text-rose-700 mb-1">🐉 特化怪（会跟你的炸弹互动，务必优先处理）</div>
+                        <div class="grid grid-cols-2 gap-1.5 text-[10px] sm:text-[11px]">
+                            <div class="flex items-center gap-1.5">
+                                <span class="w-5 h-5 rounded-lg bg-orange-500 text-white flex items-center justify-center text-[11px] shrink-0">🐉</span>
+                                <span class="text-slate-700 font-bold truncate">小火龙：<b>喷火引爆</b>炸弹，自身免疫</span>
+                            </div>
+                            <div class="flex items-center gap-1.5">
+                                <span class="w-5 h-5 rounded-lg bg-sky-500 text-white flex items-center justify-center text-[11px] shrink-0">🐢</span>
+                                <span class="text-slate-700 font-bold truncate">小乌龟：<b>喷水冻结</b>，暂停倒计时</span>
+                            </div>
+                            <div class="flex items-center gap-1.5">
+                                <span class="w-5 h-5 rounded-lg bg-cyan-500 text-white flex items-center justify-center text-[11px] shrink-0">🐦</span>
+                                <span class="text-slate-700 font-bold truncate">青鸟：<b>刮风后退</b>炸弹一格</span>
+                            </div>
+                            <div class="flex items-center gap-1.5">
+                                <span class="w-5 h-5 rounded-lg bg-purple-500 text-white flex items-center justify-center text-[11px] shrink-0">🐯</span>
+                                <span class="text-slate-700 font-bold truncate">白虎：<b>吞掉</b>炸弹并强化自身</span>
+                            </div>
+                        </div>
+                        <div class="text-[9px] sm:text-[10px] text-rose-600 font-bold mt-1 leading-snug">
+                            ⏱️ 它们都会<b>蓄力</b>（头顶进度环）后才出手 —— 蓄力期间站定不动，这就是你的击杀窗口。
+                            被控的炸弹在<b>该怪死亡瞬间自动解控</b>，放心打。
+                        </div>
+                    </div>
+
+                    <!-- 🏆 生涯记录 -->
+                    <div id="careerPanel" class="w-full bg-indigo-50/95 rounded-2xl p-2 border-2 border-indigo-100 text-left">
+                        <div class="text-[10px] sm:text-[11px] font-black text-indigo-700 mb-1">🏆 生涯记录</div>
+                        <div class="grid grid-cols-3 gap-1 text-[10px] sm:text-[11px]">
+                            <div class="text-center bg-white rounded-lg py-1 border border-indigo-100">
+                                <div class="text-slate-400 font-bold text-[9px]">最高分</div>
+                                <div id="careerBest" class="font-black text-amber-600">0</div>
+                            </div>
+                            <div class="text-center bg-white rounded-lg py-1 border border-indigo-100">
+                                <div class="text-slate-400 font-bold text-[9px]">总击杀</div>
+                                <div id="careerKills" class="font-black text-rose-600">0</div>
+                            </div>
+                            <div class="text-center bg-white rounded-lg py-1 border border-indigo-100">
+                                <div class="text-slate-400 font-bold text-[9px]">通关数</div>
+                                <div id="careerLevels" class="font-black text-emerald-600">0</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <button id="modalActionBtn" class="candy-btn w-full py-2 sm:py-2.5 rounded-2xl bg-gradient-to-r from-emerald-400 to-teal-500 hover:from-emerald-300 hover:to-teal-400 text-white font-black text-base sm:text-lg tracking-wider border-2 border-white">
+                        🚀 开始冒险
+                    </button>
+                </div>
+            </div>
+
+            <!-- 🛒 永久强化商店 -->
+            <div id="shopModal" class="hidden">
+                <div class="shop-card">
+                    <div class="flex items-center justify-center gap-2">
+                        <div class="w-11 h-11 rounded-2xl bg-gradient-to-tr from-amber-400 to-yellow-500 flex items-center justify-center text-2xl shadow-lg border-4 border-white">🛒</div>
+                        <div class="text-left">
+                            <h2 class="text-lg sm:text-xl font-black text-slate-800 leading-tight">强化商店</h2>
+                            <p class="text-[10px] text-slate-500 font-bold">用金币永久强化你的炸弹人</p>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center justify-center gap-2 py-1 px-3 rounded-full bg-yellow-50 border-2 border-yellow-200 self-center">
+                        <span class="text-lg">💰</span>
+                        <span class="text-base font-black text-yellow-600" id="shopCoins">0</span>
+                        <span class="text-[10px] font-bold text-yellow-700/70">金币</span>
+                    </div>
+
+                    <div id="shopItems" class="flex flex-col gap-1.5"></div>
+
+                    <div class="text-[10px] text-slate-500 font-bold text-center leading-snug">
+                        强化在下一关生效，并且<b class="text-indigo-600">永久保存</b>在你的浏览器里。
+                    </div>
+
+                    <button id="shopContinueBtn" class="candy-btn w-full py-2.5 rounded-2xl bg-gradient-to-r from-emerald-400 to-teal-500 hover:from-emerald-300 hover:to-teal-400 text-white font-black text-base tracking-wider border-2 border-white">
+                        🚀 进入下一关
+                    </button>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <!-- 底部专业移动端双侧多点触控区 -->
+    <footer id="bottomFooter" class="w-full max-w-[860px] shrink-0 z-10">
+        <div class="flex items-center justify-between candy-panel rounded-2xl px-3 py-1.5 sm:px-5 sm:py-2">
+
+            <div class="flex items-center gap-3">
+                <div id="joystickContainer" class="relative w-32 h-32 sm:w-36 sm:h-36 flex items-center justify-center touch-none select-none">
+                    <div id="joystickZone" class="joystick-base w-[122px] h-[122px] sm:w-[136px] sm:h-[136px] rounded-full flex items-center justify-center cursor-pointer touch-none">
+                        <span class="absolute top-1.5 text-[11px] sm:text-xs font-black text-sky-400/80 pointer-events-none">▲</span>
+                        <span class="absolute bottom-1.5 text-[11px] sm:text-xs font-black text-sky-400/80 pointer-events-none">▼</span>
+                        <span class="absolute left-1.5 text-[11px] sm:text-xs font-black text-sky-400/80 pointer-events-none">◀</span>
+                        <span class="absolute right-1.5 text-[11px] sm:text-xs font-black text-sky-400/80 pointer-events-none">▶</span>
+                        <div id="joystickKnob" class="joystick-knob w-14 h-14 sm:w-16 sm:h-16 rounded-full flex items-center justify-center text-white text-sm sm:text-base font-black shadow-lg">
+                            <span id="joystickDirLabel">🕹️</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="dpadContainer" class="hidden grid-cols-3 gap-1 w-24 h-24 sm:w-28 sm:h-28 relative">
+                    <div></div>
+                    <button data-dir="UP" class="dpad-btn candy-btn bg-indigo-500 text-white rounded-xl flex items-center justify-center text-base font-black border-2 border-white">▲</button>
+                    <div></div>
+                    <button data-dir="LEFT" class="dpad-btn candy-btn bg-indigo-500 text-white rounded-xl flex items-center justify-center text-base font-black border-2 border-white">◀</button>
+                    <div class="rounded-xl bg-slate-200/70 flex items-center justify-center text-[9px] font-bold text-slate-400">滑指</div>
+                    <button data-dir="RIGHT" class="dpad-btn candy-btn bg-indigo-500 text-white rounded-xl flex items-center justify-center text-base font-black border-2 border-white">▶</button>
+                    <div></div>
+                    <button data-dir="DOWN" class="dpad-btn candy-btn bg-indigo-500 text-white rounded-xl flex items-center justify-center text-base font-black border-2 border-white">▼</button>
+                    <div></div>
+                </div>
+
+                <div class="hidden md:flex flex-col gap-0.5 text-[11px] text-slate-600 bg-white/70 px-3 py-1.5 rounded-xl border border-white pc-hint">
+                    <div class="font-black text-slate-700">🎮 操控说明（小心别把地面道具炸成怪物！）：</div>
+                    <div>移动：左下摇杆 / <span class="px-1 py-0.5 bg-slate-200 rounded font-bold">WASD</span> / <span class="px-1 py-0.5 bg-slate-200 rounded font-bold">方向键</span></div>
+                    <div>放炸弹：<span class="px-1 py-0.5 bg-rose-100 text-rose-600 rounded font-bold">空格 / J</span> · 遥控引爆：<span class="px-1 py-0.5 bg-sky-100 text-sky-600 rounded font-bold">K / E</span> · 超必杀：<span class="px-1 py-0.5 bg-fuchsia-100 text-fuchsia-600 rounded font-bold">L</span></div>
+                </div>
+            </div>
+
+            <div id="mobileHintBox" class="flex md:hidden flex-col items-center text-center px-1">
+                <span id="mobileBuffHint" class="text-[11px] font-black text-indigo-600">别炸毁道具(会爆怪)!</span>
+                <span id="gestureHint" class="hidden text-[10px] font-bold text-emerald-600 leading-tight">👆棋盘滑动移动 · 轻点放弹 · 双击引爆</span>
+                <span id="mobileSubHint" class="text-[10px] font-bold text-slate-400">击杀攒魔力→💥超必杀</span>
+            </div>
+
+            <div id="actionPad" class="flex items-center gap-2 sm:gap-2.5">
+                <button id="btnMegaBomb" class="candy-btn hidden w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-gradient-to-b from-fuchsia-400 via-purple-500 to-indigo-600 text-white flex-col items-center justify-center border-4 border-white shadow-xl" style="width: 58px; height: 58px;">
+                    <span class="text-xl leading-none mb-0.5 pointer-events-none">💥</span>
+                    <span id="megaBtnLabel" class="text-[9px] font-black tracking-wider pointer-events-none">必杀</span>
+                </button>
+
+                <button id="btnDetonateRemote" class="hidden candy-btn detonate-glow w-18 h-18 sm:w-20 sm:h-20 rounded-full bg-gradient-to-b from-cyan-400 via-sky-500 to-blue-600 text-white flex-col items-center justify-center border-4 border-white shadow-xl" style="width: 72px; height: 72px;">
+                    <span class="text-2xl leading-none mb-0.5 pointer-events-none">📡</span>
+                    <span class="text-[11px] font-black tracking-wider pointer-events-none">引爆(K)</span>
+                </button>
+
+                <button id="btnPlaceBomb" class="candy-btn w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-gradient-to-b from-rose-400 via-rose-500 to-red-600 text-white flex flex-col items-center justify-center border-4 border-white shadow-xl">
+                    <span class="text-3xl sm:text-4xl leading-none mb-0.5 pointer-events-none">💣</span>
+                    <span class="text-xs sm:text-sm font-black tracking-wider pointer-events-none">放炸弹</span>
+                </button>
+            </div>
+        </div>
+    </footer>
+
+    <div id="mobaHud">
+        <div class="moba-stat-cluster">
+            <div class="moba-row">
+                <div class="moba-chip hp"><span>❤️</span><span id="mobaLives">3</span></div>
+                <div class="moba-chip coin"><span>💰</span><span id="mobaCoins">0</span></div>
+                <div class="moba-chip"><span>🚩</span><span id="mobaLevel">1</span></div>
+            </div>
+            <div class="moba-row">
+                <div class="moba-chip"><span class="lbl">炸弹</span><span id="mobaBombs">1/1</span></div>
+                <div class="moba-chip"><span class="lbl">威力</span><span id="mobaRange">1</span></div>
+                <div class="moba-chip"><span class="lbl">分</span><span id="mobaScore">0</span></div>
+            </div>
+        </div>
+
+        <div class="moba-buffs" id="mobaBuffs"></div>
+
+        <div class="moba-vs">
+            <span>👾 敌军</span><span class="foe" id="mobaFoes">0</span>
+            <span style="opacity:.4">|</span>
+            <span>🎯</span><span class="mine" id="mobaGoal">全部歼灭</span>
+        </div>
+
+        <div class="moba-minimap">
+            <canvas id="mobaMinimap" width="120" height="120"></canvas>
+        </div>
+
+        <div class="moba-energy">
+            <div class="moba-bar-wrap">
+                <span class="moba-bar-icon">🎵</span>
+                <div class="moba-bar fever"><i id="mobaFeverBar"></i></div>
+            </div>
+            <div class="moba-bar-wrap">
+                <span class="moba-bar-icon">💥</span>
+                <div class="moba-bar mega"><i id="mobaMegaBar"></i></div>
+            </div>
+        </div>
+    </div>
+
+
+    <script src="js/config.js"></script>
+    <script src="js/audio.js"></script>
+    <script src="js/save.js"></script>
+    <script src="js/game.js"></script>
+</body>
+</html>
