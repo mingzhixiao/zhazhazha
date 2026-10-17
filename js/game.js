@@ -748,7 +748,7 @@
                 const cy = (item.row + 0.5) * TILE_SIZE;
 
                 this.sound.playItemCurseSpawn();
-                this.addFloatingText(cx, cy - 18, `道具被炸! 涌出 ${spawnCount} 只恶怪!`, '#e11d48', 17);
+                this.showToast(`道具被炸! 涌出 ${spawnCount} 只恶怪!`, 'angry');
                 this.addShake(5);
 
                 for (let i = 0; i < 20; i++) {
@@ -774,7 +774,7 @@
 
                 if (this.portal && this.portal.active) {
                     this.portal.active = false;
-                    this.addFloatingText(this.player.x, this.player.y - 36, ' 新怪物出现！传送门重新封印！', '#f59e0b', 16);
+                    this.showToast('新怪物出现！传送门重新封印！', 'lock');
                 }
 
                 this.updateHUD();
@@ -1154,7 +1154,13 @@
 
                 document.getElementById('btnSound').addEventListener('click', () => {
                     const on = this.sound.toggle();
-                    document.getElementById('soundIcon').textContent = on ? '开' : '关';
+                    const iconCanvas = document.getElementById('soundIconCanvas');
+                    if (iconCanvas) {
+                        iconCanvas.dataset.icon = on ? 'speaker' : 'speakerOff';
+                        const bctx = iconCanvas.getContext('2d');
+                        bctx.clearRect(0, 0, 16, 16);
+                        this.drawIcon(on ? 'speaker' : 'speakerOff', 8, 8, 14, bctx);
+                    }
                     document.getElementById('soundText').textContent = on ? '音效' : '静音';
                 });
 
@@ -1556,7 +1562,7 @@
                 this.anyItemSpawned = true;
 
                 this.sound.playNotify();
-                this.addFloatingText(this.player.x, this.player.y - 44, ' 金币达标！木箱里翻出金袋！', '#eab308', 17);
+                this.showToast('金币达标！木箱里翻出金袋！', 'coin');
             }
 
             updateDangerState(dtScale) {
@@ -1585,7 +1591,7 @@
             triggerMegaBomb() {
                 if (this.megaCharge < MEGA_COST) {
                     if (this.state === 'PLAYING') {
-                        this.addFloatingText(this.player.x, this.player.y - 30, `魔力不足 (${this.megaCharge}/${MEGA_COST})`, '#94a3b8', 15);
+                        this.showToast(`魔力不足 (${this.megaCharge}/${MEGA_COST})`, 'star', 1200);
                     }
                     return false;
                 }
@@ -1682,7 +1688,7 @@
                     });
                 }
 
-                this.addFloatingText(this.player.x, this.player.y - 60, ' 超必杀 · 全屏巨爆！', '#d946ef', 24);
+                this.showToast('超必杀 · 全屏巨爆！', 'star', 2000);
                 this.showComboToast(' MEGA BOMB!', `魔力 -${MEGA_COST}`, '#d946ef');
                 this.evaluateMatch3Combo(stats);
                 this.updateHUD();
@@ -1997,7 +2003,7 @@
                         } else if (this.portal.lockedHintCooldown <= 0) {
                             this.portal.lockedHintCooldown = 75;
                             this.sound.playPortalLocked();
-                            this.addFloatingText(portalCenterX, portalCenterY - 18, ' 需先消灭所有怪物！', '#f59e0b');
+                            this.showToast('需先消灭所有怪物！', 'lock', 1400);
                         }
                     }
                 }
@@ -2111,7 +2117,7 @@
                 if (remoteBombs.length === 0) return;
 
                 this.sound.playRemoteBeep();
-                this.addFloatingText(this.player.x, this.player.y - 28, ' 遥控全引爆！', '#0ea5e9');
+                this.showToast('遥控全引爆！', 'clock');
 
                 const batchStats = { obstacles: 0, enemies: 0 };
                 remoteBombs.forEach(rb => {
@@ -2324,7 +2330,7 @@
                         maxLife: 24
                     });
                 }
-                this.addFloatingText(cx, cy - 10, '破除冰封!', '#0284c7');
+                this.showToast('破除冰封!', 'snow');
             }
 
             destroyVine(col, row) {
@@ -2376,9 +2382,9 @@
                     if (this.enemies.length === 0) {
                         this.portal.active = true;
                         this.sound.playPortalUnlock();
-                        this.addFloatingText(cx, cy - 12, ' 发现已激活的传送门!', '#a855f7');
+                        this.showToast('发现已激活的传送门!', 'swirl');
                     } else {
-                        this.addFloatingText(cx, cy - 12, ' 发现封印传送门 (需清怪)', '#64748b');
+                        this.showToast('发现封印传送门 (需清怪)', 'lock');
                     }
                     this.updateHUD();
                     return;
@@ -2386,7 +2392,7 @@
 
                 if (this.goldenCrate && this.goldenCrate.col === col && this.goldenCrate.row === row) {
                     this.registerCoin(this.goldenCrate.amount, cx, cy + 6);
-                    this.addFloatingText(cx, cy - 22, `金袋打开！+${this.goldenCrate.amount}`, '#eab308', 18);
+                    this.showToast(`金袋打开！+${this.goldenCrate.amount}`, 'coin');
                     this.goldenCrate = null;
                 } else if (Math.random() < 0.18) {
                     this.registerCoin(3 + Math.floor(Math.random() * 6), cx, cy);
@@ -2449,7 +2455,7 @@
                         this.feverTimer = 480;
                         this.screenFlashTimer = 24;
                         this.sound.playMagicBird();
-                        this.addFloatingText(this.player.x, this.player.y - 66, ' FEVER TIME! 狂暴时刻！', '#ec4899', 23);
+                        this.showToast('FEVER TIME! 狂暴时刻！', 'fire', 2000);
                         this.showComboToast(' FEVER TIME!', '火焰 6 格 · 炸弹 8 连', '#ec4899');
                     }
                 }
@@ -2512,9 +2518,9 @@
                 }
 
                 if (unfreezeCount > 0) {
-                    this.addFloatingText(this.player.x, this.player.y - 40, `千鸟破冰！解除 ${unfreezeCount} 处冰封！`, '#0284c7', 19);
+                    this.showToast(`千鸟破冰！解除 ${unfreezeCount} 处冰封！`, 'bird');
                 } else {
-                    this.addFloatingText(this.player.x, this.player.y - 40, ' 千鸟共鸣！得分 +300', '#ec4899', 19);
+                    this.addFloatingText(this.player.x, this.player.y - 40, '千鸟共鸣！得分 +300', '#ec4899', 19);
                     this.score += 300;
                 }
 
@@ -2532,28 +2538,28 @@
                         const amt = item.amount || 60;
                         this.registerCoin(amt, cx, cy + 6, true);
                         this.sound.playNotify();
-                        this.addFloatingText(cx, cy, `超级金袋！+${amt}`, '#eab308', 20);
+                        this.showToast(`超级金袋！+${amt}`, 'coin');
                         break;
                     }
                     case POWERUP_TYPE.BOMB_UP:
                         this.playerStats.maxBombs = Math.min(this.playerStats.maxBombs + 1, 6);
-                        this.addFloatingText(cx, cy, ' 炸弹上限 +1', '#334155');
+                        this.addFloatingText(cx, cy, '炸弹上限 +1', '#334155');
                         break;
                     case POWERUP_TYPE.FIRE_UP:
                         this.playerStats.bombRange = Math.min(this.playerStats.bombRange + 1, 6);
-                        this.addFloatingText(cx, cy, ' 爆炸威力 +1', '#f97316');
+                        this.addFloatingText(cx, cy, '爆炸威力 +1', '#f97316');
                         break;
                     case POWERUP_TYPE.SPEED_UP:
                         this.playerStats.speed = Math.min(this.playerStats.speed + 0.45, 5.2);
-                        this.addFloatingText(cx, cy, ' 移动加速!', '#0284c7');
+                        this.addFloatingText(cx, cy, '移动加速!', '#0284c7');
                         break;
                     case POWERUP_TYPE.SHIELD:
                         if (!this.playerStats.hasShield) {
                             this.playerStats.hasShield = true;
-                            this.addFloatingText(cx, cy, ' 获得能量护盾!', '#10b981');
+                            this.addFloatingText(cx, cy, '获得能量护盾!', '#10b981');
                         } else {
                             this.playerStats.lives = Math.min(this.playerStats.lives + 1, 9);
-                            this.addFloatingText(cx, cy, ' 生命值 +1', '#e11d48');
+                            this.addFloatingText(cx, cy, '生命值 +1', '#e11d48');
                         }
                         break;
                     case POWERUP_TYPE.REMOTE_BOMB:
@@ -2562,11 +2568,11 @@
                         break;
                     case POWERUP_TYPE.GHOST_CAPE:
                         this.playerStats.ghostTimer = 900;
-                        this.addFloatingText(cx, cy, ' 幽灵穿墙披风(15秒)!', '#9333ea');
+                        this.addFloatingText(cx, cy, '幽灵穿墙披风(15秒)!', '#9333ea');
                         break;
                     case POWERUP_TYPE.FLAME_VEST:
                         this.playerStats.flameVestTimer = 900;
-                        this.addFloatingText(cx, cy, ' 火焰防炸衣(15秒)!', '#d97706');
+                        this.addFloatingText(cx, cy, '火焰防炸衣(15秒)!', '#d97706');
                         break;
                     case POWERUP_TYPE.MAGIC_BIRD:
                         this.triggerMagicBirdEffect();
@@ -2588,9 +2594,9 @@
                     y: clampedY,
                     text,
                     color,
-                    fontSize,
-                    life: 54,
-                    maxLife: 54
+                    fontSize: Math.min(fontSize, 15),
+                    life: 40,
+                    maxLife: 40
                 });
                 if (this.floatingTexts.length > 26) {
                     this.floatingTexts.splice(0, this.floatingTexts.length - 26);
@@ -2601,7 +2607,7 @@
                 if (source === 'EXPLOSION' && this.playerStats.flameVestTimer > 0) {
                     if (this.player.invincibleTimer <= 0) {
                         this.player.invincibleTimer = 25;
-                        this.addFloatingText(this.player.x, this.player.y - 22, ' 防炸衣免疫火焰!', '#f59e0b');
+                        this.showToast('防炸衣免疫火焰!', 'vest');
                     }
                     return;
                 }
@@ -2615,7 +2621,7 @@
                 if (this.playerStats.hasShield) {
                     this.playerStats.hasShield = false;
                     this.player.invincibleTimer = 110;
-                    this.addFloatingText(this.player.x, this.player.y - 20, ' 护盾抵消伤害!', '#10b981');
+                    this.showToast('护盾抵消伤害!', 'shield');
                     this.updateHUD();
                     return;
                 }
@@ -2643,7 +2649,7 @@
                     );
                 } else {
                     this.player.invincibleTimer = 140;
-                    this.addFloatingText(this.player.x, this.player.y - 20, ' 生命 -1', '#e11d48');
+                    this.showToast('生命 -1', 'heart');
                 }
             }
 
@@ -2853,7 +2859,7 @@
                 e.dir = chosen.dr < 0 ? 'UP' : chosen.dr > 0 ? 'DOWN' : chosen.dc < 0 ? 'LEFT' : 'RIGHT';
                 e.skillAnim = 26;
                 this.sound.playItemCurseSpawn();
-                this.addFloatingText(e.x, e.y - 30, ' 喷火!', '#f97316', 15);
+                this.addFloatingText(e.x, e.y - 30, '喷火!', '#f97316', 15);
                 this.spawnSkillBolt(e.x, e.y, e.x + chosen.dc * TILE_SIZE, e.y + chosen.dr * TILE_SIZE, '#f97316');
 
                 e.fireImmuneTimer = cfg.selfImmune;
@@ -2895,7 +2901,7 @@
                         e.fireCells.push({ col: c, row: r });
                         this.bombs[bombIdx].ignitedBy = e;
                         this.detonateBomb(bombIdx);
-                        this.addFloatingText(cx, cy - 20, ' 引爆炸弹!', '#ef4444', 15);
+                        this.addFloatingText(cx, cy - 20, '引爆炸弹!', '#ef4444', 15);
                         break;
                     }
 
@@ -2961,7 +2967,7 @@
                 const target = this.findBombAround(e, curCol, curRow, 3, 'nearest');
                 e.skillAnim = 24;
                 this.sound.playRemoteBeep();
-                this.addFloatingText(e.x, e.y - 30, target ? ' 吹退炸弹!' : ' 刮风!', '#22d3ee', 15);
+                this.addFloatingText(e.x, e.y - 30, target ? '吹退炸弹!' : '刮风!', '#22d3ee', 15);
 
                 if (!target) return;
 
@@ -3015,7 +3021,7 @@
                 const t = this.grid[dest.r][dest.c];
                 if (t === TILE.CRATE) {
                     this.destroyCrate(dest.c, dest.r);
-                    this.addFloatingText((dest.c + 0.5) * TILE_SIZE, (dest.r + 0.5) * TILE_SIZE - 18, ' 撞爆木箱!', '#f59e0b', 14);
+                    this.addFloatingText((dest.c + 0.5) * TILE_SIZE, (dest.r + 0.5) * TILE_SIZE - 18, '撞爆木箱!', '#f59e0b', 14);
                 } else if (t === TILE.FROST_CRATE) {
                     this.crackFrostCrate(dest.c, dest.r);
                 } else if (t === TILE.VINE) {
@@ -3031,7 +3037,7 @@
             skillWhiteTigerDevour(e, curCol, curRow, cfg) {
                 const target = this.findBombAround(e, curCol, curRow, 3, 'nearest');
                 e.skillAnim = 28;
-                this.addFloatingText(e.x, e.y - 30, target ? ' 吞掉炸弹!' : ' 咆哮!', '#a855f7', 15);
+                this.addFloatingText(e.x, e.y - 30, target ? '吞掉炸弹!' : '咆哮!', '#a855f7', 15);
 
                 if (!target) {
                     this.sound.playEnemyDefeat();
@@ -3091,7 +3097,7 @@
                             b.frozenBy = null;
                             const cx = (b.col + 0.5) * TILE_SIZE;
                             const cy = (b.row + 0.5) * TILE_SIZE;
-                            this.addFloatingText(cx, cy - 22, ' 冰块化开!', '#0ea5e9', 14);
+                            this.addFloatingText(cx, cy - 22, '冰块化开!', '#0ea5e9', 14);
                             for (let k = 0; k < 10; k++) {
                                 const ang = Math.random() * Math.PI * 2;
                                 this.particles.push({
@@ -3153,7 +3159,7 @@
                                 if (enemy.waterGuard > 0) {
                                     enemy.skillAnim = Math.max(enemy.skillAnim, 20);
                                     if (enemy.waterGuard > 105) {
-                                        this.addFloatingText(enemy.x, enemy.y - 26, ' 冰块护体!', '#38bdf8', 14);
+                                        this.addFloatingText(enemy.x, enemy.y - 26, '冰块护体!', '#38bdf8', 14);
                                     }
                                     continue;
                                 }
@@ -3232,7 +3238,7 @@
                     e.hurtTimer = 50;
                     e.enrageTimer = 260;
                     this.sound.playEnemyDefeat();
-                    this.addFloatingText(e.x, e.y - 16, `狂暴! HP:${e.hp}/${e.maxHp}`, '#f43f5e');
+                    this.showToast(`狂暴! HP:${e.hp}/${e.maxHp}`, 'angry');
                     return false;
                 }
 
@@ -3246,7 +3252,7 @@
 
                 this.megaCharge = Math.min(MEGA_COST * 3, this.megaCharge + 1);
                 if (this.megaCharge === MEGA_COST) {
-                    this.addFloatingText(e.x, e.y - 34, ' 超必杀就绪! 按 L 释放!', '#d946ef', 17);
+                    this.showToast('超必杀就绪! 按 L 释放!', 'star', 2200);
                     this.showComboToast(' 超必杀就绪!', '按 L 或点 释放', '#d946ef');
                 }
 
@@ -3292,9 +3298,9 @@
                     const portalY = (this.portal.row + 0.5) * TILE_SIZE;
 
                     if (this.portal.revealed) {
-                        this.addFloatingText(portalX, portalY - 22, ' 传送门已开启！快进去吧！', '#9333ea');
+                        this.showToast('传送门已开启！快进去吧！', 'swirl', 2200);
                     } else {
-                        this.addFloatingText(this.player.x, this.player.y - 26, ' 怪物已清光！炸开木箱寻找传送门！', '#9333ea');
+                        this.showToast('怪物已清光！炸开木箱寻找传送门！', 'swirl', 2200);
                     }
 
                     for (let k = 0; k < 28; k++) {
@@ -4631,6 +4637,179 @@
                         shine(-3, -3.4, 1.6, 0.5);
                         break;
                     }
+                    case 'play': {
+                        ctx.fillStyle = '#ffffff';
+                        ctx.beginPath();
+                        ctx.moveTo(-4 * u, -8 * u);
+                        ctx.lineTo(8 * u, 0);
+                        ctx.lineTo(-4 * u, 8 * u);
+                        ctx.closePath();
+                        ctx.fill();
+                        break;
+                    }
+                    case 'pause': {
+                        ctx.fillStyle = '#ffffff';
+                        drawRoundRect(ctx, -7 * u, -8 * u, 5.5 * u, 16 * u, 2.4 * u);
+                        ctx.fill();
+                        drawRoundRect(ctx, 1.5 * u, -8 * u, 5.5 * u, 16 * u, 2.4 * u);
+                        ctx.fill();
+                        break;
+                    }
+                    case 'speaker': {
+                        ctx.fillStyle = '#ffffff';
+                        ctx.beginPath();
+                        ctx.moveTo(-8 * u, -4 * u);
+                        ctx.lineTo(-3 * u, -4 * u);
+                        ctx.lineTo(2 * u, -9 * u);
+                        ctx.lineTo(2 * u, 9 * u);
+                        ctx.lineTo(-3 * u, 4 * u);
+                        ctx.lineTo(-8 * u, 4 * u);
+                        ctx.closePath();
+                        ctx.fill();
+                        // 声波
+                        ctx.strokeStyle = '#ffffff';
+                        ctx.lineWidth = 2.2 * u;
+                        ctx.beginPath(); ctx.arc(3 * u, 0, 5 * u, -0.9, 0.9); ctx.stroke();
+                        ctx.beginPath(); ctx.arc(3 * u, 0, 8.5 * u, -0.9, 0.9); ctx.stroke();
+                        break;
+                    }
+                    case 'speakerOff': {
+                        ctx.fillStyle = '#ffffff';
+                        ctx.beginPath();
+                        ctx.moveTo(-8 * u, -4 * u);
+                        ctx.lineTo(-3 * u, -4 * u);
+                        ctx.lineTo(2 * u, -9 * u);
+                        ctx.lineTo(2 * u, 9 * u);
+                        ctx.lineTo(-3 * u, 4 * u);
+                        ctx.lineTo(-8 * u, 4 * u);
+                        ctx.closePath();
+                        ctx.fill();
+                        ctx.strokeStyle = '#fca5a5';
+                        ctx.lineWidth = 2.6 * u;
+                        ctx.beginPath();
+                        ctx.moveTo(5 * u, -5 * u); ctx.lineTo(11 * u, 5 * u);
+                        ctx.moveTo(11 * u, -5 * u); ctx.lineTo(5 * u, 5 * u);
+                        ctx.stroke();
+                        break;
+                    }
+                    case 'restart': {
+                        ctx.strokeStyle = '#ffffff';
+                        ctx.lineWidth = 3 * u;
+                        ctx.beginPath();
+                        ctx.arc(0, 0, 7.5 * u, -0.6, Math.PI * 1.35);
+                        ctx.stroke();
+                        // 箭头
+                        ctx.fillStyle = '#ffffff';
+                        ctx.beginPath();
+                        ctx.moveTo(9.5 * u, -6 * u);
+                        ctx.lineTo(4 * u, -8.5 * u);
+                        ctx.lineTo(7.5 * u, -2.5 * u);
+                        ctx.closePath();
+                        ctx.fill();
+                        break;
+                    }
+                    case 'fullscreen': {
+                        ctx.strokeStyle = '#ffffff';
+                        ctx.lineWidth = 3 * u;
+                        const corner = (sx, sy) => {
+                            ctx.beginPath();
+                            ctx.moveTo(sx * 9 * u, sy * 5.5 * u);
+                            ctx.lineTo(sx * 9 * u, sy * 9 * u);
+                            ctx.lineTo(sx * 5.5 * u, sy * 9 * u);
+                            ctx.stroke();
+                        };
+                        corner(-1, -1); corner(1, -1); corner(-1, 1); corner(1, 1);
+                        break;
+                    }
+                    case 'flag': {
+                        ctx.strokeStyle = '#ffffff';
+                        ctx.lineWidth = 2.4 * u;
+                        ctx.beginPath();
+                        ctx.moveTo(-5 * u, -9 * u); ctx.lineTo(-5 * u, 10 * u);
+                        ctx.stroke();
+                        ctx.fillStyle = '#ffffff';
+                        ctx.beginPath();
+                        ctx.moveTo(-5 * u, -9 * u);
+                        ctx.lineTo(8 * u, -5.5 * u);
+                        ctx.lineTo(-5 * u, -2 * u);
+                        ctx.closePath();
+                        ctx.fill();
+                        break;
+                    }
+                    case 'trophy': {
+                        // 杯身
+                        ctx.fillStyle = '#ffffff';
+                        ctx.beginPath();
+                        ctx.moveTo(-6 * u, -9 * u);
+                        ctx.lineTo(6 * u, -9 * u);
+                        ctx.lineTo(4 * u, 2 * u);
+                        ctx.quadraticCurveTo(0, 4 * u, -4 * u, 2 * u);
+                        ctx.closePath();
+                        ctx.fill();
+                        // 杯耳
+                        ctx.strokeStyle = '#ffffff';
+                        ctx.lineWidth = 2.2 * u;
+                        ctx.beginPath(); ctx.arc(-7.5 * u, -5 * u, 3 * u, Math.PI * 0.4, Math.PI * 1.5); ctx.stroke();
+                        ctx.beginPath(); ctx.arc(7.5 * u, -5 * u, 3 * u, Math.PI * 1.5, Math.PI * 0.6); ctx.stroke();
+                        // 底座
+                        ctx.fillRect(-2 * u, 4 * u, 4 * u, 3 * u);
+                        ctx.fillRect(-5 * u, 7 * u, 10 * u, 2.6 * u);
+                        break;
+                    }
+                    case 'target': {
+                        ctx.strokeStyle = '#ffffff';
+                        ctx.lineWidth = 2.4 * u;
+                        circle(8.5, null);
+                        ctx.beginPath(); ctx.arc(0, 0, 8.5 * u, 0, Math.PI * 2); ctx.stroke();
+                        ctx.fillStyle = '#ffffff';
+                        ctx.beginPath(); ctx.arc(0, 0, 4.8 * u, 0, Math.PI * 2); ctx.fill();
+                        ctx.fillStyle = 'rgba(0,0,0,0.25)';
+                        ctx.beginPath(); ctx.arc(0, 0, 2 * u, 0, Math.PI * 2); ctx.fill();
+                        break;
+                    }
+                    case 'monster': {
+                        // 小怪兽头
+                        ctx.fillStyle = '#ffffff';
+                        ctx.beginPath();
+                        ctx.arc(0, 1 * u, 8 * u, 0, Math.PI * 2);
+                        ctx.fill();
+                        // 角
+                        ctx.beginPath();
+                        ctx.moveTo(-6 * u, -5 * u); ctx.lineTo(-8 * u, -11 * u); ctx.lineTo(-2 * u, -7 * u);
+                        ctx.moveTo(6 * u, -5 * u); ctx.lineTo(8 * u, -11 * u); ctx.lineTo(2 * u, -7 * u);
+                        ctx.fill();
+                        // 眼睛
+                        ctx.fillStyle = 'rgba(0,0,0,0.35)';
+                        ctx.beginPath(); ctx.arc(-3 * u, 0, 1.8 * u, 0, Math.PI * 2); ctx.fill();
+                        ctx.beginPath(); ctx.arc(3 * u, 0, 1.8 * u, 0, Math.PI * 2); ctx.fill();
+                        // 嘴
+                        ctx.strokeStyle = 'rgba(0,0,0,0.35)';
+                        ctx.lineWidth = 1.8 * u;
+                        ctx.beginPath(); ctx.arc(0, 3 * u, 3 * u, 0.3, Math.PI - 0.3); ctx.stroke();
+                        break;
+                    }
+                    case 'rotate': {
+                        // 手机旋转
+                        ctx.strokeStyle = '#ffffff';
+                        ctx.lineWidth = 2.4 * u;
+                        drawRoundRect(ctx, -6 * u, -9 * u, 12 * u, 18 * u, 2.5 * u);
+                        ctx.stroke();
+                        ctx.fillStyle = '#ffffff';
+                        ctx.beginPath(); ctx.arc(0, 6.5 * u, 1.4 * u, 0, Math.PI * 2); ctx.fill();
+                        // 旋转箭头
+                        ctx.strokeStyle = '#ffffff';
+                        ctx.lineWidth = 2.2 * u;
+                        ctx.beginPath();
+                        ctx.arc(0, 0, 13 * u, -2.4, -0.9);
+                        ctx.stroke();
+                        ctx.beginPath();
+                        ctx.moveTo(12.5 * u, -4.5 * u);
+                        ctx.lineTo(13.5 * u, -11 * u);
+                        ctx.lineTo(7 * u, -9 * u);
+                        ctx.closePath();
+                        ctx.fill();
+                        break;
+                    }
                     case 'lock': {
                         // 锁体
                         ctx.fillStyle = '#64748b';
@@ -4713,6 +4892,29 @@
                     }
                 }
                 ctx.restore();
+            }
+
+            // 顶部提示 pill：不遮挡游戏面板，用于重要播报
+            showToast(text, icon = 'star', ms = 1700) {
+                const box = document.getElementById('gameToasts');
+                if (!box) return;
+                // 最多同时 3 条
+                while (box.children.length >= 3) box.removeChild(box.firstChild);
+                const el = document.createElement('div');
+                el.className = 'game-toast';
+                const cv = document.createElement('canvas');
+                cv.width = 20; cv.height = 20;
+                const bctx = cv.getContext('2d');
+                this.drawIcon(icon, 10, 10, 18, bctx);
+                const tx = document.createElement('span');
+                tx.textContent = text;
+                el.appendChild(cv);
+                el.appendChild(tx);
+                box.appendChild(el);
+                setTimeout(() => {
+                    el.classList.add('toast-out');
+                    setTimeout(() => el.remove(), 400);
+                }, ms);
             }
 
             // 关卡开场横幅：显示关卡数 + 场景主题

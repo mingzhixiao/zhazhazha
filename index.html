@@ -38,10 +38,11 @@
 
             <div class="flex items-center gap-1 shrink-0">
                 <button id="btnRotate" title="横屏模式：旋转画面，手机竖握即可 MOBA 操作" class="candy-btn bg-violet-500 hover:bg-violet-400 text-white font-bold px-2 py-1 rounded-xl text-xs flex items-center gap-1 border-2 border-white">
+                    <canvas class="guide-icon" data-icon="rotate" width="16" height="16"></canvas>
                     <span class="hidden md:inline">横屏</span>
                 </button>
                 <button id="btnFullscreen" title="全屏游戏 (F)" class="candy-btn bg-violet-500 hover:bg-violet-400 text-white font-bold px-2 py-1 rounded-xl text-xs flex items-center gap-1 border-2 border-white">
-                    <span>⛶</span>
+                    <canvas class="guide-icon" data-icon="fullscreen" width="16" height="16"></canvas>
                     <span class="hidden md:inline">全屏</span>
                 </button>
                 <button id="btnControlMode" title="切换摇杆 / 十字键 / 手势" class="candy-btn bg-indigo-500 hover:bg-indigo-400 text-white font-bold px-2 py-1 rounded-xl text-xs flex items-center gap-1 border-2 border-white">
@@ -49,13 +50,15 @@
                     <span class="hidden sm:inline" id="controlModeText">摇杆</span>
                 </button>
                 <button id="btnSound" class="candy-btn bg-amber-400 hover:bg-amber-300 text-slate-900 font-bold px-2 py-1 rounded-xl text-xs flex items-center gap-1 border-2 border-white">
-                    <span id="soundIcon">开</span>
+                    <canvas class="guide-icon" id="soundIconCanvas" data-icon="speaker" width="16" height="16"></canvas>
                     <span class="hidden md:inline" id="soundText">音效</span>
                 </button>
                 <button id="btnPause" class="candy-btn bg-sky-400 hover:bg-sky-300 text-white font-bold px-2 py-1 rounded-xl text-xs flex items-center gap-1 border-2 border-white">
+                    <canvas class="guide-icon" data-icon="pause" width="16" height="16"></canvas>
                     <span class="hidden md:inline" id="pauseText">暂停</span>
                 </button>
                 <button id="btnRestart" class="candy-btn bg-rose-500 hover:bg-rose-400 text-white font-bold px-2 py-1 rounded-xl text-xs flex items-center gap-1 border-2 border-white">
+                    <canvas class="guide-icon" data-icon="restart" width="16" height="16"></canvas>
                     <span class="hidden md:inline">重玩</span>
                 </button>
             </div>
@@ -63,33 +66,33 @@
 
         <!-- 8项实时属性胶囊条 -->
         <div id="hudGrid" class="grid grid-cols-8 gap-1 sm:gap-1.5">
-            <div class="candy-panel rounded-xl px-1.5 py-0.5 sm:px-2 sm:py-1 flex flex-col sm:flex-row items-center justify-between">
-                <span class="text-[9px] sm:text-[11px] font-bold text-slate-500">关卡</span>
-                <span id="hudLevel" class="text-[11px] sm:text-xs font-black text-indigo-600">1</span>
+            <div class="hud-stat" title="关卡">
+                <canvas class="guide-icon hud-icon" data-icon="flag" width="20" height="20"></canvas>
+                <span id="hudLevel" class="text-indigo-600">1</span>
             </div>
-            <div class="candy-panel rounded-xl px-1.5 py-0.5 sm:px-2 sm:py-1 flex flex-col sm:flex-row items-center justify-between">
-                <span class="text-[9px] sm:text-[11px] font-bold text-slate-500">得分</span>
-                <span id="hudScore" class="text-[11px] sm:text-xs font-black text-amber-500">0</span>
+            <div class="hud-stat" title="得分">
+                <canvas class="guide-icon hud-icon" data-icon="star" width="20" height="20"></canvas>
+                <span id="hudScore" class="text-amber-500">0</span>
             </div>
-            <div class="candy-panel rounded-xl px-1.5 py-0.5 sm:px-2 sm:py-1 flex flex-col sm:flex-row items-center justify-between">
-                <span class="text-[9px] sm:text-[11px] font-bold text-slate-500">金币</span>
-                <span id="hudCoins" class="text-[11px] sm:text-xs font-black text-yellow-600">0</span>
+            <div class="hud-stat" title="金币">
+                <canvas class="guide-icon hud-icon" data-icon="coin" width="20" height="20"></canvas>
+                <span id="hudCoins" class="text-yellow-600">0</span>
             </div>
-            <div class="candy-panel rounded-xl px-1.5 py-0.5 sm:px-2 sm:py-1 flex flex-col sm:flex-row items-center justify-between">
-                <span class="text-[9px] sm:text-[11px] font-bold text-slate-500">生命</span>
-                <span id="hudLives" class="text-[11px] sm:text-xs font-black text-rose-500">3</span>
+            <div class="hud-stat" title="生命">
+                <canvas class="guide-icon hud-icon" data-icon="heart" width="20" height="20"></canvas>
+                <span id="hudLives" class="text-rose-500">3</span>
             </div>
-            <div class="candy-panel rounded-xl px-1.5 py-0.5 sm:px-2 sm:py-1 flex flex-col sm:flex-row items-center justify-between">
-                <span class="text-[9px] sm:text-[11px] font-bold text-slate-500">炸弹</span>
-                <span id="hudBombs" class="text-[11px] sm:text-xs font-black text-slate-700">1/1</span>
+            <div class="hud-stat" title="炸弹">
+                <canvas class="guide-icon hud-icon" data-icon="bomb" width="20" height="20"></canvas>
+                <span id="hudBombs" class="text-slate-700">1/1</span>
             </div>
-            <div class="candy-panel rounded-xl px-1.5 py-0.5 sm:px-2 sm:py-1 flex flex-col sm:flex-row items-center justify-between">
-                <span class="text-[9px] sm:text-[11px] font-bold text-slate-500">威力</span>
-                <span id="hudRange" class="text-[11px] sm:text-xs font-black text-orange-500">1</span>
+            <div class="hud-stat" title="威力">
+                <canvas class="guide-icon hud-icon" data-icon="fire" width="20" height="20"></canvas>
+                <span id="hudRange" class="text-orange-500">1</span>
             </div>
-            <div class="candy-panel rounded-xl px-1.5 py-0.5 sm:px-2 sm:py-1 flex flex-col sm:flex-row items-center justify-between">
-                <span class="text-[9px] sm:text-[11px] font-bold text-slate-500">怪物</span>
-                <span id="hudEnemies" class="text-[11px] sm:text-xs font-black text-emerald-600">8</span>
+            <div class="hud-stat" title="怪物">
+                <canvas class="guide-icon hud-icon" data-icon="monster" width="20" height="20"></canvas>
+                <span id="hudEnemies" class="text-emerald-600">8</span>
             </div>
             <div class="candy-panel rounded-xl px-1.5 py-0.5 sm:px-2 sm:py-1 flex flex-col justify-center gap-0.5">
                 <div class="flex items-center justify-between text-[9px] sm:text-[10px] font-black text-fuchsia-600 leading-none">
@@ -122,6 +125,9 @@
                     <div id="levelBannerTheme" class="level-banner-theme">青青草原</div>
                 </div>
             </div>
+
+            <!-- 顶部游戏提示（不遮挡游戏面板） -->
+            <div id="gameToasts"></div>
 
             <!-- 连杀 / 挑战达成 中央播报 -->
             <div id="comboToast" class="hidden absolute left-1/2 top-[12%] -translate-x-1/2 z-20 pointer-events-none">
