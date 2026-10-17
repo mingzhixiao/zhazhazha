@@ -88,9 +88,20 @@
                 this.setupRotateMode();
                 this.bindEvents();
                 this.initLevel(1);
+                this.drawStaticIcons();
 
                 this.lastFrameTime = performance.now();
                 requestAnimationFrame((t) => this.loop(t));
+            }
+
+            // 绘制页面上的静态矢量图标（帮助图鉴、商店徽章等）
+            drawStaticIcons() {
+                document.querySelectorAll('.guide-icon').forEach(cv => {
+                    const bctx = cv.getContext('2d');
+                    bctx.clearRect(0, 0, cv.width, cv.height);
+                    const s = Math.min(cv.width, cv.height);
+                    this.drawIcon(cv.dataset.icon, cv.width / 2, cv.height / 2, s * 0.92, bctx);
+                });
             }
 
             setupViewportHeight() {
@@ -737,7 +748,7 @@
                 const cy = (item.row + 0.5) * TILE_SIZE;
 
                 this.sound.playItemCurseSpawn();
-                this.addFloatingText(cx, cy - 18, `💥道具被炸! 涌出 ${spawnCount} 只恶怪!`, '#e11d48', 17);
+                this.addFloatingText(cx, cy - 18, `道具被炸! 涌出 ${spawnCount} 只恶怪!`, '#e11d48', 17);
                 this.addShake(5);
 
                 for (let i = 0; i < 20; i++) {
@@ -763,7 +774,7 @@
 
                 if (this.portal && this.portal.active) {
                     this.portal.active = false;
-                    this.addFloatingText(this.player.x, this.player.y - 36, '🔒 新怪物出现！传送门重新封印！', '#f59e0b', 16);
+                    this.addFloatingText(this.player.x, this.player.y - 36, ' 新怪物出现！传送门重新封印！', '#f59e0b', 16);
                 }
 
                 this.updateHUD();
@@ -905,7 +916,7 @@
                     } else {
                         this.touchDir = normY > 0 ? 'DOWN' : 'UP';
                     }
-                    joystickDirLabel.textContent = dirSymbols[this.touchDir] || '🕹️';
+                    joystickDirLabel.textContent = dirSymbols[this.touchDir] || '·';
                 };
 
                 const resetJoystick = () => {
@@ -1143,7 +1154,7 @@
 
                 document.getElementById('btnSound').addEventListener('click', () => {
                     const on = this.sound.toggle();
-                    document.getElementById('soundIcon').textContent = on ? '🔊' : '🔇';
+                    document.getElementById('soundIcon').textContent = on ? '开' : '关';
                     document.getElementById('soundText').textContent = on ? '音效' : '静音';
                 });
 
@@ -1190,7 +1201,7 @@
                     }
                 });
 
-                // 🛒 商店继续按钮
+                // 商店继续按钮
                 document.getElementById('shopContinueBtn').addEventListener('click', () => {
                     this.sound.init();
                     this.hideShop();
@@ -1224,7 +1235,7 @@
                     show(joyEl, false);
                     show(dpadEl, true);
                     if (modeText) modeText.textContent = '十字键';
-                    if (modeIcon) modeIcon.textContent = '✚';
+                    if (modeIcon) modeIcon.textContent = '手势';
                 } else {
                     show(joyEl, false);
                     show(dpadEl, false);
@@ -1294,7 +1305,7 @@
 
                     html += `
                         <button data-key="${item.key}" class="${cls}" ${canBuy ? '' : 'disabled'}>
-                            <span class="w-9 h-9 shrink-0 rounded-xl bg-gradient-to-br ${item.color} text-white flex items-center justify-center text-lg border-2 border-white shadow">${item.icon}</span>
+                            <span class="w-9 h-9 shrink-0 rounded-xl bg-gradient-to-br ${item.color} flex items-center justify-center border-2 border-white shadow"><canvas class="shop-icon" data-icon="${item.icon}" width="30" height="30"></canvas></span>
                             <span class="flex-1 min-w-0 text-left">
                                 <span class="block text-xs font-black text-slate-800 flex items-center gap-1">
                                     ${item.name}
@@ -1308,6 +1319,12 @@
                 }
 
                 container.innerHTML = html;
+                // 绘制商店矢量图标
+                container.querySelectorAll('.shop-icon').forEach(cv => {
+                    const bctx = cv.getContext('2d');
+                    bctx.clearRect(0, 0, 30, 30);
+                    this.drawIcon(cv.dataset.icon, 15, 15, 24, bctx);
+                });
 
                 container.querySelectorAll('.shop-item').forEach(btn => {
                     btn.addEventListener('click', () => {
@@ -1361,7 +1378,7 @@
                 document.getElementById('hudScore').textContent = this.score;
                 document.getElementById('hudCoins').textContent = this.coins > 0 ? `${this.coins}` : 0;
                 document.getElementById('hudLives').textContent = this.playerStats.hasShield
-                    ? `${this.playerStats.lives}🛡️`
+                    ? `${this.playerStats.lives}(盾)`
                     : this.playerStats.lives;
                 document.getElementById('hudBombs').textContent = `${Math.max(0, maxB - this.bombs.length)}/${maxB}`;
                 document.getElementById('hudRange').textContent = rng;
@@ -1402,7 +1419,7 @@
 
                 const mobileHint = document.getElementById('mobileBuffHint');
                 if (mobileHint) {
-                    mobileHint.textContent = megaReady ? '💥 超必杀就绪! 按 L 引爆!' : (buffs ? `当前增益: ${buffs}` : '别炸毁道具(会爆怪)!');
+                    mobileHint.textContent = megaReady ? '超必杀就绪! 按 L 引爆!' : (buffs ? `当前增益: ${buffs}` : '别炸毁道具(会爆怪)!');
                 }
 
                 const btnDetonate = document.getElementById('btnDetonateRemote');
@@ -1416,13 +1433,13 @@
 
                 const questBanner = document.getElementById('questBanner');
                 if (this.enemies.length > 0) {
-                    questBanner.textContent = `🔒 消灭剩余怪物 (${this.enemies.length}) 以激活传送门！`;
+                    questBanner.textContent = `消灭剩余怪物 (${this.enemies.length}) 以激活传送门！`;
                     questBanner.className = 'flex-1 max-w-[320px] mx-1 px-2 py-1 rounded-xl bg-amber-100/90 border-2 border-amber-300 text-amber-900 font-black text-[10px] sm:text-xs text-center truncate shadow-inner transition-colors duration-300';
                 } else {
                     if (this.portal && this.portal.revealed) {
-                        questBanner.textContent = '🌈 传送门已开启！快进去吧！';
+                        questBanner.textContent = '传送门已开启！快进去吧！';
                     } else {
-                        questBanner.textContent = '🌈 传送门已解封！炸开木箱找到它并进入！';
+                        questBanner.textContent = '传送门已解封！炸开木箱找到它并进入！';
                     }
                     questBanner.className = 'flex-1 max-w-[320px] mx-1 px-2 py-1 rounded-xl bg-emerald-100 border-2 border-emerald-400 text-emerald-800 font-black text-[10px] sm:text-xs text-center truncate shadow-sm quest-active transition-colors duration-300';
                 }
@@ -1503,7 +1520,7 @@
 
                 if (!silent) {
                     this.sound.playCoin();
-                    this.addFloatingText(x, y, `+${amount} 💰`, '#eab308', 16);
+                    this.addFloatingText(x, y, `+${amount} 金币`, '#eab308', 16);
                 }
 
                 if (!this.goldenSpawned && this.coins >= this.nextGoldenAt) {
@@ -1539,7 +1556,7 @@
                 this.anyItemSpawned = true;
 
                 this.sound.playNotify();
-                this.addFloatingText(this.player.x, this.player.y - 44, '💰 金币达标！木箱里翻出金袋！', '#eab308', 17);
+                this.addFloatingText(this.player.x, this.player.y - 44, ' 金币达标！木箱里翻出金袋！', '#eab308', 17);
             }
 
             updateDangerState(dtScale) {
@@ -1568,7 +1585,7 @@
             triggerMegaBomb() {
                 if (this.megaCharge < MEGA_COST) {
                     if (this.state === 'PLAYING') {
-                        this.addFloatingText(this.player.x, this.player.y - 30, `💥 魔力不足 (${this.megaCharge}/${MEGA_COST})`, '#94a3b8', 15);
+                        this.addFloatingText(this.player.x, this.player.y - 30, `魔力不足 (${this.megaCharge}/${MEGA_COST})`, '#94a3b8', 15);
                     }
                     return false;
                 }
@@ -1665,8 +1682,8 @@
                     });
                 }
 
-                this.addFloatingText(this.player.x, this.player.y - 60, '💥 超必杀 · 全屏巨爆！', '#d946ef', 24);
-                this.showComboToast('💥 MEGA BOMB!', `魔力 -${MEGA_COST}`, '#d946ef');
+                this.addFloatingText(this.player.x, this.player.y - 60, ' 超必杀 · 全屏巨爆！', '#d946ef', 24);
+                this.showComboToast(' MEGA BOMB!', `魔力 -${MEGA_COST}`, '#d946ef');
                 this.evaluateMatch3Combo(stats);
                 this.updateHUD();
                 return true;
@@ -1980,7 +1997,7 @@
                         } else if (this.portal.lockedHintCooldown <= 0) {
                             this.portal.lockedHintCooldown = 75;
                             this.sound.playPortalLocked();
-                            this.addFloatingText(portalCenterX, portalCenterY - 18, '🔒 需先消灭所有怪物！', '#f59e0b');
+                            this.addFloatingText(portalCenterX, portalCenterY - 18, ' 需先消灭所有怪物！', '#f59e0b');
                         }
                     }
                 }
@@ -2094,7 +2111,7 @@
                 if (remoteBombs.length === 0) return;
 
                 this.sound.playRemoteBeep();
-                this.addFloatingText(this.player.x, this.player.y - 28, '📡 遥控全引爆！', '#0ea5e9');
+                this.addFloatingText(this.player.x, this.player.y - 28, ' 遥控全引爆！', '#0ea5e9');
 
                 const batchStats = { obstacles: 0, enemies: 0 };
                 remoteBombs.forEach(rb => {
@@ -2307,7 +2324,7 @@
                         maxLife: 24
                     });
                 }
-                this.addFloatingText(cx, cy - 10, '🧊破除冰封!', '#0284c7');
+                this.addFloatingText(cx, cy - 10, '破除冰封!', '#0284c7');
             }
 
             destroyVine(col, row) {
@@ -2359,9 +2376,9 @@
                     if (this.enemies.length === 0) {
                         this.portal.active = true;
                         this.sound.playPortalUnlock();
-                        this.addFloatingText(cx, cy - 12, '🌈 发现已激活的传送门!', '#a855f7');
+                        this.addFloatingText(cx, cy - 12, ' 发现已激活的传送门!', '#a855f7');
                     } else {
-                        this.addFloatingText(cx, cy - 12, '🔒 发现封印传送门 (需清怪)', '#64748b');
+                        this.addFloatingText(cx, cy - 12, ' 发现封印传送门 (需清怪)', '#64748b');
                     }
                     this.updateHUD();
                     return;
@@ -2369,7 +2386,7 @@
 
                 if (this.goldenCrate && this.goldenCrate.col === col && this.goldenCrate.row === row) {
                     this.registerCoin(this.goldenCrate.amount, cx, cy + 6);
-                    this.addFloatingText(cx, cy - 22, `💰 金袋打开！+${this.goldenCrate.amount}`, '#eab308', 18);
+                    this.addFloatingText(cx, cy - 22, `金袋打开！+${this.goldenCrate.amount}`, '#eab308', 18);
                     this.goldenCrate = null;
                 } else if (Math.random() < 0.18) {
                     this.registerCoin(3 + Math.floor(Math.random() * 6), cx, cy);
@@ -2408,15 +2425,15 @@
                 let tier = 1;
 
                 if (points >= 9) {
-                    cheerText = '🌟 UNBELIEVABLE! 🌟';
+                    cheerText = 'UNBELIEVABLE!';
                     color = '#d946ef';
                     tier = 4;
                 } else if (points >= 6) {
-                    cheerText = '✨ AMAZING! ✨';
+                    cheerText = 'AMAZING!';
                     color = '#0ea5e9';
                     tier = 3;
                 } else if (points >= 4) {
-                    cheerText = '🔥 GREAT! 🔥';
+                    cheerText = 'GREAT!';
                     color = '#f59e0b';
                     tier = 2;
                 }
@@ -2432,8 +2449,8 @@
                         this.feverTimer = 480;
                         this.screenFlashTimer = 24;
                         this.sound.playMagicBird();
-                        this.addFloatingText(this.player.x, this.player.y - 66, '🎵 FEVER TIME! 狂暴时刻！', '#ec4899', 23);
-                        this.showComboToast('🎵 FEVER TIME!', '火焰 6 格 · 炸弹 8 连', '#ec4899');
+                        this.addFloatingText(this.player.x, this.player.y - 66, ' FEVER TIME! 狂暴时刻！', '#ec4899', 23);
+                        this.showComboToast(' FEVER TIME!', '火焰 6 格 · 炸弹 8 连', '#ec4899');
                     }
                 }
                 this.updateHUD();
@@ -2495,9 +2512,9 @@
                 }
 
                 if (unfreezeCount > 0) {
-                    this.addFloatingText(this.player.x, this.player.y - 40, `🌈 千鸟破冰！解除 ${unfreezeCount} 处冰封！`, '#0284c7', 19);
+                    this.addFloatingText(this.player.x, this.player.y - 40, `千鸟破冰！解除 ${unfreezeCount} 处冰封！`, '#0284c7', 19);
                 } else {
-                    this.addFloatingText(this.player.x, this.player.y - 40, '🌈 千鸟共鸣！得分 +300', '#ec4899', 19);
+                    this.addFloatingText(this.player.x, this.player.y - 40, ' 千鸟共鸣！得分 +300', '#ec4899', 19);
                     this.score += 300;
                 }
 
@@ -2515,41 +2532,41 @@
                         const amt = item.amount || 60;
                         this.registerCoin(amt, cx, cy + 6, true);
                         this.sound.playNotify();
-                        this.addFloatingText(cx, cy, `💰 超级金袋！+${amt}`, '#eab308', 20);
+                        this.addFloatingText(cx, cy, `超级金袋！+${amt}`, '#eab308', 20);
                         break;
                     }
                     case POWERUP_TYPE.BOMB_UP:
                         this.playerStats.maxBombs = Math.min(this.playerStats.maxBombs + 1, 6);
-                        this.addFloatingText(cx, cy, '💣 炸弹上限 +1', '#334155');
+                        this.addFloatingText(cx, cy, ' 炸弹上限 +1', '#334155');
                         break;
                     case POWERUP_TYPE.FIRE_UP:
                         this.playerStats.bombRange = Math.min(this.playerStats.bombRange + 1, 6);
-                        this.addFloatingText(cx, cy, '🔥 爆炸威力 +1', '#f97316');
+                        this.addFloatingText(cx, cy, ' 爆炸威力 +1', '#f97316');
                         break;
                     case POWERUP_TYPE.SPEED_UP:
                         this.playerStats.speed = Math.min(this.playerStats.speed + 0.45, 5.2);
-                        this.addFloatingText(cx, cy, '⚡ 移动加速!', '#0284c7');
+                        this.addFloatingText(cx, cy, ' 移动加速!', '#0284c7');
                         break;
                     case POWERUP_TYPE.SHIELD:
                         if (!this.playerStats.hasShield) {
                             this.playerStats.hasShield = true;
-                            this.addFloatingText(cx, cy, '🛡️ 获得能量护盾!', '#10b981');
+                            this.addFloatingText(cx, cy, ' 获得能量护盾!', '#10b981');
                         } else {
                             this.playerStats.lives = Math.min(this.playerStats.lives + 1, 9);
-                            this.addFloatingText(cx, cy, '❤️ 生命值 +1', '#e11d48');
+                            this.addFloatingText(cx, cy, ' 生命值 +1', '#e11d48');
                         }
                         break;
                     case POWERUP_TYPE.REMOTE_BOMB:
                         this.playerStats.hasRemote = true;
-                        this.addFloatingText(cx, cy, '⏰ 遥控炸弹! 按K或📡引爆', '#0284c7');
+                        this.addFloatingText(cx, cy, '⏰ 遥控炸弹! 按K引爆', '#0284c7');
                         break;
                     case POWERUP_TYPE.GHOST_CAPE:
                         this.playerStats.ghostTimer = 900;
-                        this.addFloatingText(cx, cy, '👻 幽灵穿墙披风(15秒)!', '#9333ea');
+                        this.addFloatingText(cx, cy, ' 幽灵穿墙披风(15秒)!', '#9333ea');
                         break;
                     case POWERUP_TYPE.FLAME_VEST:
                         this.playerStats.flameVestTimer = 900;
-                        this.addFloatingText(cx, cy, '🧥 火焰防炸衣(15秒)!', '#d97706');
+                        this.addFloatingText(cx, cy, ' 火焰防炸衣(15秒)!', '#d97706');
                         break;
                     case POWERUP_TYPE.MAGIC_BIRD:
                         this.triggerMagicBirdEffect();
@@ -2584,7 +2601,7 @@
                 if (source === 'EXPLOSION' && this.playerStats.flameVestTimer > 0) {
                     if (this.player.invincibleTimer <= 0) {
                         this.player.invincibleTimer = 25;
-                        this.addFloatingText(this.player.x, this.player.y - 22, '🧥 防炸衣免疫火焰!', '#f59e0b');
+                        this.addFloatingText(this.player.x, this.player.y - 22, ' 防炸衣免疫火焰!', '#f59e0b');
                     }
                     return;
                 }
@@ -2598,7 +2615,7 @@
                 if (this.playerStats.hasShield) {
                     this.playerStats.hasShield = false;
                     this.player.invincibleTimer = 110;
-                    this.addFloatingText(this.player.x, this.player.y - 20, '🛡️ 护盾抵消伤害!', '#10b981');
+                    this.addFloatingText(this.player.x, this.player.y - 20, ' 护盾抵消伤害!', '#10b981');
                     this.updateHUD();
                     return;
                 }
@@ -2626,7 +2643,7 @@
                     );
                 } else {
                     this.player.invincibleTimer = 140;
-                    this.addFloatingText(this.player.x, this.player.y - 20, '💔 生命 -1', '#e11d48');
+                    this.addFloatingText(this.player.x, this.player.y - 20, ' 生命 -1', '#e11d48');
                 }
             }
 
@@ -2836,7 +2853,7 @@
                 e.dir = chosen.dr < 0 ? 'UP' : chosen.dr > 0 ? 'DOWN' : chosen.dc < 0 ? 'LEFT' : 'RIGHT';
                 e.skillAnim = 26;
                 this.sound.playItemCurseSpawn();
-                this.addFloatingText(e.x, e.y - 30, '🐉 喷火!', '#f97316', 15);
+                this.addFloatingText(e.x, e.y - 30, ' 喷火!', '#f97316', 15);
                 this.spawnSkillBolt(e.x, e.y, e.x + chosen.dc * TILE_SIZE, e.y + chosen.dr * TILE_SIZE, '#f97316');
 
                 e.fireImmuneTimer = cfg.selfImmune;
@@ -2878,7 +2895,7 @@
                         e.fireCells.push({ col: c, row: r });
                         this.bombs[bombIdx].ignitedBy = e;
                         this.detonateBomb(bombIdx);
-                        this.addFloatingText(cx, cy - 20, '🔥 引爆炸弹!', '#ef4444', 15);
+                        this.addFloatingText(cx, cy - 20, ' 引爆炸弹!', '#ef4444', 15);
                         break;
                     }
 
@@ -2909,7 +2926,7 @@
                 const target = this.findBombAround(e, curCol, curRow, 3, 'flameFirst');
                 e.skillAnim = 26;
                 this.sound.playPortalLocked();
-                const dirText = target ? '🧊 喷水冻结炸弹!' : '🧊 喷水!';
+                const dirText = target ? '喷水冻结炸弹!' : '喷水!';
                 this.addFloatingText(e.x, e.y - 30, dirText, '#38bdf8', 15);
                 this.spawnSkillBolt(e.x, e.y, target ? (target.bomb.col + 0.5) * TILE_SIZE : e.x, target ? (target.bomb.row + 0.5) * TILE_SIZE : e.y, '#38bdf8');
 
@@ -2944,7 +2961,7 @@
                 const target = this.findBombAround(e, curCol, curRow, 3, 'nearest');
                 e.skillAnim = 24;
                 this.sound.playRemoteBeep();
-                this.addFloatingText(e.x, e.y - 30, target ? '🌬️ 吹退炸弹!' : '🌬️ 刮风!', '#22d3ee', 15);
+                this.addFloatingText(e.x, e.y - 30, target ? ' 吹退炸弹!' : ' 刮风!', '#22d3ee', 15);
 
                 if (!target) return;
 
@@ -2998,7 +3015,7 @@
                 const t = this.grid[dest.r][dest.c];
                 if (t === TILE.CRATE) {
                     this.destroyCrate(dest.c, dest.r);
-                    this.addFloatingText((dest.c + 0.5) * TILE_SIZE, (dest.r + 0.5) * TILE_SIZE - 18, '💨 撞爆木箱!', '#f59e0b', 14);
+                    this.addFloatingText((dest.c + 0.5) * TILE_SIZE, (dest.r + 0.5) * TILE_SIZE - 18, ' 撞爆木箱!', '#f59e0b', 14);
                 } else if (t === TILE.FROST_CRATE) {
                     this.crackFrostCrate(dest.c, dest.r);
                 } else if (t === TILE.VINE) {
@@ -3014,7 +3031,7 @@
             skillWhiteTigerDevour(e, curCol, curRow, cfg) {
                 const target = this.findBombAround(e, curCol, curRow, 3, 'nearest');
                 e.skillAnim = 28;
-                this.addFloatingText(e.x, e.y - 30, target ? '🐯 吞掉炸弹!' : '🐯 咆哮!', '#a855f7', 15);
+                this.addFloatingText(e.x, e.y - 30, target ? ' 吞掉炸弹!' : ' 咆哮!', '#a855f7', 15);
 
                 if (!target) {
                     this.sound.playEnemyDefeat();
@@ -3048,7 +3065,7 @@
                     });
                 }
                 this.spawnSkillBolt(cx, cy, e.x, e.y, '#c084fc');
-                this.addFloatingText(e.x, e.y - 44, `🐯 强化! ${e.hp}/${e.maxHp}`, '#9333ea', 15);
+                this.addFloatingText(e.x, e.y - 44, `强化! ${e.hp}/${e.maxHp}`, '#9333ea', 15);
                 this.updateHUD();
             }
 
@@ -3074,7 +3091,7 @@
                             b.frozenBy = null;
                             const cx = (b.col + 0.5) * TILE_SIZE;
                             const cy = (b.row + 0.5) * TILE_SIZE;
-                            this.addFloatingText(cx, cy - 22, '🧊 冰块化开!', '#0ea5e9', 14);
+                            this.addFloatingText(cx, cy - 22, ' 冰块化开!', '#0ea5e9', 14);
                             for (let k = 0; k < 10; k++) {
                                 const ang = Math.random() * Math.PI * 2;
                                 this.particles.push({
@@ -3136,7 +3153,7 @@
                                 if (enemy.waterGuard > 0) {
                                     enemy.skillAnim = Math.max(enemy.skillAnim, 20);
                                     if (enemy.waterGuard > 105) {
-                                        this.addFloatingText(enemy.x, enemy.y - 26, '🧊 冰块护体!', '#38bdf8', 14);
+                                        this.addFloatingText(enemy.x, enemy.y - 26, ' 冰块护体!', '#38bdf8', 14);
                                     }
                                     continue;
                                 }
@@ -3167,7 +3184,7 @@
                         }
                     });
                     if (freed > 0) {
-                        this.addFloatingText(e.x, e.y - 26, `🧊 ${freed} 颗炸弹解冻!`, '#0ea5e9', 15);
+                        this.addFloatingText(e.x, e.y - 26, `${freed} 颗炸弹解冻!`, '#0ea5e9', 15);
                     }
                 }
 
@@ -3201,7 +3218,7 @@
                         refund++;
                     }
                     if (refund > 0) {
-                        this.addFloatingText(e.x, e.y - 30, `🐯 吐出 ${refund} 颗炸弹!`, '#9333ea', 16);
+                        this.addFloatingText(e.x, e.y - 30, `吐出 ${refund} 颗炸弹!`, '#9333ea', 16);
                     }
                 }
             }
@@ -3215,7 +3232,7 @@
                     e.hurtTimer = 50;
                     e.enrageTimer = 260;
                     this.sound.playEnemyDefeat();
-                    this.addFloatingText(e.x, e.y - 16, `😡狂暴! HP:${e.hp}/${e.maxHp}`, '#f43f5e');
+                    this.addFloatingText(e.x, e.y - 16, `狂暴! HP:${e.hp}/${e.maxHp}`, '#f43f5e');
                     return false;
                 }
 
@@ -3229,15 +3246,15 @@
 
                 this.megaCharge = Math.min(MEGA_COST * 3, this.megaCharge + 1);
                 if (this.megaCharge === MEGA_COST) {
-                    this.addFloatingText(e.x, e.y - 34, '💥 超必杀就绪! 按 L 释放!', '#d946ef', 17);
-                    this.showComboToast('💥 超必杀就绪!', '按 L 或点 💥 释放', '#d946ef');
+                    this.addFloatingText(e.x, e.y - 34, ' 超必杀就绪! 按 L 释放!', '#d946ef', 17);
+                    this.showComboToast(' 超必杀就绪!', '按 L 或点 释放', '#d946ef');
                 }
 
                 this.registerKillForCombo();
 
                 const reward = Math.round(200 * e.maxHp * this.getScoreMult());
                 this.score += reward;
-                this.addFloatingText(e.x, e.y - 10, `+${reward} ✨`, '#10b981');
+                this.addFloatingText(e.x, e.y - 10, `+${reward}`, '#10b981');
 
                 this.particles.push({
                     x: e.x, y: e.y,
@@ -3275,9 +3292,9 @@
                     const portalY = (this.portal.row + 0.5) * TILE_SIZE;
 
                     if (this.portal.revealed) {
-                        this.addFloatingText(portalX, portalY - 22, '🌈 传送门已开启！快进去吧！', '#9333ea');
+                        this.addFloatingText(portalX, portalY - 22, ' 传送门已开启！快进去吧！', '#9333ea');
                     } else {
-                        this.addFloatingText(this.player.x, this.player.y - 26, '🌈 怪物已清光！炸开木箱寻找传送门！', '#9333ea');
+                        this.addFloatingText(this.player.x, this.player.y - 26, ' 怪物已清光！炸开木箱寻找传送门！', '#9333ea');
                     }
 
                     for (let k = 0; k < 28; k++) {
@@ -4597,6 +4614,21 @@
                         ctx.lineWidth = 1.4 * u;
                         ctx.beginPath(); ctx.moveTo(0, -8 * u); ctx.lineTo(0, 8 * u); ctx.stroke();
                         shine(-2.4, -3, 1.6, 0.5);
+                        break;
+                    }
+                    case 'heart': {
+                        ctx.fillStyle = '#f43f5e';
+                        ctx.strokeStyle = '#9f1239';
+                        ctx.lineWidth = 1.4 * u;
+                        ctx.beginPath();
+                        ctx.moveTo(0, 9 * u);
+                        ctx.bezierCurveTo(-11 * u, 1 * u, -9 * u, -8 * u, -4 * u, -8 * u);
+                        ctx.bezierCurveTo(-1.5 * u, -8 * u, 0, -6 * u, 0, -5 * u);
+                        ctx.bezierCurveTo(0, -6 * u, 1.5 * u, -8 * u, 4 * u, -8 * u);
+                        ctx.bezierCurveTo(9 * u, -8 * u, 11 * u, 1 * u, 0, 9 * u);
+                        ctx.closePath();
+                        ctx.fill(); ctx.stroke();
+                        shine(-3, -3.4, 1.6, 0.5);
                         break;
                     }
                     case 'lock': {
