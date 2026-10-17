@@ -73,7 +73,7 @@
 
         const MEGA_COST = 5;
         const MEGA_RADIUS = 3;
-        const GOLDEN_QUOTA_BASE = 40;
+        const GOLDEN_QUOTA_BASE = 30;
 
         const SHOP_ITEMS = [
             { key: 'bombCap',   icon: 'bomb', name: '炸弹容量', desc: '开局携带炸弹上限 +1', max: 5, baseCost: 60,  costMul: 1.9, color: 'from-slate-600 to-slate-800' },
