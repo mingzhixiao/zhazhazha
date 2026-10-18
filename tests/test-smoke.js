@@ -51,6 +51,18 @@ describe('冒烟：源码零 emoji', () => {
     }
 });
 
+describe('冒烟：无运行时 CDN 硬依赖', () => {
+    it('不加载 cdn.tailwindcss.com', () => {
+        const html = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
+        assert.ok(!html.includes('cdn.tailwindcss.com'), '仍在用 Tailwind CDN');
+    });
+    it('引用构建后的 tailwind-built.css', () => {
+        const html = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
+        assert.ok(html.includes('css/tailwind-built.css'), '缺少构建 CSS 引用');
+        assert.ok(fs.existsSync(path.join(ROOT, 'css/tailwind-built.css')), '构建产物不存在');
+    });
+});
+
 describe('冒烟：脚本加载顺序', () => {
     it('rng.js / pure.js 在 game.js 之前加载', () => {
         const html = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');

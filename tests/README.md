@@ -3,7 +3,8 @@
 ## 运行
 
 ```bash
-npm test          # 全部测试（node --test tests/）
+npm run build     # 构建 Tailwind CSS（css/tailwind-built.css）
+npm test          # 全部测试（node --test tests/，自动先构建 CSS）
 npm run check     # 全部 JS 语法检查
 ```
 

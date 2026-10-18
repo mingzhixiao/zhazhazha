@@ -1,1 +1,21 @@
-{"description": "Q版炸弹人大冒险 — 原生 HTML/CSS/JS Canvas 游戏", "engines": {"node": ">=18"}, "license": "UNLICENSED", "name": "zhazhazha", "scripts": {"check": "for f in js/rng.js js/pure.js js/config.js js/audio.js js/save.js js/game.js; do node --check \"$f\" || exit 1; done && echo \"all syntax OK\"", "test": "node --test \"tests/*.js\"", "test:watch": "node --test --watch \"tests/*.js\""}, "type": "commonjs", "version": "1.0.0"}
+{
+  "description": "Q版炸弹人大冒险 — 原生 HTML/CSS/JS Canvas 游戏",
+  "engines": {
+    "node": ">=18"
+  },
+  "license": "UNLICENSED",
+  "name": "zhazhazha",
+  "scripts": {
+    "check": "for f in js/rng.js js/pure.js js/config.js js/audio.js js/save.js js/game.js; do node --check \"$f\" || exit 1; done && echo \"all syntax OK\"",
+    "test": "node --test \"tests/*.js\"",
+    "test:watch": "node --test --watch \"tests/*.js\"",
+    "build:css": "tailwindcss -i ./css/tailwind-input.css -o ./css/tailwind-built.css",
+    "build": "npm run build:css",
+    "pretest": "npm run build:css"
+  },
+  "type": "commonjs",
+  "version": "1.0.0",
+  "devDependencies": {
+    "tailwindcss": "^3.4.19"
+  }
+}
