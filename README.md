@@ -1,28 +1,83 @@
-# 炸弹人 (zhazhazha)
+# Q版炸弹人大冒险 (zhazhazha)
 
-Q版炸弹人大冒险 - 百怪狂暴升级版 · 趣味加强版
+手机/PC 双端可玩的网页炸弹人游戏：放弹爆破、怪物围堵、特化怪技能、强化商店、永久成长。
 
-手机/PC 双端可玩的网页炸弹人游戏：千鸟破冰、炸道具爆怪惩罚、百怪军团围堵、全屏超必杀、强化商店。
+**在线试玩**：https://mingzhixiao.github.io/zhazhazha/（GitHub Pages，已验证可访问）
 
 ## 玩法
 
-- 方向键 / WASD / 虚拟摇杆 / 十字键 / 手势：移动
-- 空格 / J：放炸弹
-- K：引爆遥控炸弹
-- L：全屏超必杀（魔力攒满 5 点）
-- F：全屏，P：暂停
+清光每关的怪物军团，进入传送门过关。炸木箱开道具、金币去商店永久强化自己。
+
+### 操作
+
+| 桌面端 | 移动端 |
+|---|---|
+| WASD / 方向键：移动 | 虚拟摇杆 / 十字键 / 手势滑动：移动 |
+| 空格 / J：放炸弹 | 放炸弹按钮：放弹 |
+| K / E：引爆遥控炸弹 | 引爆按钮：引爆 |
+| L：全屏超必杀（魔力满 5 点） | 必杀按钮 |
+| P：暂停，F：全屏，F3：性能面板 | 顶部按钮：暂停/音效/重玩 |
+
+### 难度
+
+新手（8怪）→ 简单（14怪）→ 中等（20精英）→ 困难1（68怪）→ 困难2（145怪）。
+新手档有教学引导、延长保护、每关一次复活、降低的道具惩罚。
+
+### 存档
+
+- 位置：浏览器 `localStorage`（key: `chibi_bomberman_save_v2`），**仅本地，不跨设备同步**
+- 内容：最高分、生涯统计（击杀/金币/通关）、商店永久强化
+- 存储不可用时游戏仍可玩，本次进度不保存；损坏数据会自动备份并恢复默认值
+- 生涯浮层可重置存档（二次确认）
+
+## 本地运行
+
+```bash
+# 直接打开
+open index.html
+
+# 或启动静态服务器
+npx serve .
+```
+
+## 开发
+
+```bash
+npm run build   # 构建 Tailwind CSS（css/tailwind-built.css）
+npm test        # 自动化测试（68 用例，Node 18+ 内置，无需安装依赖）
+npm run check   # JS 语法检查
+```
+
+测试说明见 `tests/README.md`。代码审查报告：`REVIEW-2026-10-18.md`。
 
 ## 文件结构
 
 ```
-index.html        # 游戏页面（HTML 结构）
+index.html        # 页面结构
 css/
-  style.css       # 全部样式
+  style.css         # 自定义样式
+  tailwind-built.css# Tailwind 构建产物（npm run build 生成）
+  tailwind-input.css# Tailwind 输入
 js/
-  config.js       # 常量：地块/道具/难度/商店配置
-  audio.js        # Web Audio 合成音效系统
-  save.js         # 本地存档（最高分/生涯/强化）
-  game.js         # 游戏主引擎
+  rng.js            # 可注入随机数（测试 seed）
+  pure.js           # 可测试纯函数（数值/存档校验/出生点）
+  config.js         # 常量：地块/道具/难度/商店配置
+  audio.js          # Web Audio 合成音效
+  save.js           # 本地存档（版本化/校验/备份）
+  game.js           # 游戏主引擎
+tests/              # 自动化测试
 ```
 
-直接用浏览器打开 `index.html` 即可游玩（建议部署到 GitHub Pages）。
+## 已知限制
+
+- 需要真机验证：iOS Safari / Android Chrome 的触控手感、视口裁切（见发布检查清单）
+- 困难2（145怪）在低端手机可能掉帧，可按 F3 或 `?perf=1` 查看性能面板
+- Google Fonts 加载失败时回退到系统字体
+
+## 反馈
+
+通过 GitHub Issues 反馈：https://github.com/mingzhixiao/zhazhazha/issues
+
+## 许可证
+
+待定（作者未决定，暂不标注）。

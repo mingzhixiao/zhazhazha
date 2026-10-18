@@ -3,7 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Q版炸弹人大冒险 - 百怪狂暴升级版 · 趣味加强版</title>
+    <meta name="description" content="Q版炸弹人大冒险 — 手机/PC 双端可玩的网页炸弹人游戏：放弹爆破、怪物围堵、强化商店、新手教学。">
+    <meta name="theme-color" content="#22c55e">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='42' fill='%2316a34a'/><circle cx='50' cy='50' r='30' fill='white'/><circle cx='42' cy='44' r='6' fill='%230f172a'/><circle cx='58' cy='44' r='6' fill='%230f172a'/></svg>">
+    <title>Q版炸弹人大冒险</title>
     <link rel="stylesheet" href="css/tailwind-built.css">
     <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;700&family=Noto+Sans+SC:wght@500;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/style.css">
@@ -26,13 +29,13 @@
 
         <!-- 顶部 15%：次要图标，小而克制 -->
         <div class="start-top">
-            <button id="startSoundBtn" class="start-icon-btn" title="音效开关">
+            <button id="startSoundBtn" class="start-icon-btn" title="音效开关" aria-label="音效开关">
                 <canvas class="guide-icon" id="startSoundIcon" data-icon="speaker" width="22" height="22"></canvas>
             </button>
-            <button id="startHelpBtn" class="start-icon-btn" title="玩法说明">
+            <button id="startHelpBtn" class="start-icon-btn" title="玩法说明" aria-label="玩法说明">
                 <canvas class="guide-icon" data-icon="help" width="22" height="22"></canvas>
             </button>
-            <button id="startCareerBtn" class="start-icon-btn" title="生涯记录">
+            <button id="startCareerBtn" class="start-icon-btn" title="生涯记录" aria-label="生涯记录">
                 <canvas class="guide-icon" data-icon="trophy" width="22" height="22"></canvas>
             </button>
         </div>
@@ -217,7 +220,7 @@
             </div>
 
             <div class="flex items-center gap-1 shrink-0">
-                <button id="btnRotate" title="横屏模式：旋转画面，手机竖握即可 MOBA 操作" class="candy-btn bg-violet-500 hover:bg-violet-400 text-white font-bold px-2 py-1 rounded-xl text-xs flex items-center gap-1 border-2 border-white">
+                <button id="btnRotate" aria-label="横屏模式" title="横屏模式：旋转画面，手机竖握即可 MOBA 操作" class="candy-btn bg-violet-500 hover:bg-violet-400 text-white font-bold px-2 py-1 rounded-xl text-xs flex items-center gap-1 border-2 border-white">
                     <canvas class="guide-icon" data-icon="rotate" width="16" height="16"></canvas>
                     <span class="hidden md:inline">横屏</span>
                 </button>
@@ -229,15 +232,15 @@
                     <span id="controlModeIcon">摇杆</span>
                     <span class="hidden sm:inline" id="controlModeText">摇杆</span>
                 </button>
-                <button id="btnSound" class="candy-btn bg-amber-400 hover:bg-amber-300 text-slate-900 font-bold px-2 py-1 rounded-xl text-xs flex items-center gap-1 border-2 border-white">
+                <button id="btnSound" aria-label="音效开关" class="candy-btn bg-amber-400 hover:bg-amber-300 text-slate-900 font-bold px-2 py-1 rounded-xl text-xs flex items-center gap-1 border-2 border-white">
                     <canvas class="guide-icon" id="soundIconCanvas" data-icon="speaker" width="16" height="16"></canvas>
                     <span class="hidden md:inline" id="soundText">音效</span>
                 </button>
-                <button id="btnPause" class="candy-btn bg-sky-400 hover:bg-sky-300 text-white font-bold px-2 py-1 rounded-xl text-xs flex items-center gap-1 border-2 border-white">
+                <button id="btnPause" aria-label="暂停游戏" class="candy-btn bg-sky-400 hover:bg-sky-300 text-white font-bold px-2 py-1 rounded-xl text-xs flex items-center gap-1 border-2 border-white">
                     <canvas class="guide-icon" data-icon="pause" width="16" height="16"></canvas>
                     <span class="hidden md:inline" id="pauseText">暂停</span>
                 </button>
-                <button id="btnRestart" class="candy-btn bg-rose-500 hover:bg-rose-400 text-white font-bold px-2 py-1 rounded-xl text-xs flex items-center gap-1 border-2 border-white">
+                <button id="btnRestart" aria-label="重新开始" class="candy-btn bg-rose-500 hover:bg-rose-400 text-white font-bold px-2 py-1 rounded-xl text-xs flex items-center gap-1 border-2 border-white">
                     <canvas class="guide-icon" data-icon="restart" width="16" height="16"></canvas>
                     <span class="hidden md:inline">重玩</span>
                 </button>
