@@ -35,7 +35,9 @@ describe('冒烟：JS 引用的 DOM ID 在 HTML 中存在', () => {
     const html = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
     const js = fs.readFileSync(path.join(ROOT, 'js/game.js'), 'utf8');
     const ids = new Set([...js.matchAll(/getElementById\('([^']+)'\)/g)].map(m => m[1]));
-    const missing = [...ids].filter(id => !html.includes(`id="${id}"`));
+    // 动态创建的 ID（document.createElement），不要求在 HTML 中预置
+    const dynamicIds = new Set(['perfPanel']);
+    const missing = [...ids].filter(id => !dynamicIds.has(id) && !html.includes(`id="${id}"`));
     it('无悬空 ID 引用', () => {
         assert.deepEqual(missing, [], `悬空 ID: ${missing.join(', ')}`);
     });

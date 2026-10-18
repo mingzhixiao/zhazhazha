@@ -29,6 +29,12 @@
 
                 this.state = 'MENU';
                 this.noviceFailStreak = 0; // 新手档连败计数
+                // 性能面板（dev）：?perf=1 或按 F3 开启，默认关闭
+                this.perf = {
+                    enabled: (typeof location !== 'undefined' && location.search.includes('perf=1')),
+                    frames: 0, lastFpsT: 0, fps: 0,
+                    updateMs: 0, drawMs: 0
+                };
                 this.lastDamageCause = null; // 最后一次受伤原因
                 this.noviceReviveUsed = false; // 新手每关复活是否已用
                 this.seenElite = false; // 是否见过精英怪
@@ -923,6 +929,7 @@
                     }
                     if (e.code === 'KeyP') this.togglePause();
                     if (e.code === 'KeyF') this.toggleFullscreen();
+                    if (e.code === 'F3') { e.preventDefault(); this.togglePerfPanel(); }
                 });
 
                 window.addEventListener('keyup', (e) => {
@@ -1772,6 +1779,35 @@
                 this.hideStartScreen();
                 this.hideDiffSheet();
                 this.state = 'PLAYING';
+            }
+
+            // 性能面板更新（dev only）
+            updatePerfPanel() {
+                const p = this.perf;
+                p.frames++;
+                const now = performance.now();
+                if (now - p.lastFpsT >= 500) {
+                    p.fps = Math.round(p.frames * 1000 / (now - p.lastFpsT));
+                    p.frames = 0;
+                    p.lastFpsT = now;
+                }
+                let el = document.getElementById('perfPanel');
+                if (!el) {
+                    el = document.createElement('div');
+                    el.id = 'perfPanel';
+                    el.style.cssText = 'position:fixed;top:4px;left:4px;z-index:999;background:rgba(0,0,0,0.7);color:#0f0;font:11px monospace;padding:6px 8px;border-radius:8px;pointer-events:none;white-space:pre;';
+                    document.body.appendChild(el);
+                }
+                el.textContent =
+                    `FPS:${p.fps} upd:${p.updateMs.toFixed(1)}ms draw:${p.drawMs.toFixed(1)}ms\n` +
+                    `怪:${this.enemies.length} 弹:${this.bombs.length} 爆:${this.explosions.length} 粒:${this.particles.length}`;
+            }
+
+            togglePerfPanel() {
+                this.perf.enabled = !this.perf.enabled;
+                const el = document.getElementById('perfPanel');
+                if (el) el.remove();
+                this.showToast(this.perf.enabled ? '性能面板开' : '性能面板关', 'bolt');
             }
 
             // 主角立绘：首页中部舞台，大号炸弹人 + 呼吸浮动 + 眨眼
@@ -5974,6 +6010,8 @@
 
                 this.globalTime += dtScale;
 
+                const perfStart = this.perf.enabled ? performance.now() : 0;
+
                 if (this.state === 'PLAYING') {
                     this.updateDangerState(dtScale);
                     this.updatePlayer(dtScale);
@@ -5993,7 +6031,15 @@
                 if (this.tutorial && this.tutorial.active) {
                     this.updateTutorial();
                 }
+                if (this.perf.enabled) {
+                    this.perf.updateMs = performance.now() - perfStart;
+                }
+                const drawStart = this.perf.enabled ? performance.now() : 0;
                 this.draw();
+                if (this.perf.enabled) {
+                    this.perf.drawMs = performance.now() - drawStart;
+                    this.updatePerfPanel();
+                }
                 if (this.tutorial && this.tutorial.active) {
                     this.drawTutorialMarkers();
                 }
