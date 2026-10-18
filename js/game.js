@@ -96,6 +96,7 @@
                 this.bindEvents();
                 this.initLevel(1);
                 this.drawStaticIcons();
+                this.showStartScreen();
 
                 this.lastFrameTime = performance.now();
                 requestAnimationFrame((t) => this.loop(t));
@@ -517,14 +518,16 @@
 
             setDifficulty(idx) {
                 this.difficultyIdx = idx;
-                document.getElementById('topDiffSelect').value = String(idx);
-                document.querySelectorAll('.diff-btn').forEach(btn => {
-                    if (Number(btn.getAttribute('data-diff')) === idx) {
-                        btn.className = 'diff-btn candy-btn py-1.5 px-1 rounded-xl bg-emerald-500 text-white border-2 border-white flex flex-col items-center';
-                    } else {
-                        btn.className = 'diff-btn candy-btn py-1.5 px-1 rounded-xl bg-slate-100 text-slate-700 border-2 border-white flex flex-col items-center';
-                    }
+                const sel = document.getElementById('topDiffSelect');
+                if (sel) sel.value = String(idx);
+                // 底部 sheet 高亮
+                document.querySelectorAll('.sheet-diff-btn').forEach(btn => {
+                    btn.classList.toggle('active', Number(btn.getAttribute('data-diff')) === idx);
                 });
+                // 首页难度 pill 文案
+                const names = ['新手 · 8怪', '简单 · 14怪', '中等 · 20精英', '困难1 · 68怪', '困难2 · 145怪'];
+                const pill = document.getElementById('startDiffName');
+                if (pill) pill.textContent = names[idx] || names[0];
             }
 
             initLevel(levelNum) {
@@ -859,7 +862,7 @@
                     this.keys[e.code] = false;
                 });
 
-                document.querySelectorAll('.diff-btn').forEach(btn => {
+                document.querySelectorAll('.sheet-diff-btn').forEach(btn => {
                     btn.addEventListener('click', () => {
                         this.sound.init();
                         this.sound.playClick();
@@ -868,6 +871,7 @@
                         this.score = 0;
                         this.coins = 0;
                         this.initLevel(1);
+                        this.hideDiffSheet();
                     });
                 });
 
@@ -1223,6 +1227,57 @@
                     }
                 });
 
+                // ===== 首页按钮 =====
+                document.getElementById('startGameBtn').addEventListener('click', () => {
+                    this.startGameFromMenu();
+                });
+                document.getElementById('startDiffPill').addEventListener('click', () => {
+                    this.sound.init();
+                    this.sound.playClick();
+                    this.showDiffSheet();
+                });
+                document.getElementById('diffSheetBackdrop').addEventListener('click', () => {
+                    this.hideDiffSheet();
+                });
+                document.getElementById('startHelpBtn').addEventListener('click', () => {
+                    this.sound.init();
+                    this.sound.playClick();
+                    this.showHelpModal();
+                });
+                document.getElementById('helpCloseBtn').addEventListener('click', () => {
+                    this.sound.playClick();
+                    this.hideHelpModal();
+                });
+                document.getElementById('helpBackdrop').addEventListener('click', () => {
+                    this.hideHelpModal();
+                });
+                document.getElementById('startCareerBtn').addEventListener('click', () => {
+                    this.sound.init();
+                    this.sound.playClick();
+                    this.showCareerPop();
+                });
+                document.getElementById('careerCloseBtn').addEventListener('click', () => {
+                    this.sound.playClick();
+                    this.hideCareerPop();
+                });
+                document.getElementById('careerBackdrop').addEventListener('click', () => {
+                    this.hideCareerPop();
+                });
+                document.getElementById('startSoundBtn').addEventListener('click', () => {
+                    this.sound.init();
+                    const on = this.sound.toggle();
+                    this.syncStartSoundIcon();
+                    // 同步顶部栏音效图标
+                    const iconCanvas = document.getElementById('soundIconCanvas');
+                    if (iconCanvas) {
+                        const cctx = iconCanvas.getContext('2d');
+                        cctx.clearRect(0, 0, 16, 16);
+                        this.drawIcon(on ? 'speaker' : 'speakerOff', 8, 8, 14, cctx);
+                    }
+                    const st = document.getElementById('soundText');
+                    if (st) st.textContent = on ? '音效' : '静音';
+                });
+
                 // 商店继续按钮
                 document.getElementById('shopContinueBtn').addEventListener('click', () => {
                     this.sound.init();
@@ -1296,6 +1351,171 @@
 
             hideModal() {
                 document.getElementById('overlayModal').classList.add('hidden');
+            }
+
+            // ============ 首页：底部锚点 + 中部舞台 ============
+            showStartScreen() {
+                this.state = 'MENU';
+                this.hideModal();
+                this.hideShop();
+                document.getElementById('startScreen').classList.remove('hidden');
+                this.updateCareerPanel();
+                this.setDifficulty(this.difficultyIdx || 0);
+                this.syncStartSoundIcon();
+            }
+
+            hideStartScreen() {
+                document.getElementById('startScreen').classList.add('hidden');
+            }
+
+            showDiffSheet() {
+                document.getElementById('diffSheet').classList.remove('hidden');
+            }
+
+            hideDiffSheet() {
+                document.getElementById('diffSheet').classList.add('hidden');
+            }
+
+            showHelpModal() {
+                document.getElementById('helpModal').classList.remove('hidden');
+            }
+
+            hideHelpModal() {
+                document.getElementById('helpModal').classList.add('hidden');
+            }
+
+            showCareerPop() {
+                this.updateCareerPanel();
+                document.getElementById('careerPop').classList.remove('hidden');
+            }
+
+            hideCareerPop() {
+                document.getElementById('careerPop').classList.add('hidden');
+            }
+
+            syncStartSoundIcon() {
+                const cv = document.getElementById('startSoundIcon');
+                if (cv && this.drawIcon) {
+                    const cctx = cv.getContext('2d');
+                    cctx.clearRect(0, 0, 22, 22);
+                    this.drawIcon(this.sound.enabled ? 'speaker' : 'speakerOff', 11, 11, 18, cctx);
+                }
+            }
+
+            startGameFromMenu() {
+                this.sound.init();
+                this.sound.playClick();
+                const isTouch = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
+                const portrait = window.innerHeight > window.innerWidth;
+                if (isTouch && portrait && !this.rotateMode && !this._rotateSuggested) {
+                    this._rotateSuggested = true;
+                    this.setRotateMode(true);
+                }
+                this.hideStartScreen();
+                this.hideDiffSheet();
+                this.state = 'PLAYING';
+            }
+
+            // 主角立绘：首页中部舞台，大号炸弹人 + 呼吸浮动 + 眨眼
+            drawHero() {
+                const cv = document.getElementById('heroCanvas');
+                if (!cv) return;
+                const hctx = cv.getContext('2d');
+                const W = cv.width, H = cv.height;
+                hctx.clearRect(0, 0, W, H);
+
+                const t = performance.now() / 1000;
+                const bob = Math.sin(t * 2.2) * 6;
+                const breath = 1 + Math.sin(t * 3.1) * 0.025;
+                const blink = (t % 3.7) < 0.12;
+
+                hctx.save();
+                hctx.translate(W / 2, H / 2 + bob);
+                hctx.scale(3.1 * breath, 3.1 * (2 - breath));
+
+                // 阴影
+                hctx.fillStyle = 'rgba(20, 60, 40, 0.18)';
+                hctx.beginPath();
+                hctx.ellipse(0, 24 - bob * 0.3, 20, 7, 0, 0, Math.PI * 2);
+                hctx.fill();
+
+                // 脚
+                hctx.fillStyle = '#f43f5e';
+                hctx.beginPath();
+                hctx.arc(-8, 20, 6, 0, Math.PI * 2);
+                hctx.arc(8, 20, 6, 0, Math.PI * 2);
+                hctx.fill();
+
+                // 腰带
+                hctx.fillStyle = '#2563eb';
+                drawRoundRect(hctx, -13, 6, 26, 13, 6);
+                hctx.fill();
+                hctx.fillStyle = '#facc15';
+                hctx.fillRect(-12, 12, 24, 3.5);
+
+                // 手
+                hctx.fillStyle = '#f43f5e';
+                hctx.beginPath();
+                hctx.arc(-17, 10, 5, 0, Math.PI * 2);
+                hctx.arc(17, 10, 5, 0, Math.PI * 2);
+                hctx.fill();
+
+                // 天线
+                hctx.strokeStyle = '#ffffff';
+                hctx.lineWidth = 3.5;
+                hctx.beginPath();
+                hctx.moveTo(0, -20);
+                hctx.lineTo(0, -28);
+                hctx.stroke();
+                hctx.fillStyle = '#ec4899';
+                hctx.beginPath();
+                hctx.arc(0, -31, 6, 0, Math.PI * 2);
+                hctx.fill();
+                hctx.fillStyle = 'rgba(255,255,255,0.55)';
+                hctx.beginPath();
+                hctx.arc(-2, -33, 2, 0, Math.PI * 2);
+                hctx.fill();
+
+                // 身体
+                hctx.fillStyle = '#ffffff';
+                drawRoundRect(hctx, -21, -22, 42, 30, 15);
+                hctx.fill();
+                hctx.strokeStyle = '#cbd5e1';
+                hctx.lineWidth = 2;
+                hctx.stroke();
+
+                // 脸
+                hctx.fillStyle = '#fed7aa';
+                drawRoundRect(hctx, -14, -14, 28, 17, 8);
+                hctx.fill();
+
+                hctx.fillStyle = '#0f172a';
+                if (blink) {
+                    hctx.lineWidth = 2.4;
+                    hctx.strokeStyle = '#0f172a';
+                    hctx.beginPath();
+                    hctx.moveTo(-9, -5); hctx.lineTo(-4, -5);
+                    hctx.moveTo(4, -5); hctx.lineTo(9, -5);
+                    hctx.stroke();
+                } else {
+                    hctx.beginPath();
+                    hctx.ellipse(-6.5, -5.5, 2.6, 4.6, 0, 0, Math.PI * 2);
+                    hctx.ellipse(6.5, -5.5, 2.6, 4.6, 0, 0, Math.PI * 2);
+                    hctx.fill();
+                    hctx.fillStyle = '#ffffff';
+                    hctx.beginPath();
+                    hctx.arc(-7.2, -7.4, 1.1, 0, Math.PI * 2);
+                    hctx.arc(5.8, -7.4, 1.1, 0, Math.PI * 2);
+                    hctx.fill();
+                }
+                // 腮红
+                hctx.fillStyle = 'rgba(244, 63, 94, 0.45)';
+                hctx.beginPath();
+                hctx.arc(-11, -2, 3, 0, Math.PI * 2);
+                hctx.arc(11, -2, 3, 0, Math.PI * 2);
+                hctx.fill();
+
+                hctx.restore();
             }
 
             showShop() {
@@ -1389,9 +1609,9 @@
                     const el = document.getElementById(id);
                     if (el) el.textContent = v;
                 };
-                set('careerBest', d.bestScore.toLocaleString());
-                set('careerKills', d.totalKills.toLocaleString());
-                set('careerLevels', d.totalLevelsCleared);
+                set('careerBest2', d.bestScore.toLocaleString());
+                set('careerKills2', d.totalKills.toLocaleString());
+                set('careerLevels2', d.totalLevelsCleared);
             }
 
             updateHUD() {
@@ -4856,6 +5076,17 @@
                         ctx.fill();
                         break;
                     }
+                    case 'help': {
+                        // 问号：帮助
+                        ctx.fillStyle = '#ffffff';
+                        ctx.beginPath(); ctx.arc(0, 0, 11 * u, 0, Math.PI * 2); ctx.fill();
+                        ctx.fillStyle = '#2e9e5b';
+                        ctx.font = `900 ${17 * u}px 'Fredoka', sans-serif`;
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = 'middle';
+                        ctx.fillText('?', 0, 1 * u);
+                        break;
+                    }
                     case 'lock': {
                         // 锁体
                         ctx.fillStyle = '#64748b';
@@ -5335,6 +5566,9 @@
                 }
 
                 this.draw();
+                if (this.state === 'MENU' && !document.getElementById('startScreen').classList.contains('hidden')) {
+                    this.drawHero();
+                }
                 requestAnimationFrame((t) => this.loop(t));
             }
         }

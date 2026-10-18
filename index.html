@@ -10,6 +10,162 @@
 </head>
 <body id="appBody" class="w-full flex flex-col justify-between items-center p-1 sm:p-2.5 select-none overflow-hidden" style="height: var(--app-h, 100dvh);">
 
+    <!-- ============ 首页：底部锚点 + 中部舞台 ============ -->
+    <div id="startScreen" class="hidden">
+        <!-- 背景层：降噪天空 + 雾化遮罩 + 漂浮装饰 -->
+        <div class="start-bg">
+            <div class="start-fog"></div>
+            <div class="start-deco start-deco-1"><canvas class="guide-icon" data-icon="bomb" width="44" height="44"></canvas></div>
+            <div class="start-deco start-deco-2"><canvas class="guide-icon" data-icon="star" width="34" height="34"></canvas></div>
+            <div class="start-deco start-deco-3"><canvas class="guide-icon" data-icon="bomb" width="30" height="30"></canvas></div>
+            <div class="start-deco start-deco-4"><canvas class="guide-icon" data-icon="star" width="26" height="26"></canvas></div>
+            <div class="start-deco start-deco-5"><canvas class="guide-icon" data-icon="coin" width="30" height="30"></canvas></div>
+            <div class="start-cloud start-cloud-1"></div>
+            <div class="start-cloud start-cloud-2"></div>
+        </div>
+
+        <!-- 顶部 15%：次要图标，小而克制 -->
+        <div class="start-top">
+            <button id="startSoundBtn" class="start-icon-btn" title="音效开关">
+                <canvas class="guide-icon" id="startSoundIcon" data-icon="speaker" width="22" height="22"></canvas>
+            </button>
+            <button id="startHelpBtn" class="start-icon-btn" title="玩法说明">
+                <canvas class="guide-icon" data-icon="help" width="22" height="22"></canvas>
+            </button>
+            <button id="startCareerBtn" class="start-icon-btn" title="生涯记录">
+                <canvas class="guide-icon" data-icon="trophy" width="22" height="22"></canvas>
+            </button>
+        </div>
+
+        <!-- 中部 40-50%：标题 + 主角立绘，无交互按钮 -->
+        <div class="start-stage">
+            <h1 class="start-title">Q版炸弹人</h1>
+            <div class="start-subtitle">大冒险 · 百怪狂暴版</div>
+            <canvas id="heroCanvas" width="220" height="220"></canvas>
+        </div>
+
+        <!-- 底部 25-30%：主开始按钮 -->
+        <div class="start-bottom">
+            <button id="startGameBtn" class="start-main-btn">开始游戏</button>
+            <button id="startDiffPill" class="start-diff-pill">
+                <canvas class="guide-icon" data-icon="flag" width="16" height="16"></canvas>
+                <span id="startDiffName">新手 · 8怪</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- 难度选择底部 sheet -->
+    <div id="diffSheet" class="hidden">
+        <div class="sheet-backdrop" id="diffSheetBackdrop"></div>
+        <div class="sheet-card">
+            <div class="sheet-title">选择难度</div>
+            <div id="sheetDiffList" class="sheet-diff-list">
+                <button data-diff="0" class="sheet-diff-btn"><span class="t">新手</span><span class="d">13×11 · 8怪</span></button>
+                <button data-diff="1" class="sheet-diff-btn"><span class="t">简单</span><span class="d">13×11 · 14怪</span></button>
+                <button data-diff="2" class="sheet-diff-btn"><span class="t">中等</span><span class="d">20只精英怪</span></button>
+                <button data-diff="3" class="sheet-diff-btn"><span class="t">困难1</span><span class="d">5倍图 · 68怪</span></button>
+                <button data-diff="4" class="sheet-diff-btn"><span class="t">困难2</span><span class="d">10倍图 · 145怪</span></button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 帮助弹窗 -->
+    <div id="helpModal" class="hidden">
+        <div class="sheet-backdrop" id="helpBackdrop"></div>
+        <div class="help-card">
+            <div class="sheet-title">玩法说明</div>
+            <div class="help-scroll">
+                <div class="w-full bg-sky-50/95 rounded-2xl p-2 border-2 border-sky-100 grid grid-cols-2 gap-1.5 text-left text-[10px] sm:text-[11px]">
+                    <div class="flex items-center gap-1.5">
+                        <span class="w-5 h-5 rounded-lg bg-sky-500 text-white flex items-center justify-center font-bold shrink-0"><canvas class="guide-icon" data-icon="clock" width="20" height="20"></canvas></span>
+                        <span class="text-slate-700 font-bold truncate">遥控炸弹：按 <b>K 引爆</b> 全引爆</span>
+                    </div>
+                    <div class="flex items-center gap-1.5">
+                        <span class="w-5 h-5 rounded-lg bg-purple-500 text-white flex items-center justify-center font-bold shrink-0"><canvas class="guide-icon" data-icon="ghost" width="20" height="20"></canvas></span>
+                        <span class="text-slate-700 font-bold truncate">穿墙披风：穿箱/冰/藤蔓不减速</span>
+                    </div>
+                    <div class="flex items-center gap-1.5">
+                        <span class="w-5 h-5 rounded-lg bg-amber-500 text-white flex items-center justify-center font-bold shrink-0"><canvas class="guide-icon" data-icon="vest" width="20" height="20"></canvas></span>
+                        <span class="text-slate-700 font-bold truncate">火焰防炸衣：金盾免疫一切炸弹</span>
+                    </div>
+                    <div class="flex items-center gap-1.5">
+                        <span class="w-5 h-5 rounded-lg bg-pink-500 text-white flex items-center justify-center font-bold shrink-0"><canvas class="guide-icon" data-icon="bird" width="20" height="20"></canvas></span>
+                        <span class="text-slate-700 font-bold truncate">魔力鸟千鸟：全屏破除1层冰封</span>
+                    </div>
+                    <div class="flex items-center gap-1.5">
+                        <span class="w-5 h-5 rounded-lg bg-cyan-500 text-white flex items-center justify-center font-bold shrink-0"><canvas class="guide-icon" data-icon="snow" width="20" height="20"></canvas></span>
+                        <span class="text-slate-700 font-bold truncate">糖霜冰块：第1次碎冰第2次毁箱</span>
+                    </div>
+                    <div class="flex items-center gap-1.5">
+                        <span class="w-5 h-5 rounded-lg bg-rose-600 text-white flex items-center justify-center font-bold shrink-0"><canvas class="guide-icon" data-icon="angry" width="20" height="20"></canvas></span>
+                        <span class="text-rose-700 font-bold truncate">炸毁道具：异变生成2~5只怪物!</span>
+                    </div>
+                    <div class="flex items-center gap-1.5">
+                        <span class="w-5 h-5 rounded-lg bg-yellow-500 text-white flex items-center justify-center font-bold shrink-0"><canvas class="guide-icon" data-icon="coin" width="20" height="20"></canvas></span>
+                        <span class="text-slate-700 font-bold truncate">金币：木箱18%掉落，可去商店永久强化</span>
+                    </div>
+                    <div class="flex items-center gap-1.5">
+                        <span class="w-5 h-5 rounded-lg bg-fuchsia-600 text-white flex items-center justify-center font-bold shrink-0"><canvas class="guide-icon" data-icon="star" width="20" height="20"></canvas></span>
+                        <span class="text-slate-700 font-bold truncate">超必杀：魔力攒满5点全屏巨爆</span>
+                    </div>
+                </div>
+                <div class="w-full bg-rose-50/95 rounded-2xl p-2 border-2 border-rose-100 text-left mt-2">
+                    <div class="text-[10px] sm:text-[11px] font-black text-rose-700 mb-1">特化怪（会跟你的炸弹互动，务必优先处理）</div>
+                    <div class="grid grid-cols-2 gap-1.5 text-[10px] sm:text-[11px]">
+                        <div class="flex items-center gap-1.5">
+                            <span class="w-5 h-5 rounded-lg bg-orange-500 text-white flex items-center justify-center text-[11px] shrink-0"><canvas class="guide-icon" data-icon="fire" width="20" height="20"></canvas></span>
+                            <span class="text-slate-700 font-bold truncate">小火龙：<b>喷火引爆</b>炸弹，自身免疫</span>
+                        </div>
+                        <div class="flex items-center gap-1.5">
+                            <span class="w-5 h-5 rounded-lg bg-sky-500 text-white flex items-center justify-center text-[11px] shrink-0"><canvas class="guide-icon" data-icon="water" width="20" height="20"></canvas></span>
+                            <span class="text-slate-700 font-bold truncate">小乌龟：<b>喷水冻结</b>，暂停倒计时</span>
+                        </div>
+                        <div class="flex items-center gap-1.5">
+                            <span class="w-5 h-5 rounded-lg bg-cyan-500 text-white flex items-center justify-center text-[11px] shrink-0"><canvas class="guide-icon" data-icon="wind" width="20" height="20"></canvas></span>
+                            <span class="text-slate-700 font-bold truncate">青鸟：<b>刮风后退</b>炸弹一格</span>
+                        </div>
+                        <div class="flex items-center gap-1.5">
+                            <span class="w-5 h-5 rounded-lg bg-purple-500 text-white flex items-center justify-center text-[11px] shrink-0"><canvas class="guide-icon" data-icon="swirl" width="20" height="20"></canvas></span>
+                            <span class="text-slate-700 font-bold truncate">白虎：<b>吞掉</b>炸弹并强化自身</span>
+                        </div>
+                    </div>
+                    <div class="text-[9px] sm:text-[10px] text-rose-600 font-bold mt-1 leading-snug">
+                        它们都会<b>蓄力</b>（头顶进度环）后才出手 —— 蓄力期间站定不动，这就是你的击杀窗口。
+                        被控的炸弹在<b>该怪死亡瞬间自动解控</b>，放心打。
+                    </div>
+                </div>
+                <div class="text-[11px] text-slate-500 font-bold text-center mt-2 leading-snug">
+                    <span class="text-rose-600 font-black">注意：炸毁地上的道具会异变涌出多只愤怒怪物！</span><br>
+                    清光怪物军团解封<span class="text-purple-600 font-black">魔法传送门</span>即可过关！
+                </div>
+            </div>
+            <button id="helpCloseBtn" class="candy-btn w-full py-2 rounded-2xl bg-gradient-to-r from-emerald-400 to-teal-500 text-white font-black text-base border-2 border-white mt-2">知道了</button>
+        </div>
+    </div>
+
+    <!-- 生涯记录浮层 -->
+    <div id="careerPop" class="hidden">
+        <div class="sheet-backdrop" id="careerBackdrop"></div>
+        <div class="career-pop-card">
+            <div class="sheet-title">生涯记录</div>
+            <div class="grid grid-cols-3 gap-1 text-[10px] sm:text-[11px] mt-2">
+                <div class="text-center bg-white rounded-lg py-1 border border-indigo-100">
+                    <div class="text-slate-400 font-bold text-[9px]">最高分</div>
+                    <div id="careerBest2" class="font-black text-amber-600">0</div>
+                </div>
+                <div class="text-center bg-white rounded-lg py-1 border border-indigo-100">
+                    <div class="text-slate-400 font-bold text-[9px]">总击杀</div>
+                    <div id="careerKills2" class="font-black text-rose-600">0</div>
+                </div>
+                <div class="text-center bg-white rounded-lg py-1 border border-indigo-100">
+                    <div class="text-slate-400 font-bold text-[9px]">通关数</div>
+                    <div id="careerLevels2" class="font-black text-emerald-600">0</div>
+                </div>
+            </div>
+            <button id="careerCloseBtn" class="candy-btn w-full py-2 rounded-2xl bg-slate-100 text-slate-700 font-black text-sm border-2 border-white mt-2">关闭</button>
+        </div>
+    </div>
+
     <!-- 顶部状态栏 & 任务指引 HUD -->
     <header id="topHeader" class="w-full max-w-[860px] flex flex-col gap-1 shrink-0 z-10">
         <div class="flex items-center justify-between candy-panel rounded-2xl px-2.5 py-1 sm:px-3.5 sm:py-1.5 gap-1.5">
@@ -144,121 +300,14 @@
                 </div>
             </div>
 
-            <div id="overlayModal" class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-2.5 z-30">
+            <div id="overlayModal" class="hidden absolute inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-2.5 z-30">
                 <div class="candy-panel rounded-3xl p-3.5 sm:p-5 max-w-lg w-full text-center flex flex-col items-center gap-2 sm:gap-2.5 float-anim max-h-full overflow-y-auto">
                     <div id="modalBadge" class="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-gradient-to-tr from-amber-400 to-rose-400 flex items-center justify-center shadow-lg border-4 border-white shrink-0">
                         <canvas id="modalBadgeCanvas" width="44" height="44"></canvas>
                     </div>
-                    <h2 id="modalTitle" class="text-lg sm:text-2xl font-black text-slate-800">Q版炸弹人大冒险 · 百怪狂暴版</h2>
+                    <h2 id="modalTitle" class="text-lg sm:text-2xl font-black text-slate-800">Q版炸弹人大冒险</h2>
                     <p id="modalDesc" class="text-[11px] sm:text-xs text-slate-600 leading-relaxed font-medium">
-                        <span class="text-rose-600 font-black">注意：炸毁地上的道具会异变涌出多只愤怒怪物！</span><br>
-                        魔力鸟千鸟闪电可全屏震碎一层糖霜冰封；清光怪物军团解封<span class="text-purple-600 font-black">魔法传送门</span>即可过关！<br>
-                        击杀怪物累积<span class="text-fuchsia-600 font-black">必杀魔力</span>，攒满 5 点即可发动<span class="text-fuchsia-600 font-black">全屏超必杀</span>！
                     </p>
-
-                    <div id="difficultyPicker" class="w-full grid grid-cols-5 gap-1 text-center">
-                        <button data-diff="0" class="diff-btn candy-btn py-1.5 px-1 rounded-xl bg-emerald-500 text-white border-2 border-white flex flex-col items-center">
-                            <span class="text-xs sm:text-sm font-black">新手</span>
-                            <span class="text-[9px] opacity-90">13×11·8怪</span>
-                        </button>
-                        <button data-diff="1" class="diff-btn candy-btn py-1.5 px-1 rounded-xl bg-slate-100 text-slate-700 border-2 border-white flex flex-col items-center">
-                            <span class="text-xs sm:text-sm font-black">简单</span>
-                            <span class="text-[9px] opacity-75">13×11·14怪</span>
-                        </button>
-                        <button data-diff="2" class="diff-btn candy-btn py-1.5 px-1 rounded-xl bg-slate-100 text-slate-700 border-2 border-white flex flex-col items-center">
-                            <span class="text-xs sm:text-sm font-black">中等</span>
-                            <span class="text-[9px] opacity-75">20只精英怪</span>
-                        </button>
-                        <button data-diff="3" class="diff-btn candy-btn py-1.5 px-1 rounded-xl bg-slate-100 text-slate-700 border-2 border-white flex flex-col items-center">
-                            <span class="text-xs sm:text-sm font-black">困难1</span>
-                            <span class="text-[9px] opacity-75">5倍图·68怪</span>
-                        </button>
-                        <button data-diff="4" class="diff-btn candy-btn py-1.5 px-1 rounded-xl bg-slate-100 text-slate-700 border-2 border-white flex flex-col items-center">
-                            <span class="text-xs sm:text-sm font-black">困难2</span>
-                            <span class="text-[9px] opacity-75">10倍·145怪</span>
-                        </button>
-                    </div>
-
-                    <div class="w-full bg-sky-50/95 rounded-2xl p-2 border-2 border-sky-100 grid grid-cols-2 gap-1.5 text-left text-[10px] sm:text-[11px]">
-                        <div class="flex items-center gap-1.5">
-                            <span class="w-5 h-5 rounded-lg bg-sky-500 text-white flex items-center justify-center font-bold shrink-0"><canvas class="guide-icon" data-icon="clock" width="20" height="20"></canvas></span>
-                            <span class="text-slate-700 font-bold truncate">遥控炸弹：按 <b>K 引爆</b> 全引爆</span>
-                        </div>
-                        <div class="flex items-center gap-1.5">
-                            <span class="w-5 h-5 rounded-lg bg-purple-500 text-white flex items-center justify-center font-bold shrink-0"><canvas class="guide-icon" data-icon="ghost" width="20" height="20"></canvas></span>
-                            <span class="text-slate-700 font-bold truncate">穿墙披风：穿箱/冰/藤蔓不减速</span>
-                        </div>
-                        <div class="flex items-center gap-1.5">
-                            <span class="w-5 h-5 rounded-lg bg-amber-500 text-white flex items-center justify-center font-bold shrink-0"><canvas class="guide-icon" data-icon="vest" width="20" height="20"></canvas></span>
-                            <span class="text-slate-700 font-bold truncate">火焰防炸衣：金盾免疫一切炸弹</span>
-                        </div>
-                        <div class="flex items-center gap-1.5">
-                            <span class="w-5 h-5 rounded-lg bg-pink-500 text-white flex items-center justify-center font-bold shrink-0"><canvas class="guide-icon" data-icon="bird" width="20" height="20"></canvas></span>
-                            <span class="text-slate-700 font-bold truncate">魔力鸟千鸟：全屏破除1层冰封</span>
-                        </div>
-                        <div class="flex items-center gap-1.5">
-                            <span class="w-5 h-5 rounded-lg bg-cyan-500 text-white flex items-center justify-center font-bold shrink-0"><canvas class="guide-icon" data-icon="snow" width="20" height="20"></canvas></span>
-                            <span class="text-slate-700 font-bold truncate">糖霜冰块：第1次碎冰第2次毁箱</span>
-                        </div>
-                        <div class="flex items-center gap-1.5">
-                            <span class="w-5 h-5 rounded-lg bg-rose-600 text-white flex items-center justify-center font-bold shrink-0"><canvas class="guide-icon" data-icon="angry" width="20" height="20"></canvas></span>
-                            <span class="text-rose-700 font-bold truncate">炸毁道具：异变生成2~5只怪物!</span>
-                        </div>
-                        <div class="flex items-center gap-1.5">
-                            <span class="w-5 h-5 rounded-lg bg-yellow-500 text-white flex items-center justify-center font-bold shrink-0"><canvas class="guide-icon" data-icon="coin" width="20" height="20"></canvas></span>
-                            <span class="text-slate-700 font-bold truncate">金币：木箱18%掉落，可去商店永久强化</span>
-                        </div>
-                        <div class="flex items-center gap-1.5">
-                            <span class="w-5 h-5 rounded-lg bg-fuchsia-600 text-white flex items-center justify-center font-bold shrink-0"><canvas class="guide-icon" data-icon="star" width="20" height="20"></canvas></span>
-                            <span class="text-slate-700 font-bold truncate">超必杀：魔力攒满5点全屏巨爆</span>
-                        </div>
-                    </div>
-
-                    <!-- 特化怪图鉴 -->
-                    <div class="w-full bg-rose-50/95 rounded-2xl p-2 border-2 border-rose-100 text-left">
-                        <div class="text-[10px] sm:text-[11px] font-black text-rose-700 mb-1">特化怪（会跟你的炸弹互动，务必优先处理）</div>
-                        <div class="grid grid-cols-2 gap-1.5 text-[10px] sm:text-[11px]">
-                            <div class="flex items-center gap-1.5">
-                                <span class="w-5 h-5 rounded-lg bg-orange-500 text-white flex items-center justify-center text-[11px] shrink-0"><canvas class="guide-icon" data-icon="fire" width="20" height="20"></canvas></span>
-                                <span class="text-slate-700 font-bold truncate">小火龙：<b>喷火引爆</b>炸弹，自身免疫</span>
-                            </div>
-                            <div class="flex items-center gap-1.5">
-                                <span class="w-5 h-5 rounded-lg bg-sky-500 text-white flex items-center justify-center text-[11px] shrink-0"><canvas class="guide-icon" data-icon="water" width="20" height="20"></canvas></span>
-                                <span class="text-slate-700 font-bold truncate">小乌龟：<b>喷水冻结</b>，暂停倒计时</span>
-                            </div>
-                            <div class="flex items-center gap-1.5">
-                                <span class="w-5 h-5 rounded-lg bg-cyan-500 text-white flex items-center justify-center text-[11px] shrink-0"><canvas class="guide-icon" data-icon="wind" width="20" height="20"></canvas></span>
-                                <span class="text-slate-700 font-bold truncate">青鸟：<b>刮风后退</b>炸弹一格</span>
-                            </div>
-                            <div class="flex items-center gap-1.5">
-                                <span class="w-5 h-5 rounded-lg bg-purple-500 text-white flex items-center justify-center text-[11px] shrink-0"><canvas class="guide-icon" data-icon="swirl" width="20" height="20"></canvas></span>
-                                <span class="text-slate-700 font-bold truncate">白虎：<b>吞掉</b>炸弹并强化自身</span>
-                            </div>
-                        </div>
-                        <div class="text-[9px] sm:text-[10px] text-rose-600 font-bold mt-1 leading-snug">
-                            它们都会<b>蓄力</b>（头顶进度环）后才出手 —— 蓄力期间站定不动，这就是你的击杀窗口。
-                            被控的炸弹在<b>该怪死亡瞬间自动解控</b>，放心打。
-                        </div>
-                    </div>
-
-                    <!-- 生涯记录 -->
-                    <div id="careerPanel" class="w-full bg-indigo-50/95 rounded-2xl p-2 border-2 border-indigo-100 text-left">
-                        <div class="text-[10px] sm:text-[11px] font-black text-indigo-700 mb-1">生涯记录</div>
-                        <div class="grid grid-cols-3 gap-1 text-[10px] sm:text-[11px]">
-                            <div class="text-center bg-white rounded-lg py-1 border border-indigo-100">
-                                <div class="text-slate-400 font-bold text-[9px]">最高分</div>
-                                <div id="careerBest" class="font-black text-amber-600">0</div>
-                            </div>
-                            <div class="text-center bg-white rounded-lg py-1 border border-indigo-100">
-                                <div class="text-slate-400 font-bold text-[9px]">总击杀</div>
-                                <div id="careerKills" class="font-black text-rose-600">0</div>
-                            </div>
-                            <div class="text-center bg-white rounded-lg py-1 border border-indigo-100">
-                                <div class="text-slate-400 font-bold text-[9px]">通关数</div>
-                                <div id="careerLevels" class="font-black text-emerald-600">0</div>
-                            </div>
-                        </div>
-                    </div>
 
                     <button id="modalActionBtn" class="candy-btn w-full py-2 sm:py-2.5 rounded-2xl bg-gradient-to-r from-emerald-400 to-teal-500 hover:from-emerald-300 hover:to-teal-400 text-white font-black text-base sm:text-lg tracking-wider border-2 border-white">
                         开始冒险

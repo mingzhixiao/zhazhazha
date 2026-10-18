@@ -662,3 +662,304 @@
             animation: multPop 0.3s cubic-bezier(0.34,1.56,0.64,1);
         }
         #comboMeter.hidden { display: none; }
+
+        /* ============================================================
+           首页：底部锚点 + 中部舞台（产品级布局）
+           配色纪律：主色绿 60-70% / 辅助蓝 20-25% / 点缀橙黄 5-10%
+           禁用：大面积红、紫、纯黑
+           ============================================================ */
+        #startScreen {
+            position: fixed;
+            inset: 0;
+            z-index: 50;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            overflow: hidden;
+            font-family: 'Fredoka', 'Noto Sans SC', sans-serif;
+        }
+        #startScreen.hidden { display: none; }
+
+        /* ---- 背景：降噪天空 + 雾化遮罩 ---- */
+        .start-bg {
+            position: absolute;
+            inset: 0;
+            /* 降饱和 20% 的天蓝渐变：#a8d8ea -> #d4f0e8 */
+            background: linear-gradient(180deg, #a9d6e8 0%, #c2e5ee 38%, #d8f0e4 72%, #cfeecb 100%);
+            filter: saturate(0.8);
+        }
+        .start-fog {
+            position: absolute;
+            inset: 0;
+            background: rgba(255, 255, 255, 0.15);
+        }
+        /* 云朵：低对比装饰 */
+        .start-cloud {
+            position: absolute;
+            background: rgba(255, 255, 255, 0.55);
+            border-radius: 999px;
+            filter: blur(2px);
+        }
+        .start-cloud-1 { width: 130px; height: 38px; top: 12%; left: 8%; animation: cloudDrift 14s ease-in-out infinite; }
+        .start-cloud-2 { width: 90px; height: 28px; top: 30%; right: 10%; animation: cloudDrift 18s ease-in-out infinite reverse; }
+        @keyframes cloudDrift {
+            0%, 100% { transform: translateX(0); }
+            50% { transform: translateX(26px); }
+        }
+        /* 两侧漂浮装饰：低不透明度，不抢主视觉 */
+        .start-deco {
+            position: absolute;
+            opacity: 0.5;
+            animation: decoFloat 5s ease-in-out infinite;
+            pointer-events: none;
+        }
+        .start-deco-1 { left: 6%; top: 38%; animation-delay: 0s; }
+        .start-deco-2 { right: 8%; top: 30%; animation-delay: 1.2s; }
+        .start-deco-3 { left: 12%; top: 66%; animation-delay: 2.1s; }
+        .start-deco-4 { right: 14%; top: 62%; animation-delay: 0.7s; }
+        .start-deco-5 { right: 5%; top: 48%; animation-delay: 1.8s; }
+        @keyframes decoFloat {
+            0%, 100% { transform: translateY(0) rotate(-6deg); }
+            50% { transform: translateY(-14px) rotate(6deg); }
+        }
+
+        /* ---- 顶部 15%：次要图标，小而克制 ---- */
+        .start-top {
+            position: relative;
+            z-index: 2;
+            width: 100%;
+            max-width: 520px;
+            height: 15%;
+            min-height: 64px;
+            display: flex;
+            align-items: flex-start;
+            justify-content: flex-end;
+            gap: 10px;
+            padding: max(14px, env(safe-area-inset-top)) 18px 0;
+        }
+        .start-icon-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 14px;
+            background: rgba(255, 255, 255, 0.75);
+            border: 2px solid rgba(255, 255, 255, 0.9);
+            box-shadow: 0 2px 8px rgba(46, 111, 144, 0.15);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: transform 0.15s ease;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .start-icon-btn:active { transform: scale(0.9); }
+
+        /* ---- 中部 40-50%：标题 + 主角立绘，无交互按钮 ---- */
+        .start-stage {
+            position: relative;
+            z-index: 2;
+            width: 100%;
+            max-width: 520px;
+            flex: 1 1 45%;
+            min-height: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 2px;
+            pointer-events: none;
+        }
+        .start-title {
+            font-family: 'Fredoka', 'Noto Sans SC', sans-serif;
+            font-weight: 700;
+            font-size: clamp(44px, 13vw, 64px);
+            line-height: 1.1;
+            letter-spacing: 0.04em;
+            /* 黄→橙渐变，中等饱和 */
+            background: linear-gradient(180deg, #ffd93b 20%, #ff9f1c 80%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            /* 深色描边 2px + 柔和投影，确保任何背景清晰 */
+            -webkit-text-stroke: 2px #7c4a03;
+            paint-order: stroke fill;
+            filter: drop-shadow(0 3px 0 rgba(124, 74, 3, 0.25)) drop-shadow(0 6px 12px rgba(255, 159, 28, 0.3));
+            margin: 0;
+            user-select: none;
+        }
+        .start-subtitle {
+            font-size: clamp(14px, 4vw, 18px);
+            font-weight: 700;
+            color: #2e7d4f;
+            letter-spacing: 0.35em;
+            text-indent: 0.35em;
+            text-shadow: 0 1px 0 rgba(255, 255, 255, 0.8);
+            user-select: none;
+        }
+        #heroCanvas {
+            width: min(44vw, 200px);
+            height: min(44vw, 200px);
+            margin-top: 6px;
+            filter: drop-shadow(0 10px 14px rgba(46, 111, 144, 0.25));
+        }
+
+        /* ---- 底部 25-30%：主开始按钮锚点 ---- */
+        .start-bottom {
+            position: relative;
+            z-index: 2;
+            width: 100%;
+            max-width: 520px;
+            flex: 0 0 28%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            gap: 12px;
+            padding-top: 8px;
+            padding-bottom: max(18px, env(safe-area-inset-bottom));
+        }
+        .start-main-btn {
+            /* 规格：bottom 18% 区域 / min-width 70vw / 高 64px / 胶囊 */
+            min-width: min(70vw, 340px);
+            height: 64px;
+            padding: 0 48px;
+            border-radius: 40px;
+            border: 3px solid rgba(255, 255, 255, 0.9);
+            /* 绿色系：放松 / 安全 / 前进 */
+            background: linear-gradient(180deg, #4ade80 0%, #22c55e 55%, #16a34a 100%);
+            box-shadow: 0 6px 0 #15803d, 0 10px 24px rgba(34, 197, 94, 0.45);
+            color: #ffffff;
+            font-family: 'Fredoka', 'Noto Sans SC', sans-serif;
+            font-size: 22px;
+            font-weight: 700;
+            letter-spacing: 0.2em;
+            text-indent: 0.2em;
+            text-shadow: 0 2px 4px rgba(21, 128, 61, 0.5);
+            cursor: pointer;
+            transition: transform 0.12s ease, box-shadow 0.12s ease;
+            -webkit-tap-highlight-color: transparent;
+            animation: btnBreathe 2.2s ease-in-out infinite;
+        }
+        .start-main-btn:active {
+            transform: translateY(4px);
+            box-shadow: 0 2px 0 #15803d, 0 6px 14px rgba(34, 197, 94, 0.4);
+            animation: none;
+        }
+        @keyframes btnBreathe {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.03); }
+        }
+        .start-diff-pill {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 7px 16px;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.8);
+            border: 2px solid rgba(255, 255, 255, 0.95);
+            box-shadow: 0 2px 8px rgba(46, 111, 144, 0.12);
+            color: #2e7d4f;
+            font-size: 13px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: transform 0.15s ease;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .start-diff-pill:active { transform: scale(0.94); }
+
+        /* ---- 底部 sheet 通用 ---- */
+        #diffSheet.hidden, #helpModal.hidden, #careerPop.hidden { display: none; }
+        #diffSheet, #helpModal, #careerPop {
+            position: fixed;
+            inset: 0;
+            z-index: 60;
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+        }
+        #helpModal, #careerPop { align-items: center; padding: 20px; }
+        .sheet-backdrop {
+            position: absolute;
+            inset: 0;
+            background: rgba(15, 40, 60, 0.45);
+            backdrop-filter: blur(2px);
+        }
+        .sheet-card {
+            position: relative;
+            width: 100%;
+            max-width: 480px;
+            background: linear-gradient(180deg, #f4fbf4 0%, #e8f6ec 100%);
+            border-radius: 24px 24px 0 0;
+            border-top: 3px solid #ffffff;
+            padding: 18px 18px max(22px, env(safe-area-inset-bottom));
+            box-shadow: 0 -8px 32px rgba(15, 40, 60, 0.25);
+            animation: sheetUp 0.28s cubic-bezier(0.34, 1.4, 0.64, 1);
+        }
+        @keyframes sheetUp {
+            from { transform: translateY(60px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        .sheet-title {
+            text-align: center;
+            font-size: 17px;
+            font-weight: 900;
+            color: #1d6a3f;
+            margin-bottom: 12px;
+            letter-spacing: 0.1em;
+        }
+        .sheet-diff-list { display: flex; flex-direction: column; gap: 8px; }
+        .sheet-diff-btn {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 18px;
+            border-radius: 16px;
+            background: #ffffff;
+            border: 2px solid #d7ecdd;
+            cursor: pointer;
+            transition: transform 0.12s ease, border-color 0.12s ease;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .sheet-diff-btn:active { transform: scale(0.98); }
+        .sheet-diff-btn.active {
+            border-color: #22c55e;
+            background: #f0fdf4;
+            box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.25);
+        }
+        .sheet-diff-btn .t { font-size: 16px; font-weight: 900; color: #1d6a3f; }
+        .sheet-diff-btn .d { font-size: 12px; font-weight: 700; color: #7ba98d; }
+
+        /* ---- 帮助弹窗 ---- */
+        .help-card {
+            position: relative;
+            width: 100%;
+            max-width: 480px;
+            max-height: 82dvh;
+            display: flex;
+            flex-direction: column;
+            background: #ffffff;
+            border-radius: 24px;
+            border: 3px solid #ffffff;
+            padding: 18px;
+            box-shadow: 0 12px 40px rgba(15, 40, 60, 0.3);
+            animation: sheetUp 0.28s cubic-bezier(0.34, 1.4, 0.64, 1);
+        }
+        .help-scroll { overflow-y: auto; -webkit-overflow-scrolling: touch; }
+
+        /* ---- 生涯浮层 ---- */
+        .career-pop-card {
+            position: relative;
+            width: 100%;
+            max-width: 340px;
+            background: linear-gradient(180deg, #f4fbf4 0%, #e8f6ec 100%);
+            border-radius: 24px;
+            border: 3px solid #ffffff;
+            padding: 18px;
+            box-shadow: 0 12px 40px rgba(15, 40, 60, 0.3);
+            animation: sheetUp 0.28s cubic-bezier(0.34, 1.4, 0.64, 1);
+        }
+
+        /* PC 居中适配 */
+        @media (min-width: 768px) {
+            .start-main-btn { min-width: 320px; }
+            #heroCanvas { width: 220px; height: 220px; }
+        }
