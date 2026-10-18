@@ -916,21 +916,29 @@
 
                     const clampedDist = Math.min(dist, maxRadius);
                     const angle = Math.atan2(dy, dx);
-                    const knobX = Math.cos(angle) * clampedDist;
-                    const knobY = Math.sin(angle) * clampedDist;
+                    // 物理（屏幕）坐标系单位向量
+                    let vx = Math.cos(angle);
+                    let vy = Math.sin(angle);
+                    if (document.body.classList.contains('rotate-mode')) {
+                        // 横屏旋转模式：页面顺时针转了 90°，把物理向量转回游戏世界坐标
+                        // （与手势输入的补偿一致：gx = sy, gy = -sx）
+                        const rx = vy, ry = -vx;
+                        vx = rx; vy = ry;
+                    }
+                    // 摇杆头画在游戏坐标系里，旋转后正好落在手指的物理位置上
+                    const knobX = vx * clampedDist;
+                    const knobY = vy * clampedDist;
                     joystickKnob.style.transform = `translate(calc(-50% + ${knobX.toFixed(1)}px), calc(-50% + ${knobY.toFixed(1)}px))`;
 
                     const strength = Math.min(1, (clampedDist - deadZone) / (maxRadius - deadZone));
                     // 响应曲线：小幅度推动也更跟手（0.75 次方曲线）
                     const curved = Math.pow(strength, 0.75);
-                    const normX = Math.cos(angle);
-                    const normY = Math.sin(angle);
-                    this.joystickVector = { x: normX * curved, y: normY * curved };
+                    this.joystickVector = { x: vx * curved, y: vy * curved };
 
-                    if (Math.abs(normX) > Math.abs(normY)) {
-                        this.touchDir = normX > 0 ? 'RIGHT' : 'LEFT';
+                    if (Math.abs(vx) > Math.abs(vy)) {
+                        this.touchDir = vx > 0 ? 'RIGHT' : 'LEFT';
                     } else {
-                        this.touchDir = normY > 0 ? 'DOWN' : 'UP';
+                        this.touchDir = vy > 0 ? 'DOWN' : 'UP';
                     }
                     joystickDirLabel.textContent = dirSymbols[this.touchDir] || '·';
                 };
@@ -995,11 +1003,16 @@
 
                     if (Math.hypot(dx, dy) < 10) return;
 
+                    // 横屏旋转模式：物理坐标 → 游戏世界坐标
+                    let gx = dx, gy = dy;
+                    if (document.body.classList.contains('rotate-mode')) {
+                        gx = dy; gy = -dx;
+                    }
                     let newDir = null;
-                    if (Math.abs(dx) > Math.abs(dy)) {
-                        newDir = dx > 0 ? 'RIGHT' : 'LEFT';
+                    if (Math.abs(gx) > Math.abs(gy)) {
+                        newDir = gx > 0 ? 'RIGHT' : 'LEFT';
                     } else {
-                        newDir = dy > 0 ? 'DOWN' : 'UP';
+                        newDir = gy > 0 ? 'DOWN' : 'UP';
                     }
 
                     this.touchDir = newDir;
