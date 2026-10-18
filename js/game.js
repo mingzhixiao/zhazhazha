@@ -1327,6 +1327,27 @@
                     if (st) st.textContent = on ? '音效' : '静音';
                 });
 
+                // ===== 新手教学按钮 =====
+                document.getElementById('tutorialStartBtn').addEventListener('click', () => {
+                    this.sound.init();
+                    this.startTutorial();
+                });
+                document.getElementById('tutorialSkipOfferBtn').addEventListener('click', () => {
+                    this.sound.playClick();
+                    this.hideTutorialOffer();
+                    this.markTutorialDone(); // 选了"直接开始"就不再邀请
+                    this.startGameFromMenu();
+                });
+                document.getElementById('tutorialSkipBtn').addEventListener('click', () => {
+                    this.skipTutorial();
+                });
+                document.getElementById('tutorialReplayBtn').addEventListener('click', () => {
+                    this.sound.playClick();
+                    this.hideHelpModal();
+                    this._tutorialOffered = true; // 避免重复弹邀请
+                    this.startTutorial();
+                });
+
                 // 商店继续按钮
                 document.getElementById('shopContinueBtn').addEventListener('click', () => {
                     this.sound.init();
@@ -1402,6 +1423,224 @@
                 document.getElementById('overlayModal').classList.add('hidden');
             }
 
+            // ============ 新手交互式教学 ============
+            tutorialDone() {
+                try {
+                    return localStorage.getItem('zhazhazha_tutorial_v1') === 'done';
+                } catch (e) {
+                    return true; // 存储不可用时不打扰，直接视为已完成
+                }
+            }
+
+            markTutorialDone() {
+                try {
+                    localStorage.setItem('zhazhazha_tutorial_v1', 'done');
+                } catch (e) {}
+            }
+
+            showTutorialOffer() {
+                document.getElementById('tutorialOffer').classList.remove('hidden');
+            }
+
+            hideTutorialOffer() {
+                document.getElementById('tutorialOffer').classList.add('hidden');
+            }
+
+            startTutorial() {
+                this.hideTutorialOffer();
+                this.hideStartScreen();
+                // 全新第 1 关作为教学沙盒
+                this.score = 0;
+                this.coins = 0;
+                this.initLevel(1);
+                this.enemies = [];
+                this.powerups = [];
+                this.bombs = [];
+                // 教学保护：不会被自己的炸弹炸死
+                this.playerStats.flameVestTimer = 999999;
+                this.tutorial = {
+                    active: true,
+                    step: 0,
+                    target: null,      // {c, r} 目标格
+                    bombWasPlaced: false,
+                    powerupCount: 0,
+                    wasHit: false
+                };
+                document.getElementById('tutorialHud').classList.remove('hidden');
+                this.state = 'PLAYING';
+                this.setupTutorialStep(0);
+                this.sound.playLevelStart();
+            }
+
+            tutorialSteps() {
+                const isTouch = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
+                const moveHint = isTouch ? '拖动左侧摇杆' : '用 WASD / 方向键';
+                const bombHint = isTouch ? '点击右下角"放炸弹"按钮' : '按空格 / J';
+                return [
+                    { text: `${moveHint}，移动到发光绿圈里` },
+                    { text: `${bombHint}，放下一颗炸弹` },
+                    { text: `快离开红色爆炸范围！等炸弹炸完` },
+                    { text: `走到发光道具上拾取它` },
+                    { text: `放炸弹击败那只史莱姆（它不会动）` },
+                    { text: `进入发光的传送门，完成教学！` }
+                ];
+            }
+
+            setupTutorialStep(step) {
+                const t = this.tutorial;
+                t.step = step;
+                t.target = null;
+                t.bombWasPlaced = false;
+                t.wasHit = false;
+                document.getElementById('btnPlaceBomb').classList.remove('tutorial-highlight');
+
+                const steps = this.tutorialSteps();
+                document.getElementById('tutorialStepLabel').textContent = `${step + 1}/6`;
+                document.getElementById('tutorialText').textContent = steps[step].text;
+
+                const pCol = Math.floor(this.player.x / TILE_SIZE);
+                const pRow = Math.floor(this.player.y / TILE_SIZE);
+
+                if (step === 0) {
+                    // 目标：玩家右侧 3 格（找空地）
+                    t.target = this.findTutorialEmpty(pCol + 3, pRow);
+                } else if (step === 1) {
+                    document.getElementById('btnPlaceBomb').classList.add('tutorial-highlight');
+                } else if (step === 3) {
+                    // 放一个炸弹容量道具在玩家附近
+                    const spot = this.findTutorialEmpty(pCol + 2, pRow + 1);
+                    if (spot) {
+                        this.powerups.push({
+                            col: spot.c, row: spot.r, type: 'BOMB_UP',
+                            floatPhase: 0, spawnProtect: 0
+                        });
+                        t.target = spot;
+                        t.powerupCount = this.powerups.length;
+                    }
+                } else if (step === 4) {
+                    // 放一只不会动的史莱姆
+                    const spot = this.findTutorialEmpty(pCol + 3, pRow);
+                    if (spot) {
+                        const e = this.createSingleEnemyAt(spot.c, spot.r, DIFFICULTY_TIERS[0], false);
+                        e.hp = 1; e.maxHp = 1;
+                        e.tutorialFrozen = true;
+                        this.enemies.push(e);
+                        t.target = spot;
+                    }
+                } else if (step === 5) {
+                    // 传送门设为已激活
+                    if (this.portal) {
+                        this.portal.revealed = true;
+                        this.portal.active = true;
+                        t.target = { c: this.portal.col, r: this.portal.row };
+                    } else {
+                        t.target = this.findTutorialEmpty(pCol + 2, pRow);
+                    }
+                    this.showToast('传送门已开启！', 'swirl');
+                }
+                this.sound.playClick();
+            }
+
+            findTutorialEmpty(c, r) {
+                // 找最近的空地（优先目标格本身）
+                for (let rad = 0; rad < 6; rad++) {
+                    for (let dr = -rad; dr <= rad; dr++) {
+                        for (let dc = -rad; dc <= rad; dc++) {
+                            if (Math.max(Math.abs(dc), Math.abs(dr)) !== rad) continue;
+                            const cc = c + dc, rr = r + dr;
+                            if (rr > 0 && rr < this.mapRows - 1 && cc > 0 && cc < this.mapCols - 1 &&
+                                this.grid[rr][cc] === TILE.EMPTY) {
+                                return { c: cc, r: rr };
+                            }
+                        }
+                    }
+                }
+                return null;
+            }
+
+            updateTutorial() {
+                const t = this.tutorial;
+                if (!t || !t.active) return;
+                const pCol = Math.floor(this.player.x / TILE_SIZE);
+                const pRow = Math.floor(this.player.y / TILE_SIZE);
+                const atTarget = (t.target && pCol === t.target.c && pRow === t.target.r);
+
+                if (t.step === 0 && atTarget) {
+                    this.tutorialNext('移动得很好！');
+                } else if (t.step === 1 && this.bombs.length > 0) {
+                    t.bombWasPlaced = true;
+                    this.tutorialNext('放弹成功！');
+                } else if (t.step === 2 && t.bombWasPlaced && this.bombs.length === 0) {
+                    // 炸弹炸完了，根据是否被炸到给反馈（有保护不会真死）
+                    this.tutorialNext(t.wasHit ? '被炸到了！还好有保护——记住要跑出红圈' : '完美躲避！');
+                } else if (t.step === 3 && this.powerups.length < t.powerupCount) {
+                    this.tutorialNext('拾取成功！注意：炸到道具会引来怪物');
+                } else if (t.step === 4 && this.enemies.length === 0) {
+                    this.tutorialNext('击败！炸弹是十字范围的');
+                } else if (t.step === 5 && atTarget) {
+                    this.endTutorial(true);
+                }
+            }
+
+            tutorialNext(msg) {
+                if (msg) this.showToast(msg, 'star');
+                this.sound.playPowerup();
+                const next = this.tutorial.step + 1;
+                if (next >= 6) {
+                    this.endTutorial(true);
+                } else {
+                    this.setupTutorialStep(next);
+                }
+            }
+
+            endTutorial(completed) {
+                const t = this.tutorial;
+                if (t) t.active = false;
+                document.getElementById('tutorialHud').classList.add('hidden');
+                document.getElementById('btnPlaceBomb').classList.remove('tutorial-highlight');
+                // 清理教学残留
+                this.enemies = this.enemies.filter(e => !e.tutorialFrozen);
+                if (completed) {
+                    this.markTutorialDone();
+                    this.showToast('教学完成！开始真正的冒险吧', 'trophy', 2200);
+                    this.sound.playWin();
+                }
+                // 重新开一局干净的第 1 关
+                this.score = 0;
+                this.coins = 0;
+                this.initLevel(1);
+                this.state = 'PLAYING';
+            }
+
+            skipTutorial() {
+                this.sound.playClick();
+                this.endTutorial(false);
+            }
+
+            // 教学目标标记：发光绿圈 / 传送门高亮
+            drawTutorialMarkers() {
+                const t = this.tutorial;
+                if (!t || !t.active || !t.target) return;
+                const ctx = this.ctx;
+                const x = (t.target.c + 0.5) * TILE_SIZE;
+                const y = (t.target.r + 0.5) * TILE_SIZE;
+                const pulse = 1 + Math.sin(performance.now() / 300) * 0.12;
+                ctx.save();
+                ctx.strokeStyle = t.step === 5 ? '#22d3ee' : '#22c55e';
+                ctx.lineWidth = 5;
+                ctx.globalAlpha = 0.9;
+                ctx.beginPath();
+                ctx.arc(x, y, 26 * pulse, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.globalAlpha = 0.25;
+                ctx.fillStyle = t.step === 5 ? '#22d3ee' : '#22c55e';
+                ctx.beginPath();
+                ctx.arc(x, y, 26 * pulse, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            }
+
+
             // ============ 首页：底部锚点 + 中部舞台 ============
             showStartScreen() {
                 this.state = 'MENU';
@@ -1454,6 +1693,12 @@
             startGameFromMenu() {
                 this.sound.init();
                 this.sound.playClick();
+                // 首次游玩：先邀请新手教学
+                if (!this.tutorialDone() && !this._tutorialOffered) {
+                    this._tutorialOffered = true;
+                    this.showTutorialOffer();
+                    return;
+                }
                 const isTouch = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
                 const portrait = window.innerHeight > window.innerWidth;
                 if (isTouch && portrait && !this.rotateMode && !this._rotateSuggested) {
@@ -2906,7 +3151,12 @@
                     if (this.player.invincibleTimer <= 0) {
                         this.player.invincibleTimer = 25;
                         this.sound.playBlock();
-                        this.showToast('防炸衣免疫火焰!', 'vest');
+                        // 教学第 2 步：记录被炸到（有保护不会真伤血）
+                        if (this.tutorial && this.tutorial.active && this.tutorial.step === 2) {
+                            this.tutorial.wasHit = true;
+                        } else {
+                            this.showToast('防炸衣免疫火焰!', 'vest');
+                        }
                     }
                     return;
                 }
@@ -2959,6 +3209,8 @@
             }
 
             updateEnemies(dtScale) {
+                // 教学期间敌人全部冻结（包括教学目标怪），只教操作不挨打
+                if (this.tutorial && this.tutorial.active) return;
                 const diffCfg = DIFFICULTY_TIERS[this.difficultyIdx];
                 const pCol = Math.floor(this.player.x / TILE_SIZE);
                 const pRow = Math.floor(this.player.y / TILE_SIZE);
@@ -5620,7 +5872,13 @@
                     this.updateDangerState(dtScale);
                 }
 
+                if (this.tutorial && this.tutorial.active) {
+                    this.updateTutorial();
+                }
                 this.draw();
+                if (this.tutorial && this.tutorial.active) {
+                    this.drawTutorialMarkers();
+                }
                 if (this.state === 'MENU' && !document.getElementById('startScreen').classList.contains('hidden')) {
                     this.drawHero();
                 }

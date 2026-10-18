@@ -963,3 +963,90 @@
             .start-main-btn { min-width: 320px; }
             #heroCanvas { width: 220px; height: 220px; }
         }
+
+        /* ============================================================
+           新手教学
+           ============================================================ */
+        #tutorialOffer.hidden, #tutorialHud.hidden { display: none; }
+        #tutorialOffer {
+            position: fixed;
+            inset: 0;
+            z-index: 70;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .tutorial-offer-card {
+            position: relative;
+            width: 100%;
+            max-width: 340px;
+            background: linear-gradient(180deg, #f4fbf4 0%, #e8f6ec 100%);
+            border-radius: 24px;
+            border: 3px solid #ffffff;
+            padding: 20px;
+            box-shadow: 0 12px 40px rgba(15, 40, 60, 0.3);
+            animation: sheetUp 0.28s cubic-bezier(0.34, 1.4, 0.64, 1);
+        }
+        #tutorialHud {
+            position: fixed;
+            top: max(10px, env(safe-area-inset-top));
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 65;
+            width: min(92vw, 480px);
+            pointer-events: none;
+        }
+        .tutorial-card {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: rgba(255, 255, 255, 0.96);
+            border: 3px solid #22c55e;
+            border-radius: 18px;
+            padding: 10px 12px;
+            box-shadow: 0 6px 20px rgba(34, 197, 94, 0.3);
+            pointer-events: auto;
+        }
+        .tutorial-step {
+            flex-shrink: 0;
+            width: 44px;
+            height: 44px;
+            border-radius: 14px;
+            background: linear-gradient(180deg, #4ade80, #16a34a);
+            color: #fff;
+            font-weight: 900;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .tutorial-text {
+            flex: 1;
+            font-size: 14px;
+            font-weight: 700;
+            color: #1d6a3f;
+            line-height: 1.4;
+        }
+        .tutorial-skip {
+            flex-shrink: 0;
+            padding: 8px 14px;
+            border-radius: 12px;
+            background: #f1f5f9;
+            color: #64748b;
+            font-size: 13px;
+            font-weight: 900;
+            border: 2px solid #e2e8f0;
+            cursor: pointer;
+        }
+        .tutorial-skip:active { transform: scale(0.94); }
+        /* 教学高亮：放弹按钮脉冲 */
+        @keyframes tutorialPulse {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7); }
+            50% { box-shadow: 0 0 0 12px rgba(34, 197, 94, 0); }
+        }
+        .tutorial-highlight {
+            animation: tutorialPulse 1.2s ease-in-out infinite !important;
+            position: relative;
+            z-index: 66;
+        }

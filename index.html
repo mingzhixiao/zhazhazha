@@ -54,6 +54,28 @@
         </div>
     </div>
 
+    <!-- 新手教学邀请 -->
+    <div id="tutorialOffer" class="hidden">
+        <div class="sheet-backdrop"></div>
+        <div class="tutorial-offer-card">
+            <div class="sheet-title">欢迎来到炸弹人世界</div>
+            <p class="text-[13px] text-slate-600 font-bold text-center leading-relaxed mb-3">
+                花 1 分钟学 6 个动作：移动、放弹、躲避、拾取、击败、过关
+            </p>
+            <button id="tutorialStartBtn" class="candy-btn w-full py-2.5 rounded-2xl bg-gradient-to-r from-emerald-400 to-teal-500 text-white font-black text-base border-2 border-white mb-2">新手教学</button>
+            <button id="tutorialSkipOfferBtn" class="candy-btn w-full py-2 rounded-2xl bg-slate-100 text-slate-600 font-black text-sm border-2 border-white">直接开始</button>
+        </div>
+    </div>
+
+    <!-- 教学 HUD：顶部指导卡 -->
+    <div id="tutorialHud" class="hidden">
+        <div class="tutorial-card">
+            <div class="tutorial-step" id="tutorialStepLabel">1/6</div>
+            <div class="tutorial-text" id="tutorialText">拖动摇杆，移动到发光点</div>
+            <button id="tutorialSkipBtn" class="tutorial-skip">跳过</button>
+        </div>
+    </div>
+
     <!-- 难度选择底部 sheet -->
     <div id="diffSheet" class="hidden">
         <div class="sheet-backdrop" id="diffSheetBackdrop"></div>
@@ -139,6 +161,7 @@
                     清光怪物军团解封<span class="text-purple-600 font-black">魔法传送门</span>即可过关！
                 </div>
             </div>
+            <button id="tutorialReplayBtn" class="candy-btn w-full py-2 rounded-2xl bg-sky-100 text-sky-700 font-black text-sm border-2 border-white mt-2">重新播放教学</button>
             <button id="helpCloseBtn" class="candy-btn w-full py-2 rounded-2xl bg-gradient-to-r from-emerald-400 to-teal-500 text-white font-black text-base border-2 border-white mt-2">知道了</button>
         </div>
     </div>
