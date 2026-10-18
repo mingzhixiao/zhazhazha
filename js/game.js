@@ -102,6 +102,13 @@
                 this.initLevel(1);
                 this.drawStaticIcons();
                 this.showStartScreen();
+                // 存档健康报告（有问题才打扰玩家）
+                setTimeout(() => {
+                    const report = this.save.getLoadReport();
+                    if (report.hadIssue && report.message) {
+                        this.showToast(report.message, 'lock', 3000);
+                    }
+                }, 1200);
 
                 // 切后台自动暂停：回来时不再因时间差瞬死
                 document.addEventListener('visibilitychange', () => {
@@ -1332,6 +1339,30 @@
                 });
                 document.getElementById('careerCloseBtn').addEventListener('click', () => {
                     this.sound.playClick();
+                    this.hideCareerPop();
+                });
+                // 重置存档：二次确认，列出影响范围
+                document.getElementById('careerResetBtn').addEventListener('click', () => {
+                    this.sound.playClick();
+                    const btn = document.getElementById('careerResetBtn');
+                    if (!btn.dataset.confirming) {
+                        btn.dataset.confirming = '1';
+                        btn.textContent = '确认重置？将清空最高分/击杀/金币/通关数/全部永久强化';
+                        btn.classList.add('text-rose-600', 'border-rose-300');
+                        setTimeout(() => {
+                            delete btn.dataset.confirming;
+                            btn.textContent = '重置存档';
+                            btn.classList.remove('text-rose-600', 'border-rose-300');
+                        }, 5000);
+                        return;
+                    }
+                    delete btn.dataset.confirming;
+                    btn.textContent = '重置存档';
+                    btn.classList.remove('text-rose-600', 'border-rose-300');
+                    this.save.reset();
+                    this.updateCareerPanel();
+                    this.renderShop();
+                    this.showToast('存档已重置', 'lock');
                     this.hideCareerPop();
                 });
                 document.getElementById('careerBackdrop').addEventListener('click', () => {
@@ -5974,5 +6005,5 @@
         }
 
         window.onload = function () {
-            new ChibiBombermanGame();
+            window.game = new ChibiBombermanGame();
         };
