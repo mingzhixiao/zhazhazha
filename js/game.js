@@ -29,6 +29,10 @@
 
                 this.state = 'MENU';
                 this.noviceFailStreak = 0; // 新手档连败计数
+                this.lastDamageCause = null; // 最后一次受伤原因
+                this.noviceReviveUsed = false; // 新手每关复活是否已用
+                this.seenElite = false; // 是否见过精英怪
+                this.seenSpecialist = false; // 是否见过特化怪
                 this.difficultyIdx = 0;
                 this.mapCols = 13;
                 this.mapRows = 11;
@@ -553,6 +557,7 @@
                 const diffCfg = DIFFICULTY_TIERS[this.difficultyIdx];
                 this.level = levelNum;
                 this._theme = this.getLevelTheme();
+                this.noviceReviveUsed = false;
                 this.mapCols = diffCfg.cols;
                 this.mapRows = diffCfg.rows;
 
@@ -771,6 +776,26 @@
                 const spots = GamePure.pickSpawnSpots(emptySpots, targetCount, () => RNG.random());
                 for (const spot of spots) {
                     this.enemies.push(this.createSingleEnemyAt(spot.c, spot.r, diffCfg, false));
+                }
+                this.checkFirstEncounterTips();
+            }
+
+            // 首次遇到精英/特化怪：简短提示，不遮挡视野（toast 形式）
+            checkFirstEncounterTips() {
+                const ELITES = ['GOLD_SLIME', 'IRON_SNAIL'];
+                const SPECIALS = ['SALAMANDER', 'TORTOISE', 'AZUREBIRD', 'WHITETIGER'];
+                let hasElite = false, hasSpecial = false;
+                for (const e of this.enemies) {
+                    if (ELITES.includes(e.type)) hasElite = true;
+                    if (SPECIALS.includes(e.type)) hasSpecial = true;
+                }
+                if (hasElite && !this.seenElite) {
+                    this.seenElite = true;
+                    this.showToast('精英怪血厚！多炸几次，趁它走位失误', 'star', 2200);
+                }
+                if (hasSpecial && !this.seenSpecialist) {
+                    this.seenSpecialist = true;
+                    this.showToast('特化怪会玩你的炸弹！看准蓄力间隙出手', 'angry', 2200);
                 }
             }
 
@@ -1327,6 +1352,13 @@
                     if (st) st.textContent = on ? '音效' : '静音';
                 });
 
+                // 回到首页（游戏结束）
+                document.getElementById('modalHomeBtn').addEventListener('click', () => {
+                    this.sound.playClick();
+                    this.hideModal();
+                    this.showStartScreen();
+                });
+
                 // ===== 新手教学按钮 =====
                 document.getElementById('tutorialStartBtn').addEventListener('click', () => {
                     this.sound.init();
@@ -1421,6 +1453,7 @@
 
             hideModal() {
                 document.getElementById('overlayModal').classList.add('hidden');
+                document.getElementById('modalHomeBtn').classList.add('hidden');
             }
 
             // ============ 新手交互式教学 ============
@@ -3146,7 +3179,44 @@
                 }
             }
 
-            damagePlayer(source = 'ENEMY') {
+            // 受伤原因文案（不伪造：未知返回通用提示）
+            damageCauseText() {
+                const cause = this.lastDamageCause;
+                if (cause === 'EXPLOSION') return '被自己（或连锁）的炸弹爆炸击中';
+                if (cause && cause.startsWith('ENEMY:')) {
+                    const type = cause.slice(6);
+                    const names = {
+                        'SLIME': '史莱姆', 'MUSHROOM': '蘑菇怪', 'GHOST': '幽灵',
+                        'GOLD_SLIME': '金史莱姆（精英）', 'IRON_SNAIL': '铁蜗牛（精英）',
+                        'SALAMANDER': '小火龙', 'TORTOISE': '小乌龟',
+                        'AZUREBIRD': '青鸟', 'WHITETIGER': '白虎'
+                    };
+                    return `被${names[type] || '怪物'}撞到`;
+                }
+                if (cause === 'ENEMY') return '被怪物撞到';
+                return '受到致命伤害';
+            }
+
+            // 清除玩家周围 4 格内的敌人（新手复活用）
+            clearEnemiesNearPlayer() {
+                const pCol = Math.floor(this.player.x / TILE_SIZE);
+                const pRow = Math.floor(this.player.y / TILE_SIZE);
+                this.enemies = this.enemies.filter(e => {
+                    const ec = Math.floor(e.x / TILE_SIZE);
+                    const er = Math.floor(e.y / TILE_SIZE);
+                    return Math.abs(ec - pCol) + Math.abs(er - pRow) > 4;
+                });
+            }
+
+            damagePlayer(source = 'ENEMY', enemyType = null) {
+                // 记录受伤原因（用于失败反馈，不伪造：未知则为通用）
+                if (source === 'EXPLOSION') {
+                    this.lastDamageCause = 'EXPLOSION';
+                } else if (enemyType) {
+                    this.lastDamageCause = 'ENEMY:' + enemyType;
+                } else {
+                    this.lastDamageCause = 'ENEMY';
+                }
                 if (source === 'EXPLOSION' && this.playerStats.flameVestTimer > 0) {
                     if (this.player.invincibleTimer <= 0) {
                         this.player.invincibleTimer = 25;
@@ -3180,6 +3250,17 @@
                 this.updateHUD();
 
                 if (this.playerStats.lives <= 0) {
+                    // 新手保护：每关一次低代价复活
+                    if (this.difficultyIdx === 0 && !this.noviceReviveUsed) {
+                        this.noviceReviveUsed = true;
+                        this.playerStats.lives = 2;
+                        this.player.invincibleTimer = 180;
+                        this.clearEnemiesNearPlayer();
+                        this.sound.playPowerup();
+                        this.showToast('复活！周围怪物已清除，再接再厉', 'heart', 2500);
+                        this.updateHUD();
+                        return;
+                    }
                     this.state = 'GAME_OVER';
                     this.sound.playGameOver();
                     if (this.difficultyIdx === 0) this.noviceFailStreak++;
@@ -3191,17 +3272,23 @@
                     this.save.save();
                     this.updateCareerPanel();
 
+                    const causeText = this.damageCauseText();
+                    const bombTip = this.lastDamageCause === 'EXPLOSION'
+                        ? `<br><span class="text-amber-700 font-black">记住：放弹后立刻离开爆炸的十字范围！</span>` : ``;
                     this.showModal(
                         '挑战失败啦',
                         `你在【${DIFFICULTY_TIERS[this.difficultyIdx].name}】第 <span class="text-indigo-600 font-black">${this.level}</span> 关惜败！<br>
-                         总分：<span class="text-amber-500 font-black">${this.score}</span> · 金币：<span class="text-yellow-600 font-black">${this.coins}</span> · 最高连杀：<span class="text-fuchsia-600 font-black">x${this.bestChain}</span><br>
+                         失败原因：<span class="text-rose-600 font-black">${causeText}</span><br>
+                         总分：<span class="text-amber-500 font-black">${this.score}</span> · 金币：<span class="text-yellow-600 font-black">${this.coins}</span> · 最高连杀：<span class="text-fuchsia-600 font-black">x${this.bestChain}</span>${bombTip}<br>
                          善用遥控炸弹、穿墙披风、防炸衣与超必杀再来一局吧！` +
                         (this.difficultyIdx === 0 && this.noviceFailStreak >= 2
-                            ? `<br><span class="text-emerald-700 font-black">小提示（已连败 ${this.noviceFailStreak} 次）：放弹后立刻离开爆炸的十字范围，别站在炸弹旁边等！先清小怪再开箱，稳扎稳打。</span>`
+                            ? `<br><span class="text-emerald-700 font-black">小提示（已连败 ${this.noviceFailStreak} 次）：先清小怪再开箱，稳扎稳打。</span>`
                             : ``),
                         '重新开始冒险',
                         'ghost'
                     );
+                    // 游戏结束显示"回到首页"
+                    document.getElementById('modalHomeBtn').classList.remove('hidden');
                 } else {
                     this.player.invincibleTimer = 140;
                     this.showToast('生命 -1', 'heart');
@@ -3254,7 +3341,7 @@
 
                     if (frozenBySkill) {
                         const d = Math.hypot(e.x - this.player.x, e.y - this.player.y);
-                        if (d < 34) this.damagePlayer('ENEMY');
+                        if (d < 34) this.damagePlayer('ENEMY', e.type);
                         continue;
                     }
 
@@ -3317,7 +3404,7 @@
 
                     const distToPlayer = Math.hypot(e.x - this.player.x, e.y - this.player.y);
                     if (distToPlayer < 34) {
-                        this.damagePlayer('ENEMY');
+                        this.damagePlayer('ENEMY', e.type);
                     }
                 }
             }
