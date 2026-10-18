@@ -28,6 +28,132 @@
                 return arr.slice(0, n);
             }
 
+            // ---------- 地图生成：可在 Node 中测试的纯函数（对应 REVIEW-2026-10-18 的 P1-7 / P2-8） ----------
+            // 复刻 game.js:initLevel 的网格/藤蔓/传送门/金袋逻辑，但随机数由可注入的 rng 提供，
+            // 以便固定 seed 复现完整关卡、并对“可通关性”做断言。
+            // TILE: { EMPTY, WALL, CRATE, FROST_CRATE, VINE }
+            // 返回 { grid, crateSlots, portal, goldenCrate }
+            function generateMapGrid(diffCfg, levelNum, rng, TILE) {
+                const cols = diffCfg.cols;
+                const rows = diffCfg.rows;
+                const grid = [];
+                const crateSlots = [];
+
+                for (let r = 0; r < rows; r++) {
+                    grid[r] = [];
+                    for (let c = 0; c < cols; c++) {
+                        if (r === 0 || r === rows - 1 || c === 0 || c === cols - 1) {
+                            grid[r][c] = TILE.WALL;
+                        } else if (r % 2 === 0 && c % 2 === 0) {
+                            grid[r][c] = TILE.WALL;
+                        } else {
+                            const isSpawnZone = (r <= 2 && c <= 2);
+                            if (!isSpawnZone && rng() < diffCfg.crateDensity) {
+                                grid[r][c] = rng() < diffCfg.frostChance ? TILE.FROST_CRATE : TILE.CRATE;
+                                crateSlots.push({ c, r });
+                            } else {
+                                grid[r][c] = TILE.EMPTY;
+                            }
+                        }
+                    }
+                }
+
+                if (crateSlots.length === 0) {
+                    grid[rows - 2][cols - 2] = TILE.CRATE;
+                    crateSlots.push({ c: cols - 2, r: rows - 2 });
+                }
+
+                // 新手第 1 关不生成藤蔓，避免刚学移动就被减速干扰
+                const vineTarget = (diffCfg.id === 0 && levelNum === 1) ? 0 : diffCfg.initialVines;
+                let vinesPlaced = 0;
+                for (let tries = 0; tries < 250 && vinesPlaced < vineTarget; tries++) {
+                    const rc = 1 + Math.floor(rng() * (cols - 2));
+                    const rr = 1 + Math.floor(rng() * (rows - 2));
+                    if (grid[rr][rc] === TILE.EMPTY && (rc + rr > 5)) {
+                        grid[rr][rc] = TILE.VINE;
+                        vinesPlaced++;
+                    }
+                }
+
+                const idx = Math.floor(rng() * crateSlots.length);
+                const slot = crateSlots[idx];
+                const portal = {
+                    col: slot.c,
+                    row: slot.r,
+                    revealed: false,
+                    active: false,
+                    lockedHintCooldown: 0
+                };
+
+                const otherSlots = crateSlots.filter(s => !(s.c === slot.c && s.r === slot.r));
+                let goldenCrate = null;
+                if (otherSlots.length > 0) {
+                    const gSlot = otherSlots[Math.floor(rng() * otherSlots.length)];
+                    goldenCrate = {
+                        col: gSlot.c,
+                        row: gSlot.r,
+                        amount: 25 + Math.floor(rng() * 26) + (levelNum - 1) * 5
+                    };
+                }
+
+                // 保证从出生区到传送门存在“可清障”路径；正常网格在数学上必连通，
+                // 这里做兜底：极端/未来配置下若不可达则强制开一条通路。
+                ensurePortalReachable(grid, portal, rows, cols, TILE);
+
+                return { grid, crateSlots, portal, goldenCrate };
+            }
+
+            // 玩家可从 (1,1) 到达传送门：木箱/冰箱可炸开（通行），WALL 不可。
+            function isReachableWithBombing(grid, rows, cols, start, target, TILE) {
+                const passable = (t) =>
+                    (t === TILE.EMPTY || t === TILE.CRATE || t === TILE.FROST_CRATE || t === TILE.VINE);
+                if (start.c === target.col && start.r === target.row) return true;
+                const visited = new Set([start.r + ',' + start.c]);
+                const queue = [start];
+                const dirs = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+                while (queue.length) {
+                    const cur = queue.shift();
+                    for (const [dc, dr] of dirs) {
+                        const nc = cur.c + dc;
+                        const nr = cur.r + dr;
+                        if (nc < 0 || nr < 0 || nc >= cols || nr >= rows) continue;
+                        const key = nr + ',' + nc;
+                        if (visited.has(key)) continue;
+                        if (!passable(grid[nr][nc])) continue;
+                        if (nc === target.col && nr === target.row) return true;
+                        visited.add(key);
+                        queue.push({ c: nc, r: nr });
+                    }
+                }
+                return false;
+            }
+
+            function ensurePortalReachable(grid, portal, rows, cols, TILE) {
+                if (!portal) return;
+                const start = { c: 1, r: 1 };
+                if (isReachableWithBombing(grid, rows, cols, start, portal, TILE)) return;
+                // 兜底：沿曼哈顿 L 形路径清障（仅在非 WALL 格上开道，WALL 无法清除时改走相邻行）
+                const clearTo = (c, r) => {
+                    if (c <= 0 || r <= 0 || c >= cols - 1 || r >= rows - 1) return;
+                    if (grid[r][c] !== TILE.WALL) grid[r][c] = TILE.EMPTY;
+                };
+                let c = start.c, r = start.r;
+                while (c !== portal.col) {
+                    c += (portal.col > c ? 1 : -1);
+                    clearTo(c, r);
+                }
+                while (r !== portal.row) {
+                    r += (portal.row > r ? 1 : -1);
+                    clearTo(c, r);
+                }
+                // 二次确认，仍不可达则告警（不应发生）
+                if (!isReachableWithBombing(grid, rows, cols, start, portal, TILE)) {
+                    // 极端兜底：直接打通整行1与传送门所在列
+                    for (let cc = 1; cc < cols - 1; cc++) clearTo(cc, 1);
+                    for (let rr = 1; rr < rows - 1; rr++) clearTo(portal.col, rr);
+                }
+            }
+
             // ---------- 存档：schema / 默认值 / 校验 / 迁移 ----------
             const SAVE_SCHEMA_VERSION = 2;
             const SAVE_KEY = 'chibi_bomberman_save_v2';
@@ -113,6 +239,8 @@
             global.GamePure = {
                 calcEnemyCount,
                 pickSpawnSpots,
+                generateMapGrid,
+                isReachableWithBombing,
                 SAVE_SCHEMA_VERSION,
                 SAVE_KEY,
                 UPGRADE_MAX,

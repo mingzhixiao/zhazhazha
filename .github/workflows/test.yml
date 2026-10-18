@@ -1,0 +1,35 @@
+name: Test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# 防止 Pages 部署作业与单元测试互相掩盖：本工作流只跑单元/语法测试，
+# 故意破坏断言时必须让 CI 失败，不能吞掉退出码。
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Node 单元测试 + 语法检查
+    runs-on: ubuntu-latest
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 配置 Node.js 20 LTS
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: 安装锁定依赖（npm ci 需 package-lock.json）
+        run: npm ci
+
+      - name: 语法检查（node --check 全部 JS）
+        run: npm run check
+
+      - name: 运行测试（pretest 会先构建 Tailwind CSS）
+        run: npm test

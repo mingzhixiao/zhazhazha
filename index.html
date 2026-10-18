@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="description" content="Q版炸弹人大冒险 — 手机/PC 双端可玩的网页炸弹人游戏：放弹爆破、怪物围堵、强化商店、新手教学。">
     <meta name="theme-color" content="#22c55e">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='42' fill='%2316a34a'/><circle cx='50' cy='50' r='30' fill='white'/><circle cx='42' cy='44' r='6' fill='%230f172a'/><circle cx='58' cy='44' r='6' fill='%230f172a'/></svg>">
@@ -73,8 +73,8 @@
     <!-- 教学 HUD：顶部指导卡 -->
     <div id="tutorialHud" class="hidden">
         <div class="tutorial-card">
-            <div class="tutorial-step" id="tutorialStepLabel">1/6</div>
-            <div class="tutorial-text" id="tutorialText">拖动摇杆，移动到发光点</div>
+            <div class="tutorial-step" id="tutorialStepLabel" aria-live="polite">1/6</div>
+            <div class="tutorial-text" id="tutorialText" aria-live="polite">拖动摇杆，移动到发光点</div>
             <button id="tutorialSkipBtn" class="tutorial-skip">跳过</button>
         </div>
     </div>
@@ -327,7 +327,7 @@
                 </div>
             </div>
 
-            <div id="overlayModal" class="hidden absolute inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-2.5 z-30">
+            <div id="overlayModal" role="dialog" aria-modal="true" aria-live="assertive" aria-label="游戏状态提示" class="hidden absolute inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-2.5 z-30">
                 <div class="candy-panel rounded-3xl p-3.5 sm:p-5 max-w-lg w-full text-center flex flex-col items-center gap-2 sm:gap-2.5 float-anim max-h-full overflow-y-auto">
                     <div id="modalBadge" class="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-gradient-to-tr from-amber-400 to-rose-400 flex items-center justify-center shadow-lg border-4 border-white shrink-0">
                         <canvas id="modalBadgeCanvas" width="44" height="44"></canvas>
@@ -419,17 +419,17 @@
             </div>
 
             <div id="actionPad" class="flex items-center gap-2 sm:gap-2.5">
-                <button id="btnMegaBomb" class="candy-btn hidden w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-gradient-to-b from-fuchsia-400 via-purple-500 to-indigo-600 text-white flex-col items-center justify-center border-4 border-white shadow-xl" style="width: 58px; height: 58px;">
+                <button id="btnMegaBomb" aria-label="释放全屏必杀" class="candy-btn hidden w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-gradient-to-b from-fuchsia-400 via-purple-500 to-indigo-600 text-white flex-col items-center justify-center border-4 border-white shadow-xl" style="width: 58px; height: 58px;">
                     <span class="leading-none mb-0.5 pointer-events-none"><canvas class="guide-icon" data-icon="star" width="24" height="24"></canvas></span>
                     <span id="megaBtnLabel" class="text-[9px] font-black tracking-wider pointer-events-none">必杀</span>
                 </button>
 
-                <button id="btnDetonateRemote" class="hidden candy-btn detonate-glow w-18 h-18 sm:w-20 sm:h-20 rounded-full bg-gradient-to-b from-cyan-400 via-sky-500 to-blue-600 text-white flex-col items-center justify-center border-4 border-white shadow-xl" style="width: 72px; height: 72px;">
+                <button id="btnDetonateRemote" aria-label="引爆遥控炸弹" class="hidden candy-btn detonate-glow w-18 h-18 sm:w-20 sm:h-20 rounded-full bg-gradient-to-b from-cyan-400 via-sky-500 to-blue-600 text-white flex-col items-center justify-center border-4 border-white shadow-xl" style="width: 72px; height: 72px;">
                     <span class="leading-none mb-0.5 pointer-events-none"><canvas class="guide-icon" data-icon="clock" width="28" height="28"></canvas></span>
                     <span class="text-[11px] font-black tracking-wider pointer-events-none">引爆(K)</span>
                 </button>
 
-                <button id="btnPlaceBomb" class="candy-btn w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-gradient-to-b from-rose-400 via-rose-500 to-red-600 text-white flex flex-col items-center justify-center border-4 border-white shadow-xl">
+                <button id="btnPlaceBomb" aria-label="放炸弹" class="candy-btn w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-gradient-to-b from-rose-400 via-rose-500 to-red-600 text-white flex flex-col items-center justify-center border-4 border-white shadow-xl">
                     <span class="leading-none mb-0.5 pointer-events-none"><canvas class="guide-icon" data-icon="bomb" width="36" height="36"></canvas></span>
                     <span class="text-xs sm:text-sm font-black tracking-wider pointer-events-none">放炸弹</span>
                 </button>
@@ -478,6 +478,7 @@
 
     <script src="js/rng.js"></script>
     <script src="js/pure.js"></script>
+    <script src="js/tutorial-core.js"></script>
     <script src="js/config.js"></script>
     <script src="js/audio.js"></script>
     <script src="js/save.js"></script>

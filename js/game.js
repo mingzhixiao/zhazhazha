@@ -137,6 +137,8 @@
             // 绘制页面上的静态矢量图标（帮助图鉴、商店徽章等）
             drawStaticIcons() {
                 document.querySelectorAll('.guide-icon').forEach(cv => {
+                    // 装饰性 canvas 不抢占辅助技术焦点
+                    if (!cv.hasAttribute('aria-hidden')) cv.setAttribute('aria-hidden', 'true');
                     const bctx = cv.getContext('2d');
                     bctx.clearRect(0, 0, cv.width, cv.height);
                     const s = Math.min(cv.width, cv.height);
@@ -610,63 +612,11 @@
                     this.playerStats.flameVestTimer = diffCfg.noviceVestFrames || 900;
                 }
 
-                const crateSlots = [];
-
-                for (let r = 0; r < this.mapRows; r++) {
-                    this.grid[r] = [];
-                    for (let c = 0; c < this.mapCols; c++) {
-                        if (r === 0 || r === this.mapRows - 1 || c === 0 || c === this.mapCols - 1) {
-                            this.grid[r][c] = TILE.WALL;
-                        } else if (r % 2 === 0 && c % 2 === 0) {
-                            this.grid[r][c] = TILE.WALL;
-                        } else {
-                            const isSpawnZone = (r <= 2 && c <= 2);
-                            if (!isSpawnZone && Math.random() < diffCfg.crateDensity) {
-                                this.grid[r][c] = Math.random() < diffCfg.frostChance ? TILE.FROST_CRATE : TILE.CRATE;
-                                crateSlots.push({ c, r });
-                            } else {
-                                this.grid[r][c] = TILE.EMPTY;
-                            }
-                        }
-                    }
-                }
-
-                if (crateSlots.length === 0) {
-                    this.grid[this.mapRows - 2][this.mapCols - 2] = TILE.CRATE;
-                    crateSlots.push({ c: this.mapCols - 2, r: this.mapRows - 2 });
-                }
-
-                // 新手第 1 关不生成藤蔓，避免刚学移动就被减速干扰
-                const vineTarget = (this.difficultyIdx === 0 && levelNum === 1) ? 0 : diffCfg.initialVines;
-                let vinesPlaced = 0;
-                for (let tries = 0; tries < 250 && vinesPlaced < vineTarget; tries++) {
-                    const rc = 1 + Math.floor(Math.random() * (this.mapCols - 2));
-                    const rr = 1 + Math.floor(Math.random() * (this.mapRows - 2));
-                    if (this.grid[rr][rc] === TILE.EMPTY && (rc + rr > 5)) {
-                        this.grid[rr][rc] = TILE.VINE;
-                        vinesPlaced++;
-                    }
-                }
-
-                const idx = Math.floor(Math.random() * crateSlots.length);
-                const slot = crateSlots[idx];
-                this.portal = {
-                    col: slot.c,
-                    row: slot.r,
-                    revealed: false,
-                    active: false,
-                    lockedHintCooldown: 0
-                };
-
-                const otherSlots = crateSlots.filter(s => !(s.c === slot.c && s.r === slot.r));
-                if (otherSlots.length > 0) {
-                    const gSlot = otherSlots[Math.floor(Math.random() * otherSlots.length)];
-                    this.goldenCrate = {
-                        col: gSlot.c,
-                        row: gSlot.r,
-                        amount: 25 + Math.floor(Math.random() * 26) + (levelNum - 1) * 5
-                    };
-                }
+                // 地图生成委托给可注入随机数、可单测的纯函数（REVIEW-2026-10-18 P1-7 / P2-8）
+                const map = GamePure.generateMapGrid(diffCfg, levelNum, Math.random, TILE);
+                this.grid = map.grid;
+                this.portal = map.portal;
+                this.goldenCrate = map.goldenCrate;
 
                 this.player = {
                     x: 1.5 * TILE_SIZE,
@@ -910,7 +860,11 @@
 
             bindEvents() {
                 window.addEventListener('contextmenu', (e) => e.preventDefault());
-                document.addEventListener('gesturestart', (e) => e.preventDefault());
+                // 仅在游戏画布上阻止 gesturestart（iOS Safari 双指缩放手势），
+                // 不全局禁用页面缩放——教程弹窗、帮助、首页等区域保持系统缩放能力（无障碍）。
+                if (this.canvas) {
+                    this.canvas.addEventListener('gesturestart', (e) => e.preventDefault());
+                }
 
                 window.addEventListener('keydown', (e) => {
                     if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(e.code)) {
@@ -1520,6 +1474,10 @@
             startTutorial() {
                 this.hideTutorialOffer();
                 this.hideStartScreen();
+                // 教学沙盒强制使用新手档（13x11 / 8 怪），暂存用户所选难度以便结束后恢复
+                const pair = GameTutorial.tutorialDifficultyPair(this.difficultyIdx);
+                this._tutorialSavedDifficulty = pair.restore;
+                this.setDifficulty(pair.sandbox); // 强制新手沙盒（无论首页选了什么难度）
                 // 全新第 1 关作为教学沙盒
                 this.score = 0;
                 this.coins = 0;
@@ -1561,7 +1519,8 @@
                 const t = this.tutorial;
                 t.step = step;
                 t.target = null;
-                t.bombWasPlaced = false;
+                // 注意：不要在此无条件清零 bombWasPlaced，否则第 2 步（躲避爆炸）
+                // 会因标记被清而无法推进，造成教学死锁。该标记只在 startTutorial 初始化。
                 t.wasHit = false;
                 document.getElementById('btnPlaceBomb').classList.remove('tutorial-highlight');
 
@@ -1603,6 +1562,12 @@
                     if (this.portal) {
                         this.portal.revealed = true;
                         this.portal.active = true;
+                        // 教学传送门格必须可通行：清除底层障碍，清理可能重叠的炸弹/道具，
+                        // 否则 isTileSolidForPlayer 会阻止角色进入，导致教学卡在最后一步。
+                        const resolved = GameTutorial.resolveTutorialPortalTile(this.grid, this.portal, TILE);
+                        this.grid = resolved.grid;
+                        this.powerups = this.powerups.filter(p => !(p.col === this.portal.col && p.row === this.portal.row));
+                        this.bombs = this.bombs.filter(b => !(b.col === this.portal.col && b.row === this.portal.row));
                         t.target = { c: this.portal.col, r: this.portal.row };
                     } else {
                         t.target = this.findTutorialEmpty(pCol + 2, pRow);
@@ -1636,20 +1601,20 @@
                 const pRow = Math.floor(this.player.y / TILE_SIZE);
                 const atTarget = (t.target && pCol === t.target.c && pRow === t.target.r);
 
-                if (t.step === 0 && atTarget) {
-                    this.tutorialNext('移动得很好！');
-                } else if (t.step === 1 && this.bombs.length > 0) {
-                    t.bombWasPlaced = true;
-                    this.tutorialNext('放弹成功！');
-                } else if (t.step === 2 && t.bombWasPlaced && this.bombs.length === 0) {
-                    // 炸弹炸完了，根据是否被炸到给反馈（有保护不会真死）
-                    this.tutorialNext(t.wasHit ? '被炸到了！还好有保护——记住要跑出红圈' : '完美躲避！');
-                } else if (t.step === 3 && this.powerups.length < t.powerupCount) {
-                    this.tutorialNext('拾取成功！注意：炸到道具会引来怪物');
-                } else if (t.step === 4 && this.enemies.length === 0) {
-                    this.tutorialNext('击败！炸弹是十字范围的');
-                } else if (t.step === 5 && atTarget) {
+                const world = {
+                    atTarget,
+                    bombsActive: this.bombs.length,
+                    powerupsCount: this.powerups.length,
+                    enemiesCount: this.enemies.length
+                };
+                const res = GameTutorial.evaluateTutorialStep(t, world);
+                if (!res.action) return;
+                // 放弹成功标记必须在推进前设置，且不会被下一 setupTutorialStep 清零
+                if (res.markBombPlaced) t.bombWasPlaced = true;
+                if (res.action === 'complete') {
                     this.endTutorial(true);
+                } else {
+                    this.tutorialNext(res.feedback);
                 }
             }
 
@@ -1675,6 +1640,11 @@
                     this.markTutorialDone();
                     this.showToast('教学完成！开始真正的冒险吧', 'trophy', 2200);
                     this.sound.playWin();
+                }
+                // 恢复用户所选难度（教学期间强制为新手档），再开一局干净的真实第 1 关
+                if (this._tutorialSavedDifficulty !== undefined) {
+                    this.setDifficulty(this._tutorialSavedDifficulty);
+                    delete this._tutorialSavedDifficulty;
                 }
                 // 重新开一局干净的第 1 关
                 this.score = 0;
@@ -3634,6 +3604,8 @@
                         maxTimer: cfg.flameLife,
                         fever: true,
                         owner: e,
+                        // 小火龙直接喷出的火焰只伤玩家，不伤其它怪物（否则等价于帮玩家清怪）
+                        noEnemyDamage: true,
                         statsRef: { obstacles: 0, enemies: 0 }
                     });
                 }
@@ -3858,25 +3830,28 @@
                                 this.damagePlayer('EXPLOSION');
                             }
 
-                            for (let j = this.enemies.length - 1; j >= 0; j--) {
-                                const enemy = this.enemies[j];
-                                const eCol = Math.floor(enemy.x / TILE_SIZE);
-                                const eRow = Math.floor(enemy.y / TILE_SIZE);
-                                if (eCol !== cell.col || eRow !== cell.row) continue;
-                                if (enemy.hurtTimer > 0) continue;
+                            // 怪物喷出的火焰（如小火龙）不应误伤其它怪物，否则等于帮玩家清怪
+                            if (!exp.noEnemyDamage) {
+                                for (let j = this.enemies.length - 1; j >= 0; j--) {
+                                    const enemy = this.enemies[j];
+                                    const eCol = Math.floor(enemy.x / TILE_SIZE);
+                                    const eRow = Math.floor(enemy.y / TILE_SIZE);
+                                    if (eCol !== cell.col || eRow !== cell.row) continue;
+                                    if (enemy.hurtTimer > 0) continue;
 
-                                if (exp.owner && exp.owner === enemy) continue;
+                                    if (exp.owner && exp.owner === enemy) continue;
 
-                                if (enemy.waterGuard > 0) {
-                                    enemy.skillAnim = Math.max(enemy.skillAnim, 20);
-                                    if (enemy.waterGuard > 105) {
-                                        this.addFloatingText(enemy.x, enemy.y - 26, '冰块护体!', '#38bdf8', 14);
+                                    if (enemy.waterGuard > 0) {
+                                        enemy.skillAnim = Math.max(enemy.skillAnim, 20);
+                                        if (enemy.waterGuard > 105) {
+                                            this.addFloatingText(enemy.x, enemy.y - 26, '冰块护体!', '#38bdf8', 14);
+                                        }
+                                        continue;
                                     }
-                                    continue;
-                                }
 
-                                const killed = this.damageEnemy(j, 1);
-                                if (killed && exp.statsRef) exp.statsRef.enemies++;
+                                    const killed = this.damageEnemy(j, 1);
+                                    if (killed && exp.statsRef) exp.statsRef.enemies++;
+                                }
                             }
                         });
                     }

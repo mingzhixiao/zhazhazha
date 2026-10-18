@@ -43,12 +43,21 @@ npx serve .
 ## 开发
 
 ```bash
+npm install     # 安装 devDependencies（含 tailwindcss，用于构建 CSS）
 npm run build   # 构建 Tailwind CSS（css/tailwind-built.css）
-npm test        # 自动化测试（68 用例，Node 18+ 内置，无需安装依赖）
+npm test        # 自动化测试（node --test，pretest 会先构建 CSS，需先 npm install）
 npm run check   # JS 语法检查
 ```
 
-测试说明见 `tests/README.md`。代码审查报告：`REVIEW-2026-10-18.md`。
+> 注意：`npm test` 的 `pretest` 会先运行 `npm run build:css`（依赖 `tailwindcss`），因此**需要先 `npm install` 安装依赖**，不能“零安装”直接跑。仓库已提交 `package-lock.json`，CI 使用 `npm ci` 复现同一依赖树。
+
+## 测试与 CI
+
+- 测试说明见 `tests/README.md`。
+- CI：`.github/workflows/test.yml` 在每次 push 到 `main` 与 pull_request 时触发，使用 **Node.js 20 LTS**，依次执行 `npm ci` → `npm run check` → `npm test`；任一断言失败即导致工作流失败，不会吞掉退出码。
+- GitHub Pages 部署走独立流水线，不与单元测试混淆。
+
+代码审查报告：`REVIEW-2026-10-18.md`；RC 验收：`RELEASE-RESULTS.md`。
 
 ## 文件结构
 
@@ -60,7 +69,8 @@ css/
   tailwind-input.css# Tailwind 输入
 js/
   rng.js            # 可注入随机数（测试 seed）
-  pure.js           # 可测试纯函数（数值/存档校验/出生点）
+  pure.js           # 可测试纯函数（数值/存档校验/出生点/地图生成）
+  tutorial-core.js  # 教程状态机纯逻辑（步骤推进/传送门解析/难度沙盒）
   config.js         # 常量：地块/道具/难度/商店配置
   audio.js          # Web Audio 合成音效
   save.js           # 本地存档（版本化/校验/备份）

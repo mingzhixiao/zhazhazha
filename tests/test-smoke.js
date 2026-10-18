@@ -5,7 +5,7 @@ const { execSync } = require('node:child_process');
 const path = require('node:path');
 
 const ROOT = path.join(__dirname, '..');
-const JS_FILES = ['js/rng.js', 'js/pure.js', 'js/config.js', 'js/audio.js', 'js/save.js', 'js/game.js'];
+const JS_FILES = ['js/rng.js', 'js/pure.js', 'js/tutorial-core.js', 'js/config.js', 'js/audio.js', 'js/save.js', 'js/game.js'];
 
 describe('冒烟：语法', () => {
     for (const f of JS_FILES) {
