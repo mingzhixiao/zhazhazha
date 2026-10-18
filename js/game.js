@@ -730,7 +730,7 @@
             }
 
             spawnEnemies(levelNum, diffCfg) {
-                const targetCount = diffCfg.baseEnemies + (levelNum - 1) * diffCfg.perLevelAdd;
+                const targetCount = GamePure.calcEnemyCount(diffCfg, levelNum);
                 const emptySpots = [];
 
                 for (let r = 1; r < this.mapRows - 1; r++) {
@@ -741,16 +741,10 @@
                     }
                 }
 
-                for (let i = emptySpots.length - 1; i > 0; i--) {
-                    const j = Math.floor(Math.random() * (i + 1));
-                    [emptySpots[i], emptySpots[j]] = [emptySpots[j], emptySpots[i]];
-                }
-
-                if (emptySpots.length > 0) {
-                    for (let i = 0; i < targetCount; i++) {
-                        const spot = emptySpots[i % emptySpots.length];
-                        this.enemies.push(this.createSingleEnemyAt(spot.c, spot.r, diffCfg, false));
-                    }
+                // 可注入随机 + 无重复取点（空地不足时不再取模重叠，直接按可用数生成）
+                const spots = GamePure.pickSpawnSpots(emptySpots, targetCount, () => RNG.random());
+                for (const spot of spots) {
+                    this.enemies.push(this.createSingleEnemyAt(spot.c, spot.r, diffCfg, false));
                 }
             }
 
