@@ -98,6 +98,20 @@
                 this.drawStaticIcons();
                 this.showStartScreen();
 
+                // 切后台自动暂停：回来时不再因时间差瞬死
+                document.addEventListener('visibilitychange', () => {
+                    if (document.hidden && this.state === 'PLAYING') {
+                        this.togglePause();
+                    }
+                });
+                // 窗口失焦同样清空输入，避免按键/触控粘连
+                window.addEventListener('blur', () => {
+                    this.joystickVector = { x: 0, y: 0 };
+                    this.touchDir = null;
+                    this.joystickPointerId = null;
+                    this.keys = {};
+                });
+
                 this.lastFrameTime = performance.now();
                 requestAnimationFrame((t) => this.loop(t));
             }
@@ -114,9 +128,13 @@
 
             setupViewportHeight() {
                 const apply = () => {
-                    let h = window.innerHeight || document.documentElement.clientHeight;
+                    // visualViewport 高度为真实可视区域（含工具栏/软键盘场景）；
+                    // 有它就优先用它，避免 Math.max 把工具栏占用的区域重新算进来
+                    let h;
                     if (window.visualViewport && window.visualViewport.height) {
-                        h = Math.max(h, window.visualViewport.height);
+                        h = window.visualViewport.height;
+                    } else {
+                        h = window.innerHeight || document.documentElement.clientHeight;
                     }
                     document.documentElement.style.setProperty('--app-h', `${Math.round(h)}px`);
                 };
@@ -979,6 +997,7 @@
                 };
                 joystickZone.addEventListener('pointerup', handleJoystickUp);
                 joystickZone.addEventListener('pointercancel', handleJoystickUp);
+                joystickZone.addEventListener('lostpointercapture', handleJoystickUp);
                 if (joystickContainer) {
                     joystickContainer.addEventListener('pointerup', handleJoystickUp);
                     joystickContainer.addEventListener('pointercancel', handleJoystickUp);
