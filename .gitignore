@@ -4,3 +4,6 @@ node_modules/
 # 系统/编辑器
 .DS_Store
 *.log
+
+# WorkBuddy 本地项目数据（记忆/会话，不入库）
+.workbuddy/

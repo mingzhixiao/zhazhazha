@@ -70,14 +70,7 @@
         </div>
     </div>
 
-    <!-- 教学 HUD：顶部指导卡 -->
-    <div id="tutorialHud" class="hidden">
-        <div class="tutorial-card">
-            <div class="tutorial-step" id="tutorialStepLabel" aria-live="polite">1/6</div>
-            <div class="tutorial-text" id="tutorialText" aria-live="polite">拖动摇杆，移动到发光点</div>
-            <button id="tutorialSkipBtn" class="tutorial-skip">跳过</button>
-        </div>
-    </div>
+    <!-- 教学 HUD 已移到 header 之后、棋盘之前，作为正常文档流布局槽（见下方 #tutorialHud） -->
 
     <!-- 难度选择底部 sheet -->
     <div id="diffSheet" class="hidden">
@@ -293,6 +286,21 @@
 
     </header>
 
+    <!-- 教学提示：专用布局槽（参与文档流，占据真实高度，不覆盖顶部面板/棋盘） -->
+    <div id="tutorialHud" class="hidden w-full max-w-[860px] mx-auto px-1 sm:px-2.5">
+        <div class="tutorial-card">
+            <div class="tutorial-step" id="tutorialStepLabel" aria-live="polite">1/6</div>
+            <div class="tutorial-body">
+                <div class="tutorial-text" id="tutorialText" aria-live="polite">拖动摇杆，移动到发光点</div>
+                <div class="tutorial-feedback hidden" id="tutorialFeedback" aria-live="polite"></div>
+            </div>
+            <button id="tutorialSkipBtn" class="tutorial-skip" aria-label="跳过教学">跳过</button>
+        </div>
+    </div>
+
+    <!-- 普通提示：棋盘外专用提示区（参与文档流，一次只显示一条，不覆盖棋盘） -->
+    <div id="gameToasts" class="w-full max-w-[860px] mx-auto" aria-live="polite"></div>
+
     <!-- 中央自适应画布主舞台 -->
     <main id="stageArea" class="w-full flex-1 min-h-0 flex items-center justify-center my-0.5 overflow-hidden relative">
         <div id="canvasWrapper" class="canvas-wrapper">
@@ -309,10 +317,7 @@
                 </div>
             </div>
 
-            <!-- 顶部游戏提示（不遮挡游戏面板） -->
-            <div id="gameToasts"></div>
-
-            <!-- 连杀 / 挑战达成 中央播报 -->
+            <!-- 连杀 / 挑战达成 中央播报（位于棋盘内，瞬时、pointer-events-none、与关卡横幅互斥） -->
             <div id="comboToast" class="hidden absolute left-1/2 top-[12%] -translate-x-1/2 z-20 pointer-events-none">
                 <div class="px-4 py-1.5 rounded-2xl bg-white/95 border-4 border-amber-300 shadow-2xl text-center">
                     <div id="comboToastText" class="text-xl sm:text-3xl font-black text-fuchsia-600 tracking-wider whitespace-nowrap">COMBO x3!</div>
@@ -346,93 +351,97 @@
             </div>
 
             <!-- 永久强化商店 -->
-            <div id="shopModal" class="hidden">
-                <div class="shop-card">
-                    <div class="flex items-center justify-center gap-2">
-                        <div class="w-11 h-11 rounded-2xl bg-gradient-to-tr from-amber-400 to-yellow-500 flex items-center justify-center shadow-lg border-4 border-white"><canvas class="guide-icon" data-icon="coin" width="36" height="36"></canvas></div>
-                        <div class="text-left">
-                            <h2 class="text-lg sm:text-xl font-black text-slate-800 leading-tight">强化商店</h2>
-                            <p class="text-[10px] text-slate-500 font-bold">用金币永久强化你的炸弹人</p>
-                        </div>
-                    </div>
-
-                    <div class="flex items-center justify-center gap-2 py-1 px-3 rounded-full bg-yellow-50 border-2 border-yellow-200 self-center">
-                        <span class="text-base font-black text-yellow-600" id="shopCoins">0</span>
-                        <span class="text-[10px] font-bold text-yellow-700/70">金币</span>
-                    </div>
-
-                    <div id="shopItems" class="flex flex-col gap-1.5"></div>
-
-                    <div class="text-[10px] text-slate-500 font-bold text-center leading-snug">
-                        强化在下一关生效，并且<b class="text-indigo-600">永久保存</b>在你的浏览器里。
-                    </div>
-
-                    <button id="shopContinueBtn" class="candy-btn w-full py-2.5 rounded-2xl bg-gradient-to-r from-emerald-400 to-teal-500 hover:from-emerald-300 hover:to-teal-400 text-white font-black text-base tracking-wider border-2 border-white">
-                        进入下一关
-                    </button>
-                </div>
-            </div>
-
         </div>
     </main>
 
+    <!-- 强化商店：置于顶层（原先在 canvasWrapper 内，受 overflow:hidden 裁切导致"进入下一关"按钮不可点） -->
+    <div id="shopModal" class="hidden">
+        <div class="shop-card">
+            <div class="flex items-center justify-center gap-2">
+                <div class="w-11 h-11 rounded-2xl bg-gradient-to-tr from-amber-400 to-yellow-500 flex items-center justify-center shadow-lg border-4 border-white"><canvas class="guide-icon" data-icon="coin" width="36" height="36"></canvas></div>
+                <div class="text-left">
+                    <h2 class="text-lg sm:text-xl font-black text-slate-800 leading-tight">强化商店</h2>
+                    <p class="text-[10px] text-slate-500 font-bold">用金币永久强化你的炸弹人</p>
+                </div>
+            </div>
+
+            <div class="flex items-center justify-center gap-2 py-1 px-3 rounded-full bg-yellow-50 border-2 border-yellow-200 self-center">
+                <span class="text-base font-black text-yellow-600" id="shopCoins">0</span>
+                <span class="text-[10px] font-bold text-yellow-700/70">金币</span>
+            </div>
+
+            <div id="shopItems" class="flex flex-col gap-1.5"></div>
+
+            <div class="text-[10px] text-slate-500 font-bold text-center leading-snug">
+                强化在下一关生效，并且<b class="text-indigo-600">永久保存</b>在你的浏览器里。
+            </div>
+
+            <button id="shopContinueBtn" class="candy-btn w-full py-2.5 rounded-2xl bg-gradient-to-r from-emerald-400 to-teal-500 hover:from-emerald-300 hover:to-teal-400 text-white font-black text-base tracking-wider border-2 border-white">
+                进入下一关
+            </button>
+        </div>
+    </div>
+
     <!-- 底部专业移动端双侧多点触控区 -->
     <footer id="bottomFooter" class="w-full max-w-[860px] shrink-0 z-10">
-        <div class="flex items-center justify-between candy-panel rounded-2xl px-3 py-1.5 sm:px-5 sm:py-2">
+        <div class="flex flex-col gap-1 candy-panel rounded-2xl px-3 py-1.5 sm:px-5 sm:py-2">
 
-            <div class="flex items-center gap-3">
-                <div id="joystickContainer" class="relative w-32 h-32 sm:w-36 sm:h-36 flex items-center justify-center touch-none select-none">
-                    <div id="joystickZone" class="joystick-base w-[122px] h-[122px] sm:w-[136px] sm:h-[136px] rounded-full flex items-center justify-center cursor-pointer touch-none">
-                        <span class="absolute top-1.5 text-[11px] sm:text-xs font-black text-sky-400/80 pointer-events-none">▲</span>
-                        <span class="absolute bottom-1.5 text-[11px] sm:text-xs font-black text-sky-400/80 pointer-events-none">▼</span>
-                        <span class="absolute left-1.5 text-[11px] sm:text-xs font-black text-sky-400/80 pointer-events-none">◀</span>
-                        <span class="absolute right-1.5 text-[11px] sm:text-xs font-black text-sky-400/80 pointer-events-none">▶</span>
-                        <div id="joystickKnob" class="joystick-knob w-14 h-14 sm:w-16 sm:h-16 rounded-full flex items-center justify-center text-white text-sm sm:text-base font-black shadow-lg">
-                            <span id="joystickDirLabel">·</span>
+            <!-- 次要提示：窄屏单独一行，避免与操作按钮争夺横向空间 -->
+            <div id="mobileHintBox" class="md:hidden flex justify-center items-center flex-wrap gap-x-2 text-center">
+                <span id="mobileBuffHint" class="text-[11px] font-black text-indigo-600 whitespace-nowrap">别炸毁道具(会爆怪)!</span>
+                <span id="gestureHint" class="hidden text-[10px] font-bold text-emerald-600">棋盘滑动移动 · 轻点放弹 · 双击引爆</span>
+                <span id="mobileSubHint" class="text-[10px] font-bold text-slate-400 whitespace-nowrap">击杀攒魔力→超必杀</span>
+            </div>
+
+            <div class="flex items-center justify-between gap-2 min-w-0">
+                <div class="flex items-center gap-3 min-w-0">
+                    <div id="joystickContainer" class="relative w-32 h-32 sm:w-36 sm:h-36 flex items-center justify-center touch-none select-none shrink-0">
+                        <div id="joystickZone" class="joystick-base w-[122px] h-[122px] sm:w-[136px] sm:h-[136px] rounded-full flex items-center justify-center cursor-pointer touch-none">
+                            <span class="absolute top-1.5 text-[11px] sm:text-xs font-black text-sky-400/80 pointer-events-none">▲</span>
+                            <span class="absolute bottom-1.5 text-[11px] sm:text-xs font-black text-sky-400/80 pointer-events-none">▼</span>
+                            <span class="absolute left-1.5 text-[11px] sm:text-xs font-black text-sky-400/80 pointer-events-none">◀</span>
+                            <span class="absolute right-1.5 text-[11px] sm:text-xs font-black text-sky-400/80 pointer-events-none">▶</span>
+                            <div id="joystickKnob" class="joystick-knob w-14 h-14 sm:w-16 sm:h-16 rounded-full flex items-center justify-center text-white text-sm sm:text-base font-black shadow-lg">
+                                <span id="joystickDirLabel">·</span>
+                            </div>
                         </div>
+                    </div>
+
+                    <div id="dpadContainer" class="hidden grid-cols-3 gap-1 w-24 h-24 sm:w-28 sm:h-28 relative shrink-0">
+                        <div></div>
+                        <button data-dir="UP" class="dpad-btn candy-btn bg-indigo-500 text-white rounded-xl flex items-center justify-center text-base font-black border-2 border-white">▲</button>
+                        <div></div>
+                        <button data-dir="LEFT" class="dpad-btn candy-btn bg-indigo-500 text-white rounded-xl flex items-center justify-center text-base font-black border-2 border-white">◀</button>
+                        <div class="rounded-xl bg-slate-200/70 flex items-center justify-center text-[9px] font-bold text-slate-400">滑指</div>
+                        <button data-dir="RIGHT" class="dpad-btn candy-btn bg-indigo-500 text-white rounded-xl flex items-center justify-center text-base font-black border-2 border-white">▶</button>
+                        <div></div>
+                        <button data-dir="DOWN" class="dpad-btn candy-btn bg-indigo-500 text-white rounded-xl flex items-center justify-center text-base font-black border-2 border-white">▼</button>
+                        <div></div>
+                    </div>
+
+                    <div class="hidden md:flex flex-col gap-0.5 text-[11px] text-slate-600 bg-white/70 px-3 py-1.5 rounded-xl border border-white pc-hint">
+                        <div class="font-black text-slate-700">操控说明（小心别把地面道具炸成怪物！）：</div>
+                        <div>移动：左下摇杆 / <span class="px-1 py-0.5 bg-slate-200 rounded font-bold">WASD</span> / <span class="px-1 py-0.5 bg-slate-200 rounded font-bold">方向键</span></div>
+                        <div>放炸弹：<span class="px-1 py-0.5 bg-rose-100 text-rose-600 rounded font-bold">空格 / J</span> · 遥控引爆：<span class="px-1 py-0.5 bg-sky-100 text-sky-600 rounded font-bold">K / E</span> · 超必杀：<span class="px-1 py-0.5 bg-fuchsia-100 text-fuchsia-600 rounded font-bold">L</span></div>
                     </div>
                 </div>
 
-                <div id="dpadContainer" class="hidden grid-cols-3 gap-1 w-24 h-24 sm:w-28 sm:h-28 relative">
-                    <div></div>
-                    <button data-dir="UP" class="dpad-btn candy-btn bg-indigo-500 text-white rounded-xl flex items-center justify-center text-base font-black border-2 border-white">▲</button>
-                    <div></div>
-                    <button data-dir="LEFT" class="dpad-btn candy-btn bg-indigo-500 text-white rounded-xl flex items-center justify-center text-base font-black border-2 border-white">◀</button>
-                    <div class="rounded-xl bg-slate-200/70 flex items-center justify-center text-[9px] font-bold text-slate-400">滑指</div>
-                    <button data-dir="RIGHT" class="dpad-btn candy-btn bg-indigo-500 text-white rounded-xl flex items-center justify-center text-base font-black border-2 border-white">▶</button>
-                    <div></div>
-                    <button data-dir="DOWN" class="dpad-btn candy-btn bg-indigo-500 text-white rounded-xl flex items-center justify-center text-base font-black border-2 border-white">▼</button>
-                    <div></div>
+                <div id="actionPad" class="flex items-center gap-2 sm:gap-2.5 shrink-0">
+                    <button id="btnMegaBomb" aria-label="释放全屏必杀" class="candy-btn hidden w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-gradient-to-b from-fuchsia-400 via-purple-500 to-indigo-600 text-white flex-col items-center justify-center border-4 border-white shadow-xl" style="width: 58px; height: 58px;">
+                        <span class="leading-none mb-0.5 pointer-events-none"><canvas class="guide-icon" data-icon="star" width="24" height="24"></canvas></span>
+                        <span id="megaBtnLabel" class="text-[9px] font-black tracking-wider pointer-events-none">必杀</span>
+                    </button>
+
+                    <button id="btnDetonateRemote" aria-label="引爆遥控炸弹" class="hidden candy-btn detonate-glow w-18 h-18 sm:w-20 sm:h-20 rounded-full bg-gradient-to-b from-cyan-400 via-sky-500 to-blue-600 text-white flex-col items-center justify-center border-4 border-white shadow-xl" style="width: 72px; height: 72px;">
+                        <span class="leading-none mb-0.5 pointer-events-none"><canvas class="guide-icon" data-icon="clock" width="28" height="28"></canvas></span>
+                        <span class="text-[11px] font-black tracking-wider pointer-events-none">引爆(K)</span>
+                    </button>
+
+                    <button id="btnPlaceBomb" aria-label="放炸弹" class="candy-btn w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-gradient-to-b from-rose-400 via-rose-500 to-red-600 text-white flex flex-col items-center justify-center border-4 border-white shadow-xl">
+                        <span class="leading-none mb-0.5 pointer-events-none"><canvas class="guide-icon" data-icon="bomb" width="36" height="36"></canvas></span>
+                        <span class="text-xs sm:text-sm font-black tracking-wider pointer-events-none">放炸弹</span>
+                    </button>
                 </div>
-
-                <div class="hidden md:flex flex-col gap-0.5 text-[11px] text-slate-600 bg-white/70 px-3 py-1.5 rounded-xl border border-white pc-hint">
-                    <div class="font-black text-slate-700">操控说明（小心别把地面道具炸成怪物！）：</div>
-                    <div>移动：左下摇杆 / <span class="px-1 py-0.5 bg-slate-200 rounded font-bold">WASD</span> / <span class="px-1 py-0.5 bg-slate-200 rounded font-bold">方向键</span></div>
-                    <div>放炸弹：<span class="px-1 py-0.5 bg-rose-100 text-rose-600 rounded font-bold">空格 / J</span> · 遥控引爆：<span class="px-1 py-0.5 bg-sky-100 text-sky-600 rounded font-bold">K / E</span> · 超必杀：<span class="px-1 py-0.5 bg-fuchsia-100 text-fuchsia-600 rounded font-bold">L</span></div>
-                </div>
-            </div>
-
-            <div id="mobileHintBox" class="flex md:hidden flex-col items-center text-center px-1">
-                <span id="mobileBuffHint" class="text-[11px] font-black text-indigo-600">别炸毁道具(会爆怪)!</span>
-                <span id="gestureHint" class="hidden text-[10px] font-bold text-emerald-600 leading-tight">棋盘滑动移动 · 轻点放弹 · 双击引爆</span>
-                <span id="mobileSubHint" class="text-[10px] font-bold text-slate-400">击杀攒魔力→超必杀</span>
-            </div>
-
-            <div id="actionPad" class="flex items-center gap-2 sm:gap-2.5">
-                <button id="btnMegaBomb" aria-label="释放全屏必杀" class="candy-btn hidden w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-gradient-to-b from-fuchsia-400 via-purple-500 to-indigo-600 text-white flex-col items-center justify-center border-4 border-white shadow-xl" style="width: 58px; height: 58px;">
-                    <span class="leading-none mb-0.5 pointer-events-none"><canvas class="guide-icon" data-icon="star" width="24" height="24"></canvas></span>
-                    <span id="megaBtnLabel" class="text-[9px] font-black tracking-wider pointer-events-none">必杀</span>
-                </button>
-
-                <button id="btnDetonateRemote" aria-label="引爆遥控炸弹" class="hidden candy-btn detonate-glow w-18 h-18 sm:w-20 sm:h-20 rounded-full bg-gradient-to-b from-cyan-400 via-sky-500 to-blue-600 text-white flex-col items-center justify-center border-4 border-white shadow-xl" style="width: 72px; height: 72px;">
-                    <span class="leading-none mb-0.5 pointer-events-none"><canvas class="guide-icon" data-icon="clock" width="28" height="28"></canvas></span>
-                    <span class="text-[11px] font-black tracking-wider pointer-events-none">引爆(K)</span>
-                </button>
-
-                <button id="btnPlaceBomb" aria-label="放炸弹" class="candy-btn w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-gradient-to-b from-rose-400 via-rose-500 to-red-600 text-white flex flex-col items-center justify-center border-4 border-white shadow-xl">
-                    <span class="leading-none mb-0.5 pointer-events-none"><canvas class="guide-icon" data-icon="bomb" width="36" height="36"></canvas></span>
-                    <span class="text-xs sm:text-sm font-black tracking-wider pointer-events-none">放炸弹</span>
-                </button>
             </div>
         </div>
     </footer>

@@ -1,0 +1,23 @@
+== PHASE-1 desktop-1280x800
+P1.0-first-run: {\state\:\MENU\,\tutorialDone\:false}
+P1.1-tutorial-offer: {\offerShown\:true,\state\:\MENU\}
+P1.2-level1: {\state\:\PLAYING\,\level\:1,\diff\:0,\lives\:3,\score\:0,\coins\:0,\enemies\:8,\bombs\:0,\gridR\:11,\gridC\:13,\px\:90,\py\:90}
+P1.3-paused: PAUSED
+P1.3-resumed: PLAYING
+P1.4-keyboard-move: px=222 (从90移动)
+P1.4b-walk-back: arrived
+P1.5-bomb-placed: {\bombs\:0,\state\:\PLAYING\}
+P1.6-death-loop: gameover state=GAME_OVER
+P1.6-gameover-modal: {\modalShown\:true,\title\:\挑战失败啦\,\best\:0}
+P1.7-restart: {\state\:\PLAYING\,\level\:1,\diff\:0,\lives\:3,\score\:0,\coins\:0,\enemies\:8,\bombs\:0,\gridR\:11,\gridC\:13,\px\:90,\py\:90}
+P1.8-level-clear: cleared assisted=true state=LEVEL_CLEAR
+P1.9-shop-open: {\coins\:60,\items\:5,\buyable\:2,\level\:1}
+P1.9-shop-buy: {\key\:\bombCap\,\lv0\:0,\lv1\:1,\coins\:0}
+P1.10-next-level: {\state\:\SHOP\,\level\:1,\diff\:0,\lives\:3,\score\:500,\coins\:0,\enemies\:0,\bombs\:0,\gridR\:11,\gridC\:13,\px\:90,\py\:90}
+P1.11-save-before: {\best\:500,\upgrades\:{\bombCap\:1,\fireRange\:0,\speed\:0,\lives\:0,\startShield\:0},\cleared\:1}
+P1.11-save-after-reload: {\best\:500,\upgrades\:{\bombCap\:1,\fireRange\:0,\speed\:0,\lives\:0,\startShield\:0},\cleared\:1,\state\:\MENU\}
+P1.12-console-errors: 
+== PHASE-2 tutorial-6-steps
+P2.0-diff-selected: {\diff\:4,\state\:\MENU\}
+P2.0b-offer-shown: false
+P2.1-tutorial-started: 

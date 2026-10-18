@@ -1,0 +1,14 @@
+== PHASE-3b
+P3b-390x844-layout-t1: {\vw\:390,\vh\:844,\rects\:{\topHeader\:{\x\:4,\y\:4,\w\:382,\h\:106,\vis\:true},\tutorialHud\:{\x\:0,\y\:0,\w\:0,\h\:0,\vis\:false},\gameToasts\:{\x\:0,\y\:0,\w\:0,\h\:0,\vis\:false},\canvasWrapper\:{\x\:6,\y\:248,\w\:378,\h\:319,\vis\:true},\bottomFooter\:{\x\:4,\y\:706,\w\:382,\h\:135,\vis\:true},\btnPlaceBomb\:{\x\:311,\y\:753,\w\:60,\h\:60,\vis\:true},\joystickZone\:{\x\:23,\y\:739,\w\:88,\h\:88,\vis\:true},\stageArea\:{\x\:4,\y\:112,\w\:382,\h\:592,\vis\:true},\mobileHintBox\:{\x\:19,\y\:715,\w\:352,\h\:17,\vis\:true}},\issues\:[]}
+P3b-390x844-layout-t2: {\vw\:390,\vh\:844,\rects\:{\topHeader\:{\x\:4,\y\:4,\w\:382,\h\:106,\vis\:true},\tutorialHud\:{\x\:0,\y\:0,\w\:0,\h\:0,\vis\:false},\gameToasts\:{\x\:0,\y\:0,\w\:0,\h\:0,\vis\:false},\canvasWrapper\:{\x\:6,\y\:248,\w\:378,\h\:319,\vis\:true},\bottomFooter\:{\x\:4,\y\:706,\w\:382,\h\:135,\vis\:true},\btnPlaceBomb\:{\x\:311,\y\:753,\w\:60,\h\:60,\vis\:true},\joystickZone\:{\x\:23,\y\:739,\w\:88,\h\:88,\vis\:true},\stageArea\:{\x\:4,\y\:112,\w\:382,\h\:592,\vis\:true},\mobileHintBox\:{\x\:19,\y\:715,\w\:352,\h\:17,\vis\:true}},\issues\:[]}
+P3b-844x390-mode: {\mobaMode\:true,\rotateMode\:false,\state\:\MENU\}
+P3b-rotate-mode: {\rotate\:false,\state\:\MENU\}
+P3b-visibility-pause: precondition-failed:MENU
+P3b-blur-clears-keys: before={\ArrowRight\:true,\Space\:true},after={}
+P3b-console-errors: 
+== PHASE-4 perf-and-offline
+P4.0-hard2: {\state\:\MENU\,\enemies\:145,\gridR\:35,\gridC\:41}
+P4.1-fps-3s-desktop: 60.1
+P4.2-offline: {\state\:\MENU\,\title\:\Q版炸弹人大冒险\,\font\:\Fredoka, \\\Noto Sans SC\\\, sans-serif\}
+P4.3-offline-errors: 
+== DONE-P34B

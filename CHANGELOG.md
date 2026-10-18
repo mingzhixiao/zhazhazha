@@ -20,6 +20,23 @@
 - P2-8 地图生成接入可注入 RNG（其余随机源留待后续）
 - 小火龙（SALAMANDER）直接喷出的火焰不再误伤其它怪物（之前会替玩家清怪）；改为只伤害玩家，标记 `noEnemyDamage`
 
+### 第三轮（2026-10-18 续）：提示系统布局与游戏面板防遮挡
+- 教学 HUD 从 `position: fixed; z-index:65` 覆盖层改为文档流布局槽（位于顶部状态栏之后、棋盘之前，占真实高度）；横屏/旋转模式用紧凑样式
+- 普通 Toast 移出 `#canvasWrapper` 到棋盘外专用提示区（文档流），同时只显示 1 条（新提示替换旧提示），空时 `:empty` 折叠
+- 教学模式下步骤完成反馈改为写入教学卡内独立 `#tutorialFeedback` 行（与当前指令 `#tutorialText` 分离，互不覆盖），不再在棋盘弹 Toast
+- 新增提示调度：`bannerActive` + `_pendingCombo`，关卡横幅优先、展示期间延后连杀播报、横幅结束补播，连杀与横幅互斥
+- 底部 footer 改为纵向布局（提示单独成行），新增 ≤400px / ≤360px 媒体查询缩小摇杆与按钮，超窄屏隐藏次要提示只留一条
+- 新增 `tests/test-layout.js`（5 项结构/CSS 断言）；自动化测试 98 用例全过（原 93 + 新增 5）
+- 真机/浏览器视觉验收仍未执行（需人工补截图与像素级边界测量），详见 RELEASE-RESULTS.md 第 9 节
+
+### 第四轮（2026-10-18）：浏览器实测修复
+- **修复阻断级缺陷**：强化商店"进入下一关"按钮被底部操作区遮挡无法点击（`#shopModal` 原在 `#canvasWrapper` 内受 `overflow:hidden` 裁切）——移至 DOM 顶层并改为 `position:fixed; z-index:60`，复测可正常进入下一关
+- 浏览器实测（Chromium 自动化 + 移动视口模拟）覆盖：完整一局流程、教学 6 步、暂停/死亡/重开、商店购买与进关、存档刷新保持、切后台自动暂停、失焦清键、竖屏/横屏布局防遮挡、困难2 FPS、断网加载；真机项仍待人工，详见 RELEASE-RESULTS.md 第四轮章节与 `docs/qa-screenshots/`
+
+### 第五轮（2026-10-18 晚）：真机反馈修复
+- **修复崩溃**：新手复活 `clearEnemiesNearPlayer()` 在 `updateEnemies` 循环内整体替换 enemies 数组，旧下标取到 undefined 报 `Cannot read properties of undefined (reading 'animPhase')`（game.js:3370）——循环加 `if (!e) continue` 防御，新增防回归测试
+- **修复游戏面板跳动/变大变小**：`#gameToasts` 空时 `:empty{display:none}`、有 Toast 时占位 ~39px，挤压 flex-1 棋盘区触发 ResizeObserver 反复重算画布——改为固定高度 2.4rem 占位 + `flex:none`（覆盖第三轮"空时折叠"设计，布局测试同步更新）；实测 Toast 连续触发时画布尺寸零跳变
+- 自动化测试 99 用例全过（98 + 新增 1 防回归）
 
 ### 优化
 - 新手难度曲线：每关 +1 怪（原 +3）、移速 0.72、精英 2%、冰块 13%、木箱 42%、第1关无藤蔓

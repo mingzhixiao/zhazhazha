@@ -1,0 +1,9 @@
+P2.0-diff-selected: {\diff\:4,\state\:\MENU\}
+P2.0b-offer: {\offer\:true,\state\:\MENU\}
+P2.1-tutorial-started: {\active\:true,\sandboxDiff\:0,\gridR\:11,\gridC\:13,\stepLabel\:\1/6\,\savedDiff\:4}
+P2.2-tutorial-result: done state=PLAYING diff=4 grid=35x41
+P2.2-tutorial-log: step->1,near-walk:arrived@2,1,retry1:arrived,step->2,step->3,step->4,step->5,approach=arrived,step->6,near-walk:arrived@2,5,retry1:no-path@2,5,near-walk:arrived@2,7,retry2:stuck@2,9,tutorial-ended state=PLAYING diff=4 grid=35x41
+P2.3-after-tutorial: {\state\:\PLAYING\,\level\:1,\diff\:4,\lives\:3,\score\:15,\coins\:0,\enemies\:145,\bombs\:0,\gridR\:35,\gridC\:41,\px\:149,\py\:102}
+P2.4-cleanup: {\hudHidden\:true,\frozenEnemies\:0,\highlight\:false}
+P2.5-console-errors: 
+== DONE-P2

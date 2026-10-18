@@ -74,3 +74,15 @@ describe('冒烟：脚本加载顺序', () => {
         assert.ok(order[0] < order[1] && order[1] < order[2] && order[2] < order[3], '脚本顺序错误');
     });
 });
+
+describe('防回归：敌人循环内数组被替换（新手复活清怪）不得崩溃', () => {
+    it('updateEnemies 循环对 undefined 敌人有防御', () => {
+        const src = fs.readFileSync(path.join(ROOT, 'js/game.js'), 'utf8');
+        const loopStart = src.indexOf('updateEnemies(dtScale)');
+        assert.ok(loopStart > 0, '找不到 updateEnemies');
+        // damagePlayer → 新手复活 clearEnemiesNearPlayer() 会整体替换 this.enemies，
+        // 旧下标继续取值会得到 undefined（game.js:3370 animPhase 崩溃），必须防御
+        const loopBody = src.slice(loopStart, loopStart + 1200);
+        assert.ok(loopBody.includes('if (!e) continue;'), 'updateEnemies 缺少对 undefined 敌人的防御');
+    });
+});

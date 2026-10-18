@@ -1,0 +1,11 @@
+P5.0-entry: {\state\:\MENU\,\offer\:true}
+P5.1-visibility-pause: before=PLAYING,hidden-paused=PAUSED
+P5.1-after: PLAYING
+P5.2-rotate-on: {\rotate\:false,\state\:\PLAYING\}
+P5.3-hard2-state: {\state\:\MENU\,\enemies\:145,\grid\:\35x41\}
+P5.4-hard2-fps-playing: 60.2 / state=PLAYING / enemies=145
+P5.5-perf-panel: 
+P5.6-shop-open: {\state\:\SHOP\,\shopVisible\:true,\items\:5}
+P5.7-shop-continue: {\state\:\SHOP\,\level\:1,\shopVisible\:true,\err\:null}
+P5.8-errors: 
+== DONE-P5

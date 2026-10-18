@@ -1619,7 +1619,7 @@
             }
 
             tutorialNext(msg) {
-                if (msg) this.showToast(msg, 'star');
+                if (msg) this.setTutorialFeedback(msg);
                 this.sound.playPowerup();
                 const next = this.tutorial.step + 1;
                 if (next >= 6) {
@@ -1627,6 +1627,19 @@
                 } else {
                     this.setupTutorialStep(next);
                 }
+            }
+
+            // 教学步骤完成反馈：写入教学卡内的反馈行（与“当前步骤指令”分离，避免互相覆盖）
+            setTutorialFeedback(text) {
+                const fb = document.getElementById('tutorialFeedback');
+                if (!fb) return;
+                fb.textContent = text || '';
+                fb.classList.remove('hidden');
+                fb.classList.remove('tutorial-flash');
+                void fb.offsetWidth;
+                fb.classList.add('tutorial-flash');
+                clearTimeout(this._tutFeedbackTimer);
+                this._tutFeedbackTimer = setTimeout(() => fb.classList.add('hidden'), 1500);
             }
 
             endTutorial(completed) {
@@ -2060,6 +2073,12 @@
                 const tText = document.getElementById('comboToastText');
                 const tSub = document.getElementById('comboToastSub');
                 if (!toast) return;
+
+                // 与关卡横幅互斥：横幅展示期间延后非紧急连杀播报
+                if (this.bannerActive) {
+                    this._pendingCombo = { text, sub: sub || '', color };
+                    return;
+                }
 
                 tText.textContent = text;
                 tText.style.color = color;
@@ -3348,6 +3367,9 @@
 
                 for (let i = this.enemies.length - 1; i >= 0; i--) {
                     const e = this.enemies[i];
+                    // 循环内 damagePlayer → 新手复活 clearEnemiesNearPlayer() 会整体替换 enemies 数组，
+                    // 继续用旧下标取到的可能是 undefined，必须防御
+                    if (!e) continue;
                     e.animPhase += 0.12 * dtScale;
                     if (e.hurtTimer > 0) e.hurtTimer -= dtScale;
                     if (e.enrageTimer > 0) e.enrageTimer -= dtScale;
@@ -5609,10 +5631,15 @@
 
             // 顶部提示 pill：不遮挡游戏面板，用于重要播报
             showToast(text, icon = 'star', ms = 1700) {
+                // 教学进行中：普通提示改为写入教学卡反馈行，不在棋盘上弹 Toast
+                if (this.tutorial && this.tutorial.active) {
+                    this.setTutorialFeedback(text);
+                    return;
+                }
                 const box = document.getElementById('gameToasts');
                 if (!box) return;
-                // 最多同时 3 条
-                while (box.children.length >= 3) box.removeChild(box.firstChild);
+                // 一次只显示 1 条：用替换机制，避免棋盘区域堆叠多个提示
+                box.innerHTML = '';
                 const el = document.createElement('div');
                 el.className = 'game-toast';
                 const cv = document.createElement('canvas');
@@ -5624,9 +5651,10 @@
                 el.appendChild(cv);
                 el.appendChild(tx);
                 box.appendChild(el);
-                setTimeout(() => {
+                clearTimeout(this._gameToastTimer);
+                this._gameToastTimer = setTimeout(() => {
                     el.classList.add('toast-out');
-                    setTimeout(() => el.remove(), 400);
+                    setTimeout(() => { if (el.parentElement) el.remove(); }, 400);
                 }, ms);
             }
 
@@ -5641,6 +5669,9 @@
                 themeEl.textContent = theme.name;
                 this.sound.playLevelStart();
                 banner.classList.remove('hidden', 'level-banner-hide');
+                // 关卡横幅优先：展示期间隐藏连杀播报，结束后若有延后的连杀再补播
+                this.bannerActive = true;
+                this.hideComboToast();
                 // 重新触发入场动画
                 const card = banner.querySelector('.level-banner-card');
                 if (card) {
@@ -5651,7 +5682,16 @@
                 clearTimeout(this._levelBannerTimer);
                 this._levelBannerTimer = setTimeout(() => {
                     banner.classList.add('level-banner-hide');
-                    setTimeout(() => banner.classList.add('hidden'), 420);
+                    setTimeout(() => {
+                        banner.classList.add('hidden');
+                        this.bannerActive = false;
+                        // 横幅结束后，补播展示期间被延后的连杀播报
+                        if (this._pendingCombo) {
+                            const p = this._pendingCombo;
+                            this._pendingCombo = null;
+                            this.showComboToast(p.text, p.sub, p.color);
+                        }
+                    }, 420);
                 }, 1600);
             }
 
