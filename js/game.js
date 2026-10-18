@@ -28,6 +28,7 @@
                 this.save = new SaveSystem();
 
                 this.state = 'MENU';
+                this.noviceFailStreak = 0; // 新手档连败计数
                 this.difficultyIdx = 0;
                 this.mapCols = 13;
                 this.mapRows = 11;
@@ -588,7 +589,7 @@
                 this.showLevelBanner();
 
                 if (this.difficultyIdx === 0 && levelNum === 1) {
-                    this.playerStats.flameVestTimer = 600;
+                    this.playerStats.flameVestTimer = diffCfg.noviceVestFrames || 900;
                 }
 
                 const crateSlots = [];
@@ -617,8 +618,10 @@
                     crateSlots.push({ c: this.mapCols - 2, r: this.mapRows - 2 });
                 }
 
+                // 新手第 1 关不生成藤蔓，避免刚学移动就被减速干扰
+                const vineTarget = (this.difficultyIdx === 0 && levelNum === 1) ? 0 : diffCfg.initialVines;
                 let vinesPlaced = 0;
-                for (let tries = 0; tries < 250 && vinesPlaced < diffCfg.initialVines; tries++) {
+                for (let tries = 0; tries < 250 && vinesPlaced < vineTarget; tries++) {
                     const rc = 1 + Math.floor(Math.random() * (this.mapCols - 2));
                     const rr = 1 + Math.floor(Math.random() * (this.mapRows - 2));
                     if (this.grid[rr][rc] === TILE.EMPTY && (rc + rr > 5)) {
@@ -693,7 +696,12 @@
                 let type = 'SLIME';
                 const rand = Math.random();
 
-                if (rand < diffCfg.specialistRatio) {
+                // 新手保护：前 N 关特化怪不随机出现（逐步引入）
+                let specRatio = diffCfg.specialistRatio;
+                if (this.difficultyIdx === 0 && this.level <= (diffCfg.noviceGraceLevels || 0)) {
+                    specRatio = 0;
+                }
+                if (rand < specRatio) {
                     type = SPECIALISTS[Math.floor(Math.random() * SPECIALISTS.length)];
                 } else if (rand < diffCfg.specialistRatio + diffCfg.eliteRatio ||
                            (forceAngry && Math.random() < 0.55)) {
@@ -768,12 +776,26 @@
 
             spawnMonstersFromDestroyedPowerup(item) {
                 const diffCfg = DIFFICULTY_TIERS[this.difficultyIdx];
-                const spawnCount = diffCfg.itemBombSpawnCount || 2;
+                const isNovice = this.difficultyIdx === 0;
+
+                // 新手保护：第 1 关只警告不刷怪；后续关最多 1 只普通怪
+                if (isNovice && this.level <= (diffCfg.noviceNoPunishLevel || 0)) {
+                    this.sound.playItemCurseSpawn();
+                    this.showToast('小心！炸毁道具会引来怪物！', 'angry');
+                    return;
+                }
+                let spawnCount = diffCfg.itemBombSpawnCount || 2;
+                if (isNovice) {
+                    spawnCount = Math.min(spawnCount, diffCfg.novicePunishCap || 1);
+                    this.showToast('警告！道具被炸，出现 1 只怪物！', 'angry');
+                }
                 const cx = (item.col + 0.5) * TILE_SIZE;
                 const cy = (item.row + 0.5) * TILE_SIZE;
 
                 this.sound.playItemCurseSpawn();
-                this.showToast(`道具被炸! 涌出 ${spawnCount} 只恶怪!`, 'angry');
+                if (!isNovice) {
+                    this.showToast(`道具被炸! 涌出 ${spawnCount} 只恶怪!`, 'angry');
+                }
                 this.addShake(5);
 
                 for (let i = 0; i < 20; i++) {
@@ -792,7 +814,8 @@
                 }
 
                 for (let k = 0; k < spawnCount; k++) {
-                    const newEnemy = this.createSingleEnemyAt(item.col, item.row, diffCfg, true);
+                    // 新手档生成普通怪（非愤怒），降低惩罚强度
+                    const newEnemy = this.createSingleEnemyAt(item.col, item.row, diffCfg, !isNovice);
                     newEnemy.dir = ['UP', 'DOWN', 'LEFT', 'RIGHT'][k % 4];
                     this.enemies.push(newEnemy);
                 }
@@ -2909,6 +2932,8 @@
                 if (this.playerStats.lives <= 0) {
                     this.state = 'GAME_OVER';
                     this.sound.playGameOver();
+                    if (this.difficultyIdx === 0) this.noviceFailStreak++;
+                    else this.noviceFailStreak = 0;
 
                     if (this.score > this.save.data.bestScore) {
                         this.save.data.bestScore = this.score;
@@ -2920,7 +2945,10 @@
                         '挑战失败啦',
                         `你在【${DIFFICULTY_TIERS[this.difficultyIdx].name}】第 <span class="text-indigo-600 font-black">${this.level}</span> 关惜败！<br>
                          总分：<span class="text-amber-500 font-black">${this.score}</span> · 金币：<span class="text-yellow-600 font-black">${this.coins}</span> · 最高连杀：<span class="text-fuchsia-600 font-black">x${this.bestChain}</span><br>
-                         善用遥控炸弹、穿墙披风、防炸衣与超必杀再来一局吧！`,
+                         善用遥控炸弹、穿墙披风、防炸衣与超必杀再来一局吧！` +
+                        (this.difficultyIdx === 0 && this.noviceFailStreak >= 2
+                            ? `<br><span class="text-emerald-700 font-black">小提示（已连败 ${this.noviceFailStreak} 次）：放弹后立刻离开爆炸的十字范围，别站在炸弹旁边等！先清小怪再开箱，稳扎稳打。</span>`
+                            : ``),
                         '重新开始冒险',
                         'ghost'
                     );
@@ -3617,6 +3645,7 @@
             triggerLevelClear() {
                 if (this.state === 'LEVEL_CLEAR') return;
                 this.state = 'LEVEL_CLEAR';
+                this.noviceFailStreak = 0;
                 this.touchDir = null;
                 this.score += 500 * this.level;
 

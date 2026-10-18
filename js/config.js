@@ -29,10 +29,15 @@
         const DIFFICULTY_TIERS = [
             {
                 id: 0, name: '新手', cols: 13, rows: 11,
-                baseEnemies: 8, perLevelAdd: 3, speedMult: 0.82, bfsRange: 0,
-                eliteRatio: 0.05, specialistRatio: 0.06,
-                frostChance: 0.28, crateDensity: 0.50, initialVines: 1, vineSpreadFrames: 720,
-                itemBombSpawnCount: 2
+                baseEnemies: 8, perLevelAdd: 1, speedMult: 0.72, bfsRange: 0,
+                eliteRatio: 0.02, specialistRatio: 0.06,
+                frostChance: 0.13, crateDensity: 0.42, initialVines: 1, vineSpreadFrames: 720,
+                itemBombSpawnCount: 2,
+                // ---- 新手保护性配置（集中管理，见 REVIEW-2026-10-18） ----
+                noviceGraceLevels: 2,   // 前 N 关特化怪不随机出现
+                noviceNoPunishLevel: 1, // 第 N 关（含）前炸毁道具无额外刷怪惩罚
+                novicePunishCap: 1,     // 新手档炸毁道具最多额外生成数
+                noviceVestFrames: 900   // 第 1 关火焰防炸衣保护帧数（约 15 秒）
             },
             {
                 id: 1, name: '简单', cols: 13, rows: 11,
