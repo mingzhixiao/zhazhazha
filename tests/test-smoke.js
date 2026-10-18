@@ -86,3 +86,31 @@ describe('防回归：敌人循环内数组被替换（新手复活清怪）不�
         assert.ok(loopBody.includes('if (!e) continue;'), 'updateEnemies 缺少对 undefined 敌人的防御');
     });
 });
+
+describe('防回归：炸弹链式引爆与主循环健壮性', () => {
+    const src = () => fs.readFileSync(path.join(ROOT, 'js/game.js'), 'utf8');
+
+    it('updateBombsAndExplosions 对链式引爆后的失效下标有防御', () => {
+        const code = src();
+        const start = code.indexOf('updateBombsAndExplosions(dtScale) {');
+        assert.ok(start > 0, '找不到 updateBombsAndExplosions');
+        const body = code.slice(start, start + 4000);
+        // detonateBomb 会一次移除多颗炸弹（冰冻弹被普通弹波及），旧下标可能 undefined
+        assert.ok(body.includes('if (!b) continue;'), '缺少对 undefined 炸弹的防御');
+        assert.ok(body.includes('i = Math.min(i, this.bombs.length);'), '链式引爆后未夹紧下标');
+    });
+
+    it('主循环 loop 用 try/finally 保证 rAF 不断链（单帧异常不卡死）', () => {
+        const code = src();
+        const start = code.indexOf('loop(timestamp) {');
+        assert.ok(start > 0, '找不到 loop');
+        const body = code.slice(start, start + 3200);
+        assert.ok(body.includes('try {'), 'loop 缺少 try（单帧异常会让 rAF 断链，游戏永久卡死）');
+        assert.ok(/finally\s*\{[\s\S]*requestAnimationFrame/.test(body), 'rAF 必须放在 finally 中');
+    });
+
+    it('FEVER 不再弹出遮挡面板的 FEVER TIME 提示条', () => {
+        const code = src();
+        assert.ok(!code.includes("showComboToast(' FEVER TIME!'"), 'FEVER TIME 中央提示条会遮挡面板，应移除');
+    });
+});

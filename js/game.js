@@ -3076,8 +3076,8 @@
                         this.feverTimer = 480;
                         this.screenFlashTimer = 24;
                         this.sound.playFever();
-                        this.showToast('FEVER TIME! 狂暴时刻！', 'fire', 2000);
-                        this.showComboToast(' FEVER TIME!', '火焰 6 格 · 炸弹 8 连', '#ec4899');
+                        // 不再弹出 "FEVER TIME" 提示条：会遮挡棋盘/顶部面板。
+                        // 狂暴状态由 HUD 的"狂暴中!"进度条 + 屏幕闪光 + 音效表达。
                     }
                 }
                 this.updateHUD();
@@ -3792,6 +3792,9 @@
             updateBombsAndExplosions(dtScale) {
                 for (let i = this.bombs.length - 1; i >= 0; i--) {
                     const b = this.bombs[i];
+                    // detonateBomb 会链式引爆：一次可能移除多颗炸弹（含下标更小的），
+                    // 旧下标取到的可能是 undefined，直接访问属性会抛异常并让主循环停摆（页面卡死）
+                    if (!b) continue;
                     b.scalePhase += 0.18 * dtScale;
                     if (b.pushCd > 0) b.pushCd -= dtScale;
 
@@ -3836,6 +3839,8 @@
 
                     if (!b.isRemote && b.timer <= 0) {
                         this.detonateBomb(i);
+                        // 链式引爆后数组可能变短，夹紧下标避免后续取到 undefined
+                        i = Math.min(i, this.bombs.length);
                     }
                 }
 
@@ -6019,49 +6024,59 @@
             }
 
             loop(timestamp) {
-                const dt = Math.min(timestamp - this.lastFrameTime, 50);
-                this.lastFrameTime = timestamp;
-                const dtScale = dt / 16.667;
+                // 任何一帧内的未捕获异常都不能让 rAF 链断掉——否则整个游戏永久卡死（画面静止、按键无反应）
+                try {
+                    const dt = Math.min(timestamp - this.lastFrameTime, 50);
+                    this.lastFrameTime = timestamp;
+                    const dtScale = dt / 16.667;
 
-                this.globalTime += dtScale;
+                    this.globalTime += dtScale;
 
-                const perfStart = this.perf.enabled ? performance.now() : 0;
+                    const perfStart = this.perf.enabled ? performance.now() : 0;
 
-                if (this.state === 'PLAYING') {
-                    this.updateDangerState(dtScale);
-                    this.updatePlayer(dtScale);
-                    this.updateEnemies(dtScale);
-                    this.updateBombsAndExplosions(dtScale);
-                    this.updateVineSpread(dtScale);
-                    this.updateCamera(dtScale);
-                    // HUD 节流：每 15 帧更新一次（约 4 次/秒），避免整秒突发式 DOM 更新造成卡顿
-                    this._hudTick++;
-                    if (this._hudTick % 15 === 0) {
-                        this.updateHUD();
+                    if (this.state === 'PLAYING') {
+                        this.updateDangerState(dtScale);
+                        this.updatePlayer(dtScale);
+                        this.updateEnemies(dtScale);
+                        this.updateBombsAndExplosions(dtScale);
+                        this.updateVineSpread(dtScale);
+                        this.updateCamera(dtScale);
+                        // HUD 节流：每 15 帧更新一次（约 4 次/秒），避免整秒突发式 DOM 更新造成卡顿
+                        this._hudTick++;
+                        if (this._hudTick % 15 === 0) {
+                            this.updateHUD();
+                        }
+                    } else {
+                        this.updateDangerState(dtScale);
                     }
-                } else {
-                    this.updateDangerState(dtScale);
-                }
 
-                if (this.tutorial && this.tutorial.active) {
-                    this.updateTutorial();
+                    if (this.tutorial && this.tutorial.active) {
+                        this.updateTutorial();
+                    }
+                    if (this.perf.enabled) {
+                        this.perf.updateMs = performance.now() - perfStart;
+                    }
+                    const drawStart = this.perf.enabled ? performance.now() : 0;
+                    this.draw();
+                    if (this.perf.enabled) {
+                        this.perf.drawMs = performance.now() - drawStart;
+                        this.updatePerfPanel();
+                    }
+                    if (this.tutorial && this.tutorial.active) {
+                        this.drawTutorialMarkers();
+                    }
+                    if (this.state === 'MENU' && !document.getElementById('startScreen').classList.contains('hidden')) {
+                        this.drawHero();
+                    }
+                } catch (err) {
+                    // 隔离单帧异常：记录一次（防刷屏），游戏继续跑，而不是整个页面卡死
+                    this._loopErrorCount = (this._loopErrorCount || 0) + 1;
+                    if (this._loopErrorCount <= 5) {
+                        console.error('[loop] 帧内异常已隔离，游戏继续运行：', err);
+                    }
+                } finally {
+                    requestAnimationFrame((t) => this.loop(t));
                 }
-                if (this.perf.enabled) {
-                    this.perf.updateMs = performance.now() - perfStart;
-                }
-                const drawStart = this.perf.enabled ? performance.now() : 0;
-                this.draw();
-                if (this.perf.enabled) {
-                    this.perf.drawMs = performance.now() - drawStart;
-                    this.updatePerfPanel();
-                }
-                if (this.tutorial && this.tutorial.active) {
-                    this.drawTutorialMarkers();
-                }
-                if (this.state === 'MENU' && !document.getElementById('startScreen').classList.contains('hidden')) {
-                    this.drawHero();
-                }
-                requestAnimationFrame((t) => this.loop(t));
             }
         }
 
