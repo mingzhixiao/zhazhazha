@@ -6,9 +6,9 @@ const path = require('node:path');
 
 const ROOT = path.join(__dirname, '..');
 const JS_FILES = [
-    'js/rng.js', 'js/pure.js', 'js/tutorial-core.js', 'js/config.js',
-    'js/audio.js', 'js/save.js', 'js/ui.js', 'js/render.js',
-    'js/enemy-skills.js', 'js/tutorial.js', 'js/game.js'
+    'js/rng.js', 'js/pure.js', 'js/tutorial-core.js', 'js/cat-puzzle-core.js',
+    'js/config.js', 'js/audio.js', 'js/save.js', 'js/ui.js', 'js/render.js',
+    'js/enemy-skills.js', 'js/tutorial.js', 'js/cat-puzzle.js', 'js/game.js'
 ];
 
 describe('冒烟：语法', () => {
@@ -22,7 +22,8 @@ describe('冒烟：语法', () => {
 describe('冒烟：HTML 关键 ID 齐全', () => {
     const html = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
     const requiredIds = [
-        'startScreen', 'startGameBtn', 'startDiffPill', 'startDiffName',
+        'startScreen', 'startGameBtn', 'startCatPuzzleBtn', 'startDiffPill', 'startDiffName',
+        'catPuzzleScreen', 'catPuzzleGrid', 'catPuzzleBackBtn',
         'diffSheet', 'helpModal', 'careerPop', 'heroCanvas',
         'gameCanvas', 'overlayModal', 'modalActionBtn', 'shopModal',
         'joystickZone', 'btnPlaceBomb', 'btnDetonateRemote', 'btnMegaBomb',

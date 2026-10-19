@@ -844,6 +844,14 @@
                 document.getElementById('startGameBtn').addEventListener('click', () => {
                     this.startGameFromMenu();
                 });
+                const catModeBtn = document.getElementById('startCatPuzzleBtn');
+                if (catModeBtn) {
+                    catModeBtn.addEventListener('click', () => {
+                        this.sound.init();
+                        this.sound.playClick();
+                        if (window.CatPuzzleMode) window.CatPuzzleMode.enter(this);
+                    });
+                }
                 document.getElementById('startDiffPill').addEventListener('click', () => {
                     this.sound.init();
                     this.sound.playClick();
