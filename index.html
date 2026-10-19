@@ -50,10 +50,74 @@
         <!-- 底部 25-30%：主开始按钮 -->
         <div class="start-bottom">
             <button id="startGameBtn" class="start-main-btn">开始游戏</button>
+            <button id="startCatPuzzleBtn" class="start-special-btn" type="button">特别模式 · 猫咪逻辑</button>
             <button id="startDiffPill" class="start-diff-pill">
                 <canvas class="guide-icon" data-icon="flag" width="16" height="16"></canvas>
                 <span id="startDiffName">新手 · 8怪</span>
             </button>
+        </div>
+    </div>
+
+    <!-- 特别模式：猫咪逻辑（类皇后/色块放置谜题） -->
+    <div id="catPuzzleScreen" class="hidden" aria-label="猫咪逻辑特别模式">
+        <div class="cat-puzzle-shell">
+            <div class="cat-puzzle-top">
+                <button id="catPuzzleBackBtn" class="cat-icon-btn" type="button" aria-label="返回首页">返回</button>
+                <div class="cat-puzzle-title-wrap">
+                    <div class="cat-puzzle-brand">猫咪逻辑</div>
+                    <div id="catLevelLabel" class="cat-puzzle-level">第 1 关 · 新手教学</div>
+                </div>
+                <div id="catTimer" class="cat-timer hidden">2:00</div>
+            </div>
+
+            <div id="catRulesPanel" class="cat-rules" aria-label="规则说明">
+                <div class="cat-rule" data-rule="0">
+                    <div class="cat-rule-ico cat-rule-color"></div>
+                    <div class="cat-rule-txt"><b>一种颜色一只猫</b><span>同色区域仅一只</span></div>
+                </div>
+                <div class="cat-rule" data-rule="1">
+                    <div class="cat-rule-ico cat-rule-line"></div>
+                    <div class="cat-rule-txt"><b>每行每列仅一只</b><span>行列不重复</span></div>
+                </div>
+                <div class="cat-rule" data-rule="2">
+                    <div class="cat-rule-ico cat-rule-touch"></div>
+                    <div class="cat-rule-txt"><b>猫咪不能接触</b><span>含斜角相邻</span></div>
+                </div>
+            </div>
+
+            <div class="cat-progress-row">
+                <div class="cat-progress-track"><i id="catProgressBar"></i></div>
+                <span id="catProgressText">0/4</span>
+            </div>
+
+            <div id="catTutorialCard" class="cat-tut-card hidden">
+                <div class="cat-tut-head">
+                    <span id="catTutStep" class="cat-tut-step">1/5</span>
+                    <button id="catTutSkipBtn" class="cat-tut-skip" type="button">跳过教学</button>
+                </div>
+                <div id="catTutTitle" class="cat-tut-title">欢迎</div>
+                <div id="catTutText" class="cat-tut-text">说明</div>
+                <button id="catTutNextBtn" class="candy-btn cat-tut-next" type="button">下一步</button>
+            </div>
+
+            <div id="catPuzzleGrid" class="cat-grid" role="grid" aria-label="猫咪棋盘"></div>
+
+            <div class="cat-actions">
+                <button id="catPuzzleHintBtn" class="candy-btn cat-action-btn" type="button">提示</button>
+                <button id="catPuzzleResetBtn" class="candy-btn cat-action-btn cat-action-muted" type="button">重置</button>
+            </div>
+            <p class="cat-tip">点格子：放猫 → 标叉 → 清空。红框表示违反规则。</p>
+        </div>
+
+        <div id="catPuzzleResult" class="cat-result hidden">
+            <div class="sheet-backdrop"></div>
+            <div class="cat-result-card">
+                <div id="catResultTitle" class="sheet-title">过关！</div>
+                <p id="catResultDesc" class="cat-result-desc">完成这一关</p>
+                <button id="catResultNextBtn" class="candy-btn w-full py-2.5 rounded-2xl bg-gradient-to-r from-emerald-400 to-teal-500 text-white font-black text-base border-2 border-white mb-2" type="button">下一关</button>
+                <button id="catResultRetryBtn" class="candy-btn w-full py-2 rounded-2xl bg-amber-100 text-amber-800 font-black text-sm border-2 border-white mb-2" type="button">再试一次</button>
+                <button id="catResultHomeBtn" class="candy-btn w-full py-2 rounded-2xl bg-slate-100 text-slate-600 font-black text-sm border-2 border-white" type="button">回到首页</button>
+            </div>
         </div>
     </div>
 
@@ -489,6 +553,7 @@
     <script src="js/rng.js"></script>
     <script src="js/pure.js"></script>
     <script src="js/tutorial-core.js"></script>
+    <script src="js/cat-puzzle-core.js"></script>
     <script src="js/config.js"></script>
     <script src="js/audio.js"></script>
     <script src="js/save.js"></script>
@@ -496,6 +561,7 @@
     <script src="js/render.js"></script>
     <script src="js/enemy-skills.js"></script>
     <script src="js/tutorial.js"></script>
+    <script src="js/cat-puzzle.js"></script>
     <script src="js/game.js"></script>
 </body>
 </html>
