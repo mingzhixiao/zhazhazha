@@ -5,7 +5,11 @@ const { execSync } = require('node:child_process');
 const path = require('node:path');
 
 const ROOT = path.join(__dirname, '..');
-const JS_FILES = ['js/rng.js', 'js/pure.js', 'js/tutorial-core.js', 'js/config.js', 'js/audio.js', 'js/save.js', 'js/game.js'];
+const JS_FILES = [
+    'js/rng.js', 'js/pure.js', 'js/tutorial-core.js', 'js/config.js',
+    'js/audio.js', 'js/save.js', 'js/ui.js', 'js/render.js',
+    'js/enemy-skills.js', 'js/tutorial.js', 'js/game.js'
+];
 
 describe('冒烟：语法', () => {
     for (const f of JS_FILES) {
@@ -33,7 +37,7 @@ describe('冒烟：HTML 关键 ID 齐全', () => {
 
 describe('冒烟：JS 引用的 DOM ID 在 HTML 中存在', () => {
     const html = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
-    const js = fs.readFileSync(path.join(ROOT, 'js/game.js'), 'utf8');
+    const js = JS_FILES.map(f => fs.readFileSync(path.join(ROOT, f), 'utf8')).join('\n');
     const ids = new Set([...js.matchAll(/getElementById\('([^']+)'\)/g)].map(m => m[1]));
     // 动态创建的 ID（document.createElement），不要求在 HTML 中预置
     const dynamicIds = new Set(['perfPanel']);
@@ -113,4 +117,105 @@ describe('防回归：炸弹链式引爆与主循环健壮性', () => {
         const code = src();
         assert.ok(!code.includes("showComboToast(' FEVER TIME!'"), 'FEVER TIME 中央提示条会遮挡面板，应移除');
     });
+
+    it('MEGA BOMB 与超必杀就绪不再弹出遮挡棋盘面板的提示条', () => {
+        const code = src();
+        assert.ok(!code.includes("showComboToast(' MEGA BOMB!'"), 'MEGA BOMB 棋盘内提示条会遮挡面板，应移除');
+        assert.ok(!code.includes("showComboToast(' 超必杀就绪!'"), '超必杀就绪棋盘内提示条会遮挡面板，应移除');
+    });
+
+    it('comboMeter 浮标不在棋盘中心移动区域弹出遮挡视野', () => {
+        const code = src();
+        const start = code.indexOf('updateComboMeter() {');
+        assert.ok(start > 0, '找不到 updateComboMeter');
+        const body = code.slice(start, start + 350);
+        assert.ok(!body.includes("el.classList.remove('hidden')"), 'comboMeter 仍会在棋盘内显示，应隐藏');
+    });
+
+    it('关卡开场横幅贴顶展示（不在棋盘第2-4行活动区居中遮挡视野）', () => {
+        const html = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
+        assert.ok(!html.includes('top-[18%]'), 'levelBanner 仍位于 top-[18%] 棋盘活动格内遮挡走位');
+        assert.ok(html.includes('top-1.5') || html.includes('top-2'), 'levelBanner 未贴顶放置于外墙位置');
+    });
+
+    it('小地图在 13x11 全景地图（含中等模式）下不绘制，且禁止跳帧绘制防频闪', () => {
+        const code = src();
+        const start = code.indexOf('drawMinimap() {');
+        assert.ok(start > 0, '找不到 drawMinimap');
+        const body = code.slice(start, start + 300);
+        assert.ok(body.includes('this.mapCols <= 13'), '缺少对 13x11 单屏地图的拦截');
+        assert.ok(!body.includes('this.difficultyIdx < 2'), '仍包含导致中等模式误显小地图的错误条件');
+        assert.ok(!code.includes('this._minimapTick % 6'), '仍存在每 6 帧跳绘导致的频闪逻辑');
+    });
 });
+
+describe('防回归：穿墙时间结束仍在木块内不得卡死', () => {
+    const src = () => fs.readFileSync(path.join(ROOT, 'js/game.js'), 'utf8');
+
+    it('isTileSolidForPlayer 计入 ghostExiting 允许玩家脱离木块', () => {
+        const code = src();
+        const start = code.indexOf('isTileSolidForPlayer(col, row, playerCol, playerRow) {');
+        assert.ok(start > 0, '找不到 isTileSolidForPlayer');
+        const body = code.slice(start, start + 600);
+        assert.ok(body.includes('ghostExiting'), 'isTileSolidForPlayer 缺少 ghostExiting 判断');
+    });
+
+    it('updatePlayer 在穿墙结束且玩家仍处于木块内时启动脱离保护与兜底挤出', () => {
+        const code = src();
+        const start = code.indexOf('updatePlayer(dtScale) {');
+        assert.ok(start > 0, '找不到 updatePlayer');
+        const body = code.slice(start, start + 3000);
+        assert.ok(body.includes('this.isPlayerInCrate'), 'updatePlayer 缺少木块重叠检测');
+        assert.ok(body.includes('this.ejectPlayerFromCrate()'), 'updatePlayer 缺少超时兜底挤出');
+        assert.ok(body.includes('ghostExiting = false'), '脱离木块后未解除脱离状态');
+    });
+
+    it('resetPlayerStats 初始化 ghostExiting 与 ghostExitGrace 字段', () => {
+        const code = src();
+        const start = code.indexOf('resetPlayerStats() {');
+        assert.ok(start > 0, '找不到 resetPlayerStats');
+        const body = code.slice(start, start + 600);
+        assert.ok(body.includes('ghostExiting: false'), 'resetPlayerStats 缺少 ghostExiting 字段');
+        assert.ok(body.includes('ghostExitGrace: 0'), 'resetPlayerStats 缺少 ghostExitGrace 字段');
+    });
+});
+
+describe('防回归：game-dev-skills 游戏手感与系统优化（Game-Feel / Input-Systems / Audio-Design）', () => {
+    const src = () => fs.readFileSync(path.join(ROOT, 'js/game.js'), 'utf8');
+    const audioSrc = () => fs.readFileSync(path.join(ROOT, 'js/audio.js'), 'utf8');
+
+    it('Game-Feel: 震屏采用二次方平滑创伤衰减模型（Trauma-based screen shake）', () => {
+        const code = src();
+        assert.ok(code.includes('this.trauma = Math.min(1.0'), 'addShake 缺少创伤累加');
+        assert.ok(code.includes('this.trauma * this.trauma'), 'draw 缺少二次方震屏衰减计算');
+    });
+
+    it('Game-Feel: 关键打击与大招触发 Hit-Stop 顿帧强化打击感', () => {
+        const code = src();
+        assert.ok(code.includes('triggerHitStop'), '缺少 triggerHitStop 方法');
+        assert.ok(code.includes('this.triggerHitStop(4);'), '受创未接入顿帧');
+        assert.ok(code.includes('this.triggerHitStop(5);'), '全屏大招未接入顿帧');
+        assert.ok(code.includes('if (this.hitStopFrames > 0)'), '主循环缺少 hitStop 冻结判断');
+    });
+
+    it('Game-Feel: 角色放炸弹与拾取道具具备 Squash & Stretch 弹性变形', () => {
+        const code = src();
+        assert.ok(code.includes('this.playerSquash = 0.25;'), '放炸弹缺少压扁弹性反馈');
+        assert.ok(code.includes('this.playerSquash = -0.22;'), '拾取道具缺少拉伸弹性反馈');
+        assert.ok(code.includes('actionSquash'), 'drawPlayer 缺少 squash 缩放应用');
+    });
+
+    it('Input-Systems: 放炸弹包含输入缓冲（Input Buffering），防止卡后摇丢键', () => {
+        const code = src();
+        assert.ok(code.includes('this.bombBufferTimer = 7;'), '炸弹上限或CD时缺少输入缓冲标记');
+        assert.ok(code.includes('if (this.bombBufferTimer > 0)'), 'updatePlayer 缺少输入缓冲消耗逻辑');
+    });
+
+    it('Audio-Design: 核心音效支持随机微音调变化（Pitch Variation），消除机械重复感', () => {
+        const code = audioSrc();
+        assert.ok(code.includes('opts.pitchVary'), 'playNotes 缺少 pitchVary 支持');
+        assert.ok(code.includes('playPlaceBomb') && code.includes('0.95 + Math.random() * 0.1'), '放炸弹缺少微随机音调');
+        assert.ok(code.includes('playExplosion') && code.includes('0.94 + Math.random() * 0.12'), '爆炸音效缺少随机微颤');
+    });
+});
+

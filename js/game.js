@@ -51,7 +51,11 @@
                 this.vineGrowthTimer = 0;
 
                 this.shakeAmt = 0;
+                this.trauma = 0;
                 this.hitFlash = 0;
+                this.hitStopFrames = 0;
+                this.bombBufferTimer = 0;
+                this.playerSquash = 0;
 
                 this.feverGauge = 0;
                 this.feverTimer = 0;
@@ -135,401 +139,7 @@
             }
 
             // 绘制页面上的静态矢量图标（帮助图鉴、商店徽章等）
-            drawStaticIcons() {
-                document.querySelectorAll('.guide-icon').forEach(cv => {
-                    // 装饰性 canvas 不抢占辅助技术焦点
-                    if (!cv.hasAttribute('aria-hidden')) cv.setAttribute('aria-hidden', 'true');
-                    const bctx = cv.getContext('2d');
-                    bctx.clearRect(0, 0, cv.width, cv.height);
-                    const s = Math.min(cv.width, cv.height);
-                    this.drawIcon(cv.dataset.icon, cv.width / 2, cv.height / 2, s * 0.92, bctx);
-                });
-            }
 
-            setupViewportHeight() {
-                const apply = () => {
-                    // visualViewport 高度为真实可视区域（含工具栏/软键盘场景）；
-                    // 有它就优先用它，避免 Math.max 把工具栏占用的区域重新算进来
-                    let h;
-                    if (window.visualViewport && window.visualViewport.height) {
-                        h = window.visualViewport.height;
-                    } else {
-                        h = window.innerHeight || document.documentElement.clientHeight;
-                    }
-                    document.documentElement.style.setProperty('--app-h', `${Math.round(h)}px`);
-                };
-
-                apply();
-                window.addEventListener('resize', apply);
-                window.addEventListener('orientationchange', () => {
-                    apply();
-                    setTimeout(apply, 120);
-                    setTimeout(apply, 400);
-                });
-                if (window.visualViewport) {
-                    window.visualViewport.addEventListener('resize', apply);
-                    window.visualViewport.addEventListener('scroll', apply);
-                }
-                window.addEventListener('touchstart', function once() {
-                    apply();
-                    window.removeEventListener('touchstart', once);
-                }, { passive: true });
-            }
-
-            setupFullscreen() {
-                this.fsSupported = !!(document.documentElement.requestFullscreen ||
-                                      document.documentElement.webkitRequestFullscreen);
-
-                const onChange = () => {
-                    const isFs = !!(document.fullscreenElement || document.webkitFullscreenElement);
-                    document.body.classList.toggle('is-fullscreen', isFs);
-                    const btn = document.getElementById('btnFullscreen');
-                    if (btn) {
-                        btn.classList.toggle('fs-on', isFs);
-                        btn.title = isFs ? '退出全屏 (F / Esc)' : '全屏游戏 (F)';
-                    }
-                    setTimeout(() => this.refreshLayout(), 120);
-                    setTimeout(() => this.refreshLayout(), 420);
-                };
-
-                document.addEventListener('fullscreenchange', onChange);
-                document.addEventListener('webkitfullscreenchange', onChange);
-
-                const btn = document.getElementById('btnFullscreen');
-                if (btn) {
-                    btn.addEventListener('click', () => {
-                        this.sound.init();
-                        this.sound.playClick();
-                        this.toggleFullscreen();
-                    });
-                }
-
-                this.syncFullscreenButtonVisibility();
-                window.addEventListener('resize', () => this.syncFullscreenButtonVisibility());
-            }
-
-            syncFullscreenButtonVisibility() {
-                const btn = document.getElementById('btnFullscreen');
-                if (!btn) return;
-                const isTouch = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
-                if (isTouch && !this.fsSupported) {
-                    btn.classList.add('hidden');
-                } else {
-                    btn.classList.remove('hidden');
-                }
-            }
-
-            toggleFullscreen() {
-                const doc = document;
-                const el = doc.documentElement;
-                const isFs = !!(doc.fullscreenElement || doc.webkitFullscreenElement);
-
-                if (!isFs) {
-                    const req = el.requestFullscreen || el.webkitRequestFullscreen;
-                    if (req) {
-                        try {
-                            const p = req.call(el, { navigationUI: 'hide' });
-                            if (p && p.catch) p.catch(() => this.tryScreenOrientationLock());
-                        } catch (e) {
-                            this.tryScreenOrientationLock();
-                        }
-                    } else {
-                        this.addFloatingText(this.player.x, this.player.y - 40, '当前浏览器不支持全屏', '#f59e0b', 16);
-                    }
-                } else {
-                    const exit = doc.exitFullscreen || doc.webkitExitFullscreen;
-                    if (exit) { try { exit.call(doc); } catch (e) {} }
-                }
-            }
-
-            tryScreenOrientationLock() {
-                try {
-                    if (screen.orientation && screen.orientation.lock) {
-                        screen.orientation.lock('landscape').catch(() => {});
-                    }
-                } catch (e) {}
-            }
-
-            setupRotateMode() {
-                const btn = document.getElementById('btnRotate');
-                if (!btn) return;
-
-                const isTouch = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
-                if (!isTouch) {
-                    btn.classList.add('hidden');
-                }
-
-                btn.addEventListener('click', () => {
-                    this.sound.init();
-                    this.sound.playClick();
-                    this.sound.vibrate(20);
-                    this.toggleRotateMode();
-                });
-
-                window.addEventListener('orientationchange', () => {
-                    setTimeout(() => {
-                        if (this.rotateMode && window.matchMedia) {
-                            const realLandscape = window.matchMedia('(orientation: landscape)').matches;
-                            if (realLandscape) {
-                                this.setRotateMode(false);
-                            }
-                        }
-                        this.refreshLayout();
-                    }, 150);
-                });
-            }
-
-            get rotateMode() {
-                return document.body.classList.contains('rotate-mode');
-            }
-
-            toggleRotateMode() {
-                this.setRotateMode(!this.rotateMode);
-            }
-
-            setRotateMode(on) {
-                document.body.classList.toggle('rotate-mode', on);
-                const btn = document.getElementById('btnRotate');
-                if (btn) {
-                    btn.classList.toggle('rot-on', on);
-                    btn.title = on ? '退出横屏模式' : '横屏模式：旋转画面，手机竖握即可 MOBA 操作';
-                }
-
-                if (on) {
-                    const doc = document;
-                    if (!doc.fullscreenElement && !doc.webkitFullscreenElement) {
-                        const req = doc.documentElement.requestFullscreen || doc.documentElement.webkitRequestFullscreen;
-                        if (req) {
-                            try {
-                                const p = req.call(doc.documentElement, { navigationUI: 'hide' });
-                                if (p && p.catch) p.catch(() => this.tryScreenOrientationLock());
-                            } catch (e) {}
-                        }
-                    } else {
-                        this.tryScreenOrientationLock();
-                    }
-                }
-
-                this.refreshLayout();
-                setTimeout(() => this.refreshLayout(), 150);
-                setTimeout(() => this.refreshLayout(), 450);
-            }
-
-            setupMobaMode() {
-                const isTouch = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
-
-                this.applyMobaMode = () => {
-                    const isFs = document.body.classList.contains('is-fullscreen');
-                    const rotated = document.body.classList.contains('rotate-mode');
-                    const landscape = window.matchMedia
-                        ? window.matchMedia('(orientation: landscape)').matches
-                        : (window.innerWidth > window.innerHeight);
-
-                    if (rotated && landscape) {
-                        document.body.classList.remove('rotate-mode');
-                        const btn = document.getElementById('btnRotate');
-                        if (btn) {
-                            btn.classList.remove('rot-on');
-                            btn.title = '横屏模式：旋转画面，手机竖握即可 MOBA 操作';
-                        }
-                        this.refreshLayout();
-                        return;
-                    }
-                    const shortSide = Math.min(window.innerWidth, window.innerHeight);
-                    const moba = isTouch && (isFs || rotated || (landscape && shortSide <= 620));
-
-                    document.body.classList.toggle('moba-mode', moba);
-                    document.body.classList.toggle('moba-bigmap', moba && this.mapCols > 13);
-                    this.isMobaMode = moba;
-                    if (this._updateCanvasSize) this._updateCanvasSize();
-                };
-
-                this.applyMobaMode();
-                window.addEventListener('resize', () => this.applyMobaMode());
-                window.addEventListener('orientationchange', () => {
-                    setTimeout(() => this.applyMobaMode(), 120);
-                    setTimeout(() => this.applyMobaMode(), 400);
-                });
-                if (window.matchMedia) {
-                    try {
-                        window.matchMedia('(orientation: landscape)')
-                            .addEventListener('change', () => this.applyMobaMode());
-                    } catch (e) {}
-                }
-            }
-
-            updateMobaHud() {
-                if (!this.isMobaMode) return;
-
-                const set = (id, v) => {
-                    const el = document.getElementById(id);
-                    if (el) el.textContent = v;
-                };
-                const setW = (id, pct) => {
-                    const el = document.getElementById(id);
-                    if (el) el.style.width = `${Math.max(0, Math.min(100, pct))}%`;
-                };
-
-                const maxB = this.feverTimer > 0 ? 8 : this.playerStats.maxBombs;
-                const rng = this.feverTimer > 0 ? Math.max(this.playerStats.bombRange, 6) : this.playerStats.bombRange;
-
-                set('mobaLives', this.playerStats.hasShield ? `${this.playerStats.lives}(盾)` : this.playerStats.lives);
-                set('mobaCoins', this.coins);
-                set('mobaLevel', this.level);
-                set('mobaBombs', `${Math.max(0, maxB - this.bombs.length)}/${maxB}`);
-                set('mobaRange', rng);
-                set('mobaScore', this.score);
-                set('mobaFoes', this.enemies.length);
-                set('mobaGoal', this.enemies.length > 0 ? '歼灭敌军' : '进传送门');
-
-                if (this.feverTimer > 0) {
-                    setW('mobaFeverBar', (this.feverTimer / 480) * 100);
-                } else {
-                    setW('mobaFeverBar', this.feverGauge);
-                }
-                setW('mobaMegaBar', (this.megaCharge / MEGA_COST) * 100);
-
-                const buffsEl = document.getElementById('mobaBuffs');
-                if (buffsEl) {
-                    let html = '';
-                    if (this.playerStats.hasRemote) html += '<div class="moba-buff">遥控</div>';
-                    if (this.playerStats.ghostTimer > 0) html += `<div class="moba-buff">穿墙${Math.ceil(this.playerStats.ghostTimer / 60)}s</div>`;
-                    if (this.playerStats.flameVestTimer > 0) html += `<div class="moba-buff">防炸${Math.ceil(this.playerStats.flameVestTimer / 60)}s</div>`;
-                    if (this.feverTimer > 0) html += '<div class="moba-buff">狂暴</div>';
-                    if (this.megaCharge >= MEGA_COST) html += '<div class="moba-buff">必杀</div>';
-                    if (buffsEl.innerHTML !== html) buffsEl.innerHTML = html;
-                }
-
-                this.drawMobaMinimap();
-            }
-
-            drawMobaMinimap() {
-                const cv = document.getElementById('mobaMinimap');
-                if (!cv || !document.body.classList.contains('moba-bigmap')) return;
-                const ctx = cv.getContext('2d');
-                const W = cv.width, H = cv.height;
-                const scale = Math.min((W - 6) / this.mapCols, (H - 6) / this.mapRows);
-                const mw = this.mapCols * scale, mh = this.mapRows * scale;
-                const ox = (W - mw) / 2, oy = (H - mh) / 2;
-
-                ctx.clearRect(0, 0, W, H);
-
-                for (let r = 0; r < this.mapRows; r++) {
-                    for (let c = 0; c < this.mapCols; c++) {
-                        const t = this.grid[r] && this.grid[r][c];
-                        if (t === TILE.WALL) ctx.fillStyle = 'rgba(148,163,184,0.85)';
-                        else if (t === TILE.CRATE) ctx.fillStyle = 'rgba(245,158,11,0.75)';
-                        else if (t === TILE.FROST_CRATE) ctx.fillStyle = 'rgba(56,189,248,0.75)';
-                        else if (t === TILE.VINE) ctx.fillStyle = 'rgba(34,197,94,0.75)';
-                        else continue;
-                        ctx.fillRect(ox + c * scale, oy + r * scale, Math.max(1, scale), Math.max(1, scale));
-                    }
-                }
-
-                if (this.portal && this.portal.revealed) {
-                    ctx.fillStyle = '#e879f9';
-                    ctx.fillRect(ox + this.portal.col * scale - 1, oy + this.portal.row * scale - 1, scale + 2, scale + 2);
-                }
-
-                ctx.fillStyle = '#fb7185';
-                this.enemies.forEach(e => {
-                    const ec = (e.x / TILE_SIZE) * scale + ox;
-                    const er = (e.y / TILE_SIZE) * scale + oy;
-                    ctx.beginPath();
-                    ctx.arc(ec, er, 1.6, 0, Math.PI * 2);
-                    ctx.fill();
-                });
-
-                const pc = (this.player.x / TILE_SIZE) * scale + ox;
-                const pr = (this.player.y / TILE_SIZE) * scale + oy;
-                ctx.fillStyle = '#4ade80';
-                ctx.beginPath();
-                ctx.arc(pc, pr, 3, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.strokeStyle = 'rgba(74,222,128,0.9)';
-                ctx.lineWidth = 1.2;
-                ctx.beginPath();
-                ctx.arc(pc, pr, 5.5, 0, Math.PI * 2);
-                ctx.stroke();
-
-                ctx.strokeStyle = 'rgba(253,224,71,0.75)';
-                ctx.lineWidth = 1;
-                ctx.strokeRect(
-                    ox + (this.camera.x / TILE_SIZE) * scale,
-                    oy + (this.camera.y / TILE_SIZE) * scale,
-                    (this.canvas.width / TILE_SIZE) * scale,
-                    (this.canvas.height / TILE_SIZE) * scale
-                );
-            }
-
-            refreshLayout() {
-                if (this._updateCanvasSize) this._updateCanvasSize();
-                if (this.applyMobaMode) this.applyMobaMode();
-                window.dispatchEvent(new Event('resize'));
-            }
-
-            setupResponsiveCanvas() {
-                const stageArea = document.getElementById('stageArea');
-                const wrapper = document.getElementById('canvasWrapper');
-                const aspect = VIEW_COLS / VIEW_ROWS;
-
-                const updateCanvasSize = () => {
-                    const rotated = document.body.classList.contains('rotate-mode');
-                    const rect = stageArea.getBoundingClientRect();
-                    const stageW = rotated ? stageArea.offsetWidth : rect.width;
-                    const stageH = rotated ? stageArea.offsetHeight : rect.height;
-                    const isFs = document.body.classList.contains('is-fullscreen');
-                    const isMoba = document.body.classList.contains('moba-mode');
-                    const pad = isFs || isMoba ? 2 : 4;
-                    const availW = Math.max(200, stageW - pad);
-                    const availH = Math.max(160, stageH - pad);
-
-                    let targetW, targetH;
-
-                    if (isMoba) {
-                        // MOBA 模式下保持纵横比，居中显示
-                        targetW = availW;
-                        targetH = targetW / aspect;
-                        if (targetH > availH) {
-                            targetH = availH;
-                            targetW = targetH * aspect;
-                        }
-                    } else {
-                        targetW = availW;
-                        targetH = targetW / aspect;
-                        if (targetH > availH) {
-                            targetH = availH;
-                            targetW = targetH * aspect;
-                        }
-                    }
-
-                    wrapper.style.width = `${Math.floor(targetW)}px`;
-                    wrapper.style.height = `${Math.floor(targetH)}px`;
-
-                    if (isMoba) {
-                        const dpr = Math.min(2, window.devicePixelRatio || 1);
-                        const pixW = Math.round(targetW * dpr);
-                        const pixH = Math.round(targetH * dpr);
-                        if (this.canvas.width !== pixW || this.canvas.height !== pixH) {
-                            this.canvas.width = pixW;
-                            this.canvas.height = pixH;
-                        }
-                    } else if (this.canvas.width !== 780 || this.canvas.height !== 660) {
-                        this.canvas.width = 780;
-                        this.canvas.height = 660;
-                    }
-                };
-
-                this._updateCanvasSize = updateCanvasSize;
-                const ro = new ResizeObserver(updateCanvasSize);
-                ro.observe(stageArea);
-                ro.observe(document.body);
-                window.addEventListener('orientationchange', () => {
-                    setTimeout(updateCanvasSize, 100);
-                    setTimeout(updateCanvasSize, 350);
-                });
-                updateCanvasSize();
-            }
 
             resetPlayerStats() {
                 const up = (this.save && this.save.data && this.save.data.upgrades) || {};
@@ -541,6 +151,8 @@
                     hasShield: (up.startShield || 0) > 0,
                     hasRemote: false,
                     ghostTimer: 0,
+                    ghostExiting: false,
+                    ghostExitGrace: 0,
                     flameVestTimer: 0
                 };
                 this.feverGauge = 0;
@@ -551,7 +163,11 @@
                 this.comboTimer = 0;
                 this.bestChain = 0;
                 this.shakeAmt = 0;
+                this.trauma = 0;
                 this.hitFlash = 0;
+                this.hitStopFrames = 0;
+                this.bombBufferTimer = 0;
+                this.playerSquash = 0;
             }
 
             setDifficulty(idx) {
@@ -710,10 +326,6 @@
                 };
             }
 
-            isSpecialist(type) {
-                return type === 'SALAMANDER' || type === 'TORTOISE' ||
-                       type === 'AZUREBIRD' || type === 'WHITETIGER';
-            }
 
             cellHasFlame(col, row) {
                 for (const exp of this.explosions) {
@@ -816,47 +428,6 @@
                 this.updateHUD();
             }
 
-            findBFSDirection(startCol, startRow, targetCol, targetRow, maxRange, canPassCrate) {
-                const manhattan = Math.abs(startCol - targetCol) + Math.abs(startRow - targetRow);
-                if (manhattan === 0 || manhattan > maxRange) return null;
-
-                const queue = [{ c: startCol, r: startRow, firstDir: null, dist: 0 }];
-                const visited = new Set([`${startCol},${startRow}`]);
-                const dirs = [
-                    { name: 'UP', dc: 0, dr: -1 },
-                    { name: 'DOWN', dc: 0, dr: 1 },
-                    { name: 'LEFT', dc: -1, dr: 0 },
-                    { name: 'RIGHT', dc: 1, dr: 0 }
-                ];
-
-                while (queue.length > 0) {
-                    const cur = queue.shift();
-                    if (cur.c === targetCol && cur.r === targetRow) return cur.firstDir;
-                    if (cur.dist >= maxRange) continue;
-
-                    for (const d of dirs) {
-                        const nc = cur.c + d.dc;
-                        const nr = cur.r + d.dr;
-                        const key = `${nc},${nr}`;
-                        if (nc <= 0 || nc >= this.mapCols - 1 || nr <= 0 || nr >= this.mapRows - 1) continue;
-                        if (visited.has(key)) continue;
-
-                        const tile = this.grid[nr][nc];
-                        if (tile === TILE.WALL) continue;
-                        if ((tile === TILE.CRATE || tile === TILE.FROST_CRATE) && !canPassCrate) continue;
-                        if (this.bombs.some(b => b.col === nc && b.row === nr)) continue;
-
-                        visited.add(key);
-                        queue.push({
-                            c: nc,
-                            r: nr,
-                            firstDir: cur.firstDir || d.name,
-                            dist: cur.dist + 1
-                        });
-                    }
-                }
-                return null;
-            }
 
             bindEvents() {
                 window.addEventListener('contextmenu', (e) => e.preventDefault());
@@ -1427,207 +998,8 @@
                 }
             }
 
-            showModal(title, desc, btnText, badgeIcon = 'bomb') {
-                document.getElementById('modalTitle').textContent = title;
-                document.getElementById('modalDesc').innerHTML = desc;
-                document.getElementById('modalActionBtn').textContent = btnText;
-                // 徽章用矢量图标绘制
-                const badgeCanvas = document.getElementById('modalBadgeCanvas');
-                if (badgeCanvas) {
-                    const bctx = badgeCanvas.getContext('2d');
-                    bctx.clearRect(0, 0, 44, 44);
-                    if (badgeIcon) {
-                        this.drawIcon(badgeIcon, 22, 22, 36, bctx);
-                    }
-                }
-                document.getElementById('overlayModal').classList.remove('hidden');
-            }
-
-            hideModal() {
-                document.getElementById('overlayModal').classList.add('hidden');
-                document.getElementById('modalHomeBtn').classList.add('hidden');
-            }
 
             // ============ 新手交互式教学 ============
-            tutorialDone() {
-                try {
-                    return localStorage.getItem('zhazhazha_tutorial_v1') === 'done';
-                } catch (e) {
-                    return true; // 存储不可用时不打扰，直接视为已完成
-                }
-            }
-
-            markTutorialDone() {
-                try {
-                    localStorage.setItem('zhazhazha_tutorial_v1', 'done');
-                } catch (e) {}
-            }
-
-            showTutorialOffer() {
-                document.getElementById('tutorialOffer').classList.remove('hidden');
-            }
-
-            hideTutorialOffer() {
-                document.getElementById('tutorialOffer').classList.add('hidden');
-            }
-
-            startTutorial() {
-                this.hideTutorialOffer();
-                this.hideStartScreen();
-                // 教学沙盒强制使用新手档（13x11 / 8 怪），暂存用户所选难度以便结束后恢复
-                const pair = GameTutorial.tutorialDifficultyPair(this.difficultyIdx);
-                this._tutorialSavedDifficulty = pair.restore;
-                this.setDifficulty(pair.sandbox); // 强制新手沙盒（无论首页选了什么难度）
-                // 全新第 1 关作为教学沙盒
-                this.score = 0;
-                this.coins = 0;
-                this.initLevel(1);
-                this.enemies = [];
-                this.powerups = [];
-                this.bombs = [];
-                // 教学保护：不会被自己的炸弹炸死
-                this.playerStats.flameVestTimer = 999999;
-                this.tutorial = {
-                    active: true,
-                    step: 0,
-                    target: null,      // {c, r} 目标格
-                    bombWasPlaced: false,
-                    powerupCount: 0,
-                    wasHit: false
-                };
-                document.getElementById('tutorialHud').classList.remove('hidden');
-                this.state = 'PLAYING';
-                this.setupTutorialStep(0);
-                this.sound.playLevelStart();
-            }
-
-            tutorialSteps() {
-                const isTouch = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
-                const moveHint = isTouch ? '拖动左侧摇杆' : '用 WASD / 方向键';
-                const bombHint = isTouch ? '点击右下角"放炸弹"按钮' : '按空格 / J';
-                return [
-                    { text: `${moveHint}，移动到发光绿圈里` },
-                    { text: `${bombHint}，放下一颗炸弹` },
-                    { text: `快离开红色爆炸范围！等炸弹炸完` },
-                    { text: `走到发光道具上拾取它` },
-                    { text: `放炸弹击败那只史莱姆（它不会动）` },
-                    { text: `进入发光的传送门，完成教学！` }
-                ];
-            }
-
-            setupTutorialStep(step) {
-                const t = this.tutorial;
-                t.step = step;
-                t.target = null;
-                // 注意：不要在此无条件清零 bombWasPlaced，否则第 2 步（躲避爆炸）
-                // 会因标记被清而无法推进，造成教学死锁。该标记只在 startTutorial 初始化。
-                t.wasHit = false;
-                document.getElementById('btnPlaceBomb').classList.remove('tutorial-highlight');
-
-                const steps = this.tutorialSteps();
-                document.getElementById('tutorialStepLabel').textContent = `${step + 1}/6`;
-                document.getElementById('tutorialText').textContent = steps[step].text;
-
-                const pCol = Math.floor(this.player.x / TILE_SIZE);
-                const pRow = Math.floor(this.player.y / TILE_SIZE);
-
-                if (step === 0) {
-                    // 目标：玩家右侧 3 格（找空地）
-                    t.target = this.findTutorialEmpty(pCol + 3, pRow);
-                } else if (step === 1) {
-                    document.getElementById('btnPlaceBomb').classList.add('tutorial-highlight');
-                } else if (step === 3) {
-                    // 放一个炸弹容量道具在玩家附近
-                    const spot = this.findTutorialEmpty(pCol + 2, pRow + 1);
-                    if (spot) {
-                        this.powerups.push({
-                            col: spot.c, row: spot.r, type: 'BOMB_UP',
-                            floatPhase: 0, spawnProtect: 0
-                        });
-                        t.target = spot;
-                        t.powerupCount = this.powerups.length;
-                    }
-                } else if (step === 4) {
-                    // 放一只不会动的史莱姆
-                    const spot = this.findTutorialEmpty(pCol + 3, pRow);
-                    if (spot) {
-                        const e = this.createSingleEnemyAt(spot.c, spot.r, DIFFICULTY_TIERS[0], false);
-                        e.hp = 1; e.maxHp = 1;
-                        e.tutorialFrozen = true;
-                        this.enemies.push(e);
-                        t.target = spot;
-                    }
-                } else if (step === 5) {
-                    // 传送门设为已激活
-                    if (this.portal) {
-                        this.portal.revealed = true;
-                        this.portal.active = true;
-                        // 教学传送门格必须可通行：清除底层障碍，清理可能重叠的炸弹/道具，
-                        // 否则 isTileSolidForPlayer 会阻止角色进入，导致教学卡在最后一步。
-                        const resolved = GameTutorial.resolveTutorialPortalTile(this.grid, this.portal, TILE);
-                        this.grid = resolved.grid;
-                        this.powerups = this.powerups.filter(p => !(p.col === this.portal.col && p.row === this.portal.row));
-                        this.bombs = this.bombs.filter(b => !(b.col === this.portal.col && b.row === this.portal.row));
-                        t.target = { c: this.portal.col, r: this.portal.row };
-                    } else {
-                        t.target = this.findTutorialEmpty(pCol + 2, pRow);
-                    }
-                    this.showToast('传送门已开启！', 'swirl');
-                }
-                this.sound.playClick();
-            }
-
-            findTutorialEmpty(c, r) {
-                // 找最近的空地（优先目标格本身）
-                for (let rad = 0; rad < 6; rad++) {
-                    for (let dr = -rad; dr <= rad; dr++) {
-                        for (let dc = -rad; dc <= rad; dc++) {
-                            if (Math.max(Math.abs(dc), Math.abs(dr)) !== rad) continue;
-                            const cc = c + dc, rr = r + dr;
-                            if (rr > 0 && rr < this.mapRows - 1 && cc > 0 && cc < this.mapCols - 1 &&
-                                this.grid[rr][cc] === TILE.EMPTY) {
-                                return { c: cc, r: rr };
-                            }
-                        }
-                    }
-                }
-                return null;
-            }
-
-            updateTutorial() {
-                const t = this.tutorial;
-                if (!t || !t.active) return;
-                const pCol = Math.floor(this.player.x / TILE_SIZE);
-                const pRow = Math.floor(this.player.y / TILE_SIZE);
-                const atTarget = (t.target && pCol === t.target.c && pRow === t.target.r);
-
-                const world = {
-                    atTarget,
-                    bombsActive: this.bombs.length,
-                    powerupsCount: this.powerups.length,
-                    enemiesCount: this.enemies.length
-                };
-                const res = GameTutorial.evaluateTutorialStep(t, world);
-                if (!res.action) return;
-                // 放弹成功标记必须在推进前设置，且不会被下一 setupTutorialStep 清零
-                if (res.markBombPlaced) t.bombWasPlaced = true;
-                if (res.action === 'complete') {
-                    this.endTutorial(true);
-                } else {
-                    this.tutorialNext(res.feedback);
-                }
-            }
-
-            tutorialNext(msg) {
-                if (msg) this.setTutorialFeedback(msg);
-                this.sound.playPowerup();
-                const next = this.tutorial.step + 1;
-                if (next >= 6) {
-                    this.endTutorial(true);
-                } else {
-                    this.setupTutorialStep(next);
-                }
-            }
 
             // 教学步骤完成反馈：写入教学卡内的反馈行（与“当前步骤指令”分离，避免互相覆盖）
             setTutorialFeedback(text) {
@@ -1642,107 +1014,9 @@
                 this._tutFeedbackTimer = setTimeout(() => fb.classList.add('hidden'), 1500);
             }
 
-            endTutorial(completed) {
-                const t = this.tutorial;
-                if (t) t.active = false;
-                document.getElementById('tutorialHud').classList.add('hidden');
-                document.getElementById('btnPlaceBomb').classList.remove('tutorial-highlight');
-                // 清理教学残留
-                this.enemies = this.enemies.filter(e => !e.tutorialFrozen);
-                if (completed) {
-                    this.markTutorialDone();
-                    this.showToast('教学完成！开始真正的冒险吧', 'trophy', 2200);
-                    this.sound.playWin();
-                }
-                // 恢复用户所选难度（教学期间强制为新手档），再开一局干净的真实第 1 关
-                if (this._tutorialSavedDifficulty !== undefined) {
-                    this.setDifficulty(this._tutorialSavedDifficulty);
-                    delete this._tutorialSavedDifficulty;
-                }
-                // 重新开一局干净的第 1 关
-                this.score = 0;
-                this.coins = 0;
-                this.initLevel(1);
-                this.state = 'PLAYING';
-            }
-
-            skipTutorial() {
-                this.sound.playClick();
-                this.endTutorial(false);
-            }
-
-            // 教学目标标记：发光绿圈 / 传送门高亮
-            drawTutorialMarkers() {
-                const t = this.tutorial;
-                if (!t || !t.active || !t.target) return;
-                const ctx = this.ctx;
-                const x = (t.target.c + 0.5) * TILE_SIZE;
-                const y = (t.target.r + 0.5) * TILE_SIZE;
-                const pulse = 1 + Math.sin(performance.now() / 300) * 0.12;
-                ctx.save();
-                ctx.strokeStyle = t.step === 5 ? '#22d3ee' : '#22c55e';
-                ctx.lineWidth = 5;
-                ctx.globalAlpha = 0.9;
-                ctx.beginPath();
-                ctx.arc(x, y, 26 * pulse, 0, Math.PI * 2);
-                ctx.stroke();
-                ctx.globalAlpha = 0.25;
-                ctx.fillStyle = t.step === 5 ? '#22d3ee' : '#22c55e';
-                ctx.beginPath();
-                ctx.arc(x, y, 26 * pulse, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.restore();
-            }
 
 
             // ============ 首页：底部锚点 + 中部舞台 ============
-            showStartScreen() {
-                this.state = 'MENU';
-                this.hideModal();
-                this.hideShop();
-                document.getElementById('startScreen').classList.remove('hidden');
-                this.updateCareerPanel();
-                this.setDifficulty(this.difficultyIdx || 0);
-                this.syncStartSoundIcon();
-            }
-
-            hideStartScreen() {
-                document.getElementById('startScreen').classList.add('hidden');
-            }
-
-            showDiffSheet() {
-                document.getElementById('diffSheet').classList.remove('hidden');
-            }
-
-            hideDiffSheet() {
-                document.getElementById('diffSheet').classList.add('hidden');
-            }
-
-            showHelpModal() {
-                document.getElementById('helpModal').classList.remove('hidden');
-            }
-
-            hideHelpModal() {
-                document.getElementById('helpModal').classList.add('hidden');
-            }
-
-            showCareerPop() {
-                this.updateCareerPanel();
-                document.getElementById('careerPop').classList.remove('hidden');
-            }
-
-            hideCareerPop() {
-                document.getElementById('careerPop').classList.add('hidden');
-            }
-
-            syncStartSoundIcon() {
-                const cv = document.getElementById('startSoundIcon');
-                if (cv && this.drawIcon) {
-                    const cctx = cv.getContext('2d');
-                    cctx.clearRect(0, 0, 22, 22);
-                    this.drawIcon(this.sound.enabled ? 'speaker' : 'speakerOff', 11, 11, 18, cctx);
-                }
-            }
 
             startGameFromMenu() {
                 this.sound.init();
@@ -1765,231 +1039,9 @@
             }
 
             // 性能面板更新（dev only）
-            updatePerfPanel() {
-                const p = this.perf;
-                p.frames++;
-                const now = performance.now();
-                if (now - p.lastFpsT >= 500) {
-                    p.fps = Math.round(p.frames * 1000 / (now - p.lastFpsT));
-                    p.frames = 0;
-                    p.lastFpsT = now;
-                }
-                let el = document.getElementById('perfPanel');
-                if (!el) {
-                    el = document.createElement('div');
-                    el.id = 'perfPanel';
-                    el.style.cssText = 'position:fixed;top:4px;left:4px;z-index:999;background:rgba(0,0,0,0.7);color:#0f0;font:11px monospace;padding:6px 8px;border-radius:8px;pointer-events:none;white-space:pre;';
-                    document.body.appendChild(el);
-                }
-                el.textContent =
-                    `FPS:${p.fps} upd:${p.updateMs.toFixed(1)}ms draw:${p.drawMs.toFixed(1)}ms\n` +
-                    `怪:${this.enemies.length} 弹:${this.bombs.length} 爆:${this.explosions.length} 粒:${this.particles.length}`;
-            }
-
-            togglePerfPanel() {
-                this.perf.enabled = !this.perf.enabled;
-                const el = document.getElementById('perfPanel');
-                if (el) el.remove();
-                this.showToast(this.perf.enabled ? '性能面板开' : '性能面板关', 'bolt');
-            }
 
             // 主角立绘：首页中部舞台，大号炸弹人 + 呼吸浮动 + 眨眼
-            drawHero() {
-                const cv = document.getElementById('heroCanvas');
-                if (!cv) return;
-                const hctx = cv.getContext('2d');
-                const W = cv.width, H = cv.height;
-                hctx.clearRect(0, 0, W, H);
 
-                const t = performance.now() / 1000;
-                const bob = Math.sin(t * 2.2) * 6;
-                const breath = 1 + Math.sin(t * 3.1) * 0.025;
-                const blink = (t % 3.7) < 0.12;
-
-                hctx.save();
-                hctx.translate(W / 2, H / 2 + bob);
-                hctx.scale(3.1 * breath, 3.1 * (2 - breath));
-
-                // 阴影
-                hctx.fillStyle = 'rgba(20, 60, 40, 0.18)';
-                hctx.beginPath();
-                hctx.ellipse(0, 24 - bob * 0.3, 20, 7, 0, 0, Math.PI * 2);
-                hctx.fill();
-
-                // 脚
-                hctx.fillStyle = '#f43f5e';
-                hctx.beginPath();
-                hctx.arc(-8, 20, 6, 0, Math.PI * 2);
-                hctx.arc(8, 20, 6, 0, Math.PI * 2);
-                hctx.fill();
-
-                // 腰带
-                hctx.fillStyle = '#2563eb';
-                drawRoundRect(hctx, -13, 6, 26, 13, 6);
-                hctx.fill();
-                hctx.fillStyle = '#facc15';
-                hctx.fillRect(-12, 12, 24, 3.5);
-
-                // 手
-                hctx.fillStyle = '#f43f5e';
-                hctx.beginPath();
-                hctx.arc(-17, 10, 5, 0, Math.PI * 2);
-                hctx.arc(17, 10, 5, 0, Math.PI * 2);
-                hctx.fill();
-
-                // 天线
-                hctx.strokeStyle = '#ffffff';
-                hctx.lineWidth = 3.5;
-                hctx.beginPath();
-                hctx.moveTo(0, -20);
-                hctx.lineTo(0, -28);
-                hctx.stroke();
-                hctx.fillStyle = '#ec4899';
-                hctx.beginPath();
-                hctx.arc(0, -31, 6, 0, Math.PI * 2);
-                hctx.fill();
-                hctx.fillStyle = 'rgba(255,255,255,0.55)';
-                hctx.beginPath();
-                hctx.arc(-2, -33, 2, 0, Math.PI * 2);
-                hctx.fill();
-
-                // 身体
-                hctx.fillStyle = '#ffffff';
-                drawRoundRect(hctx, -21, -22, 42, 30, 15);
-                hctx.fill();
-                hctx.strokeStyle = '#cbd5e1';
-                hctx.lineWidth = 2;
-                hctx.stroke();
-
-                // 脸
-                hctx.fillStyle = '#fed7aa';
-                drawRoundRect(hctx, -14, -14, 28, 17, 8);
-                hctx.fill();
-
-                hctx.fillStyle = '#0f172a';
-                if (blink) {
-                    hctx.lineWidth = 2.4;
-                    hctx.strokeStyle = '#0f172a';
-                    hctx.beginPath();
-                    hctx.moveTo(-9, -5); hctx.lineTo(-4, -5);
-                    hctx.moveTo(4, -5); hctx.lineTo(9, -5);
-                    hctx.stroke();
-                } else {
-                    hctx.beginPath();
-                    hctx.ellipse(-6.5, -5.5, 2.6, 4.6, 0, 0, Math.PI * 2);
-                    hctx.ellipse(6.5, -5.5, 2.6, 4.6, 0, 0, Math.PI * 2);
-                    hctx.fill();
-                    hctx.fillStyle = '#ffffff';
-                    hctx.beginPath();
-                    hctx.arc(-7.2, -7.4, 1.1, 0, Math.PI * 2);
-                    hctx.arc(5.8, -7.4, 1.1, 0, Math.PI * 2);
-                    hctx.fill();
-                }
-                // 腮红
-                hctx.fillStyle = 'rgba(244, 63, 94, 0.45)';
-                hctx.beginPath();
-                hctx.arc(-11, -2, 3, 0, Math.PI * 2);
-                hctx.arc(11, -2, 3, 0, Math.PI * 2);
-                hctx.fill();
-
-                hctx.restore();
-            }
-
-            showShop() {
-                this.renderShop();
-                document.getElementById('shopModal').classList.remove('hidden');
-            }
-
-            hideShop() {
-                document.getElementById('shopModal').classList.add('hidden');
-            }
-
-            renderShop() {
-                const container = document.getElementById('shopItems');
-                if (!container) return;
-                const up = this.save.data.upgrades;
-                let html = '';
-
-                for (const item of SHOP_ITEMS) {
-                    const lvl = up[item.key] || 0;
-                    const cost = getUpgradeCost(item, lvl);
-                    const maxed = cost === null;
-                    const canBuy = !maxed && this.coins >= cost;
-
-                    const cls = maxed
-                        ? 'shop-item maxed'
-                        : (canBuy ? 'shop-item buyable candy-btn' : 'shop-item');
-                    const costLabel = maxed
-                        ? '<span class="text-[11px] font-black text-emerald-500">已满级</span>'
-                        : `<span class="text-[11px] font-black ${canBuy ? 'text-yellow-600' : 'text-slate-400'}">${cost} 金币</span>`;
-
-                    html += `
-                        <button data-key="${item.key}" class="${cls}" ${canBuy ? '' : 'disabled'}>
-                            <span class="w-9 h-9 shrink-0 rounded-xl bg-gradient-to-br ${item.color} flex items-center justify-center border-2 border-white shadow"><canvas class="shop-icon" data-icon="${item.icon}" width="30" height="30"></canvas></span>
-                            <span class="flex-1 min-w-0 text-left">
-                                <span class="block text-xs font-black text-slate-800 flex items-center gap-1">
-                                    ${item.name}
-                                    <span class="text-[9px] font-bold text-slate-400">Lv.${lvl}/${item.max}</span>
-                                </span>
-                                <span class="block text-[10px] text-slate-500 font-bold truncate">${item.desc}</span>
-                            </span>
-                            ${costLabel}
-                        </button>
-                    `;
-                }
-
-                container.innerHTML = html;
-                // 绘制商店矢量图标
-                container.querySelectorAll('.shop-icon').forEach(cv => {
-                    const bctx = cv.getContext('2d');
-                    bctx.clearRect(0, 0, 30, 30);
-                    this.drawIcon(cv.dataset.icon, 15, 15, 24, bctx);
-                });
-
-                container.querySelectorAll('.shop-item').forEach(btn => {
-                    btn.addEventListener('click', () => {
-                        this.sound.playClick();
-                        if (btn.disabled) return;
-                        const key = btn.getAttribute('data-key');
-                        this.buyUpgrade(key);
-                    });
-                });
-
-                document.getElementById('shopCoins').textContent = this.coins;
-                document.getElementById('shopContinueBtn').textContent = `进入第 ${this.level + 1} 关`;
-            }
-
-            buyUpgrade(key) {
-                const item = SHOP_ITEMS.find(i => i.key === key);
-                if (!item) return;
-
-                const up = this.save.data.upgrades;
-                const lvl = up[key] || 0;
-                const cost = getUpgradeCost(item, lvl);
-
-                if (cost === null || this.coins < cost) {
-                    this.sound.playPortalLocked();
-                    return;
-                }
-
-                this.coins -= cost;
-                up[key] = lvl + 1;
-                this.save.save();
-
-                this.sound.playPurchase();
-                this.renderShop();
-            }
-
-            updateCareerPanel() {
-                const d = this.save.data;
-                const set = (id, v) => {
-                    const el = document.getElementById(id);
-                    if (el) el.textContent = v;
-                };
-                set('careerBest2', d.bestScore.toLocaleString());
-                set('careerKills2', d.totalKills.toLocaleString());
-                set('careerLevels2', d.totalLevelsCleared);
-            }
 
             updateHUD() {
                 const maxB = this.feverTimer > 0 ? 8 : this.playerStats.maxBombs;
@@ -2206,7 +1258,15 @@
             }
 
             addShake(mag) {
+                // Game-feel (game-dev-skills): 基于 Decaying Trauma 模型累加震度
+                const addTrauma = Math.min(1.0, (mag || 3) / 16);
+                this.trauma = Math.min(1.0, (this.trauma || 0) + addTrauma);
                 this.shakeAmt = Math.max(this.shakeAmt, mag);
+            }
+
+            triggerHitStop(frames = 3) {
+                // Game-feel (game-dev-skills): 强冲击时短暂定格逻辑推进（顿挫感），主绘制维持
+                this.hitStopFrames = Math.max(this.hitStopFrames || 0, frames);
             }
 
             triggerMegaBomb() {
@@ -2224,6 +1284,7 @@
                 this.sound.playMegaBomb();
                 this.sound.vibrate([80, 50, 120]);
                 this.addShake(18);
+                this.triggerHitStop(5);
 
                 const centerCol = Math.floor(this.player.x / TILE_SIZE);
                 const centerRow = Math.floor(this.player.y / TILE_SIZE);
@@ -2310,8 +1371,7 @@
                 }
 
                 this.showToast('超必杀 · 全屏巨爆！', 'star', 2000);
-                this.showComboToast(' MEGA BOMB!', `魔力 -${MEGA_COST}`, '#d946ef');
-                this.evaluateMatch3Combo(stats);
+                                this.evaluateMatch3Combo(stats);
                 this.updateHUD();
                 return true;
             }
@@ -2357,7 +1417,7 @@
                 const tile = this.grid[row][col];
                 if (tile === TILE.WALL) return true;
 
-                const hasGhost = this.playerStats.ghostTimer > 0;
+                const hasGhost = this.playerStats.ghostTimer > 0 || this.playerStats.ghostExiting;
                 if ((tile === TILE.CRATE || tile === TILE.FROST_CRATE) && !hasGhost) return true;
 
                 const hasBomb = this.bombs.some(b => b.col === col && b.row === row && !b.playerAllowed);
@@ -2365,6 +1425,43 @@
                     return true;
                 }
                 return false;
+            }
+
+            isPlayerInCrate(x = this.player.x, y = this.player.y) {
+                if (typeof GamePure !== 'undefined' && GamePure.isBoxOverlappingCrate) {
+                    return GamePure.isBoxOverlappingCrate(this.grid, this.mapRows, this.mapCols, x, y, 17.5, TILE, TILE_SIZE);
+                }
+                const r = 17.5;
+                const minCol = Math.floor((x - r + 0.1) / TILE_SIZE);
+                const maxCol = Math.floor((x + r - 0.1) / TILE_SIZE);
+                const minRow = Math.floor((y - r + 0.1) / TILE_SIZE);
+                const maxRow = Math.floor((y + r - 0.1) / TILE_SIZE);
+                for (let rIdx = minRow; rIdx <= maxRow; rIdx++) {
+                    for (let cIdx = minCol; cIdx <= maxCol; cIdx++) {
+                        if (rIdx >= 0 && rIdx < this.mapRows && cIdx >= 0 && cIdx < this.mapCols) {
+                            const tile = this.grid[rIdx][cIdx];
+                            if (tile === TILE.CRATE || tile === TILE.FROST_CRATE) return true;
+                        }
+                    }
+                }
+                return false;
+            }
+
+            ejectPlayerFromCrate() {
+                const p = this.player;
+                const startCol = Math.floor(p.x / TILE_SIZE);
+                const startRow = Math.floor(p.y / TILE_SIZE);
+                let target = null;
+                if (typeof GamePure !== 'undefined' && GamePure.findNearestWalkableTile) {
+                    target = GamePure.findNearestWalkableTile(this.grid, this.mapRows, this.mapCols, startCol, startRow, this.bombs, TILE);
+                }
+                if (target) {
+                    p.x = (target.c + 0.5) * TILE_SIZE;
+                    p.y = (target.r + 0.5) * TILE_SIZE;
+                    this.showToast('脱离障碍！', 'ghost', 1500);
+                }
+                this.playerStats.ghostExiting = false;
+                this.playerStats.ghostExitGrace = 0;
             }
 
             canPlayerOccupy(x, y, curCol, curRow) {
@@ -2388,7 +1485,28 @@
                 const p = this.player;
                 if (p.invincibleTimer > 0) p.invincibleTimer -= dtScale;
                 if (this.playerStats.ghostTimer > 0) {
-                    this.playerStats.ghostTimer = Math.max(0, this.playerStats.ghostTimer - dtScale);
+                    this.playerStats.ghostTimer -= dtScale;
+                    if (this.playerStats.ghostTimer <= 0) {
+                        this.playerStats.ghostTimer = 0;
+                        if (this.isPlayerInCrate()) {
+                            this.playerStats.ghostExiting = true;
+                            this.playerStats.ghostExitGrace = 180;
+                            this.showToast('穿墙结束，正在脱离木块...', 'ghost', 1500);
+                        } else {
+                            this.playerStats.ghostExiting = false;
+                            this.playerStats.ghostExitGrace = 0;
+                        }
+                    }
+                } else if (this.playerStats.ghostExiting) {
+                    if (!this.isPlayerInCrate()) {
+                        this.playerStats.ghostExiting = false;
+                        this.playerStats.ghostExitGrace = 0;
+                    } else {
+                        this.playerStats.ghostExitGrace -= dtScale;
+                        if (this.playerStats.ghostExitGrace <= 0) {
+                            this.ejectPlayerFromCrate();
+                        }
+                    }
                 }
                 if (this.playerStats.flameVestTimer > 0) {
                     this.playerStats.flameVestTimer = Math.max(0, this.playerStats.flameVestTimer - dtScale);
@@ -2408,6 +1526,26 @@
                     if (this.comboTimer <= 0) {
                         this.comboChain = 0;
                         this.updateComboMeter();
+                    }
+                }
+
+                // Game-feel (game-dev-skills): Squash & stretch 弹跳平滑复原
+                if (this.playerSquash) {
+                    this.playerSquash *= Math.pow(0.82, dtScale);
+                    if (Math.abs(this.playerSquash) < 0.01) this.playerSquash = 0;
+                }
+
+                // Input-systems (game-dev-skills): 消耗炸弹输入缓冲，当有空槽或走出障碍瞬间立即自动放下
+                if (this.bombBufferTimer > 0) {
+                    this.bombBufferTimer -= dtScale;
+                    const maxAllowed = this.feverTimer > 0 ? 8 : this.playerStats.maxBombs;
+                    if (this.bombs.length < maxAllowed) {
+                        const bCol = Math.floor(p.x / TILE_SIZE);
+                        const bRow = Math.floor(p.y / TILE_SIZE);
+                        const bTile = this.grid[bRow] && this.grid[bRow][bCol];
+                        if (bTile !== TILE.CRATE && bTile !== TILE.FROST_CRATE && !this.bombs.some(b => b.col === bCol && b.row === bRow)) {
+                            this.placeBomb();
+                        }
                     }
                 }
 
@@ -2701,13 +1839,27 @@
 
             placeBomb() {
                 const maxAllowed = this.feverTimer > 0 ? 8 : this.playerStats.maxBombs;
-                if (this.bombs.length >= maxAllowed) return;
+                if (this.bombs.length >= maxAllowed) {
+                    // Input-systems (game-dev-skills): 输入缓冲 ~120ms (7帧)，炸弹爆炸或腾位瞬间立刻释放
+                    this.bombBufferTimer = 7;
+                    return false;
+                }
 
                 const col = Math.floor(this.player.x / TILE_SIZE);
                 const row = Math.floor(this.player.y / TILE_SIZE);
 
-                if (this.grid[row][col] === TILE.CRATE || this.grid[row][col] === TILE.FROST_CRATE) return;
-                if (this.bombs.some(b => b.col === col && b.row === row)) return;
+                if (this.grid[row][col] === TILE.CRATE || this.grid[row][col] === TILE.FROST_CRATE) {
+                    this.bombBufferTimer = 7;
+                    return false;
+                }
+                if (this.bombs.some(b => b.col === col && b.row === row)) {
+                    this.bombBufferTimer = 7;
+                    return false;
+                }
+
+                this.bombBufferTimer = 0;
+                // Game-feel (game-dev-skills): 放置炸弹时产生物理挤压感 (Squash & stretch)
+                this.playerSquash = 0.25;
 
                 const isRemote = this.playerStats.hasRemote;
                 const feverOn = this.feverTimer > 0;
@@ -3149,6 +2301,8 @@
             }
 
             collectPowerup(item) {
+                // Game-feel (game-dev-skills): 拾取道具向上拉伸弹动 (Squash & stretch pop)
+                this.playerSquash = -0.22;
                 this.sound.playPowerup();
                 this.score += 100;
                 const cx = (item.col + 0.5) * TILE_SIZE;
@@ -3301,6 +2455,7 @@
                 this.sound.playHurt();
                 this.addShake(9);
                 this.hitFlash = 14;
+                this.triggerHitStop(4);
 
                 this.playerStats.lives--;
                 this.updateHUD();
@@ -3468,326 +2623,6 @@
                 }
             }
 
-            updateSpecialistAI(e, curCol, curRow, pCol, pRow, dtScale) {
-                const cfg = SPECIALIST_CFG[e.type];
-                if (e.skillCd > 0) {
-                    e.skillCd -= dtScale;
-                }
-
-                const distToPlayer = Math.abs(curCol - pCol) + Math.abs(curRow - pRow);
-                const inRange = distToPlayer <= (this.difficultyIdx >= 3 ? 6 : 5);
-
-                if (e.skillCd <= 0 && inRange) {
-                    e.windUpMax = cfg.windUp;
-                    e.windUp = cfg.windUp;
-                    e.skillCd = cfg.cd;
-                    e.skillAnim = cfg.windUp + 18;
-                    e.lastTarget = { col: curCol, row: curRow };
-                    this.sound.vibrate(8);
-                    return true;
-                }
-                return false;
-            }
-
-            findBombAround(e, curCol, curRow, range, mode) {
-                const dirs = [
-                    { dc: 0, dr: -1, name: 'UP' },
-                    { dc: 0, dr: 1, name: 'DOWN' },
-                    { dc: -1, dr: 0, name: 'LEFT' },
-                    { dc: 1, dr: 0, name: 'RIGHT' }
-                ];
-
-                let best = null;
-                let bestDist = Infinity;
-
-                for (const d of dirs) {
-                    for (let s = 1; s <= range; s++) {
-                        const cc = curCol + d.dc * s;
-                        const rr = curRow + d.dr * s;
-                        if (cc <= 0 || cc >= this.mapCols - 1 || rr <= 0 || rr >= this.mapRows - 1) break;
-                        if (this.grid[rr][cc] === TILE.WALL) break;
-                        if (this.grid[rr][cc] === TILE.CRATE || this.grid[rr][cc] === TILE.FROST_CRATE) break;
-
-                        const bomb = this.bombs.find(b => b.col === cc && b.row === rr);
-                        if (bomb) {
-                            if (s < bestDist) {
-                                bestDist = s;
-                                best = { bomb, dir: d, dist: s };
-                            }
-                            break;
-                        }
-                    }
-                }
-                return best;
-            }
-
-            executeSpecialistSkill(e) {
-                const curCol = Math.floor(e.x / TILE_SIZE);
-                const curRow = Math.floor(e.y / TILE_SIZE);
-                const pCol = Math.floor(this.player.x / TILE_SIZE);
-                const pRow = Math.floor(this.player.y / TILE_SIZE);
-                const cfg = SPECIALIST_CFG[e.type];
-
-                switch (e.type) {
-                    case 'SALAMANDER': this.skillSalamanderFlame(e, curCol, curRow, pCol, pRow, cfg); break;
-                    case 'TORTOISE':   this.skillTortoiseWater(e, curCol, curRow, cfg); break;
-                    case 'AZUREBIRD':  this.skillAzureBirdWind(e, curCol, curRow, cfg); break;
-                    case 'WHITETIGER': this.skillWhiteTigerDevour(e, curCol, curRow, cfg); break;
-                }
-            }
-
-            skillSalamanderFlame(e, curCol, curRow, pCol, pRow, cfg) {
-                let dirs;
-                if (Math.abs(pCol - curCol) >= Math.abs(pRow - curRow)) {
-                    dirs = [{ dc: pCol >= curCol ? 1 : -1, dr: 0 }, { dc: 0, dr: pRow >= curRow ? 1 : -1 }];
-                } else {
-                    dirs = [{ dc: 0, dr: pRow >= curRow ? 1 : -1 }, { dc: pCol >= curCol ? 1 : -1, dr: 0 }];
-                }
-                const dirMap = { UP: { dc: 0, dr: -1 }, DOWN: { dc: 0, dr: 1 }, LEFT: { dc: -1, dr: 0 }, RIGHT: { dc: 1, dr: 0 } };
-                const dv = dirMap[e.dir];
-                dirs.push({ dc: dv.dc, dr: dv.dr });
-
-                let chosen = null;
-                for (const d of dirs) {
-                    if (d.dc === 0 && d.dr === 0) continue;
-                    const cc = curCol + d.dc;
-                    const rr = curRow + d.dr;
-                    if (cc <= 0 || cc >= this.mapCols - 1 || rr <= 0 || rr >= this.mapRows - 1) continue;
-                    if (this.grid[rr][cc] === TILE.WALL) continue;
-                    chosen = d;
-                    break;
-                }
-                if (!chosen) return;
-
-                e.dir = chosen.dr < 0 ? 'UP' : chosen.dr > 0 ? 'DOWN' : chosen.dc < 0 ? 'LEFT' : 'RIGHT';
-                e.skillAnim = 26;
-                this.sound.playFlame();
-                this.addFloatingText(e.x, e.y - 30, '喷火!', '#f97316', 15);
-                this.spawnSkillBolt(e.x, e.y, e.x + chosen.dc * TILE_SIZE, e.y + chosen.dr * TILE_SIZE, '#f97316');
-
-                e.fireImmuneTimer = cfg.selfImmune;
-                e.fireCells = [];
-
-                for (let s = 1; s <= cfg.maxRange; s++) {
-                    const c = curCol + chosen.dc * s;
-                    const r = curRow + chosen.dr * s;
-                    if (c <= 0 || c >= this.mapCols - 1 || r <= 0 || r >= this.mapRows - 1) break;
-
-                    const cx = (c + 0.5) * TILE_SIZE;
-                    const cy = (r + 0.5) * TILE_SIZE;
-
-                    for (let i = 0; i < 6; i++) {
-                        const ang = Math.random() * Math.PI * 2;
-                        const spd = 1.5 + Math.random() * 4;
-                        this.particles.push({
-                            x: cx, y: cy,
-                            vx: Math.cos(ang) * spd, vy: Math.sin(ang) * spd,
-                            radius: 4 + Math.random() * 4,
-                            color: ['#f97316', '#facc15', '#ef4444', '#fde047'][i % 4],
-                            life: 22, maxLife: 22
-                        });
-                    }
-
-                    const tile = this.grid[r][c];
-                    if (tile === TILE.VINE) {
-                        this.destroyVine(c, r);
-                        e.fireCells.push({ col: c, row: r });
-                        continue;
-                    }
-                    if (tile === TILE.CRATE || tile === TILE.FROST_CRATE) {
-                        if (tile === TILE.FROST_CRATE) this.crackFrostCrate(c, r);
-                        break;
-                    }
-
-                    const bombIdx = this.bombs.findIndex(b => b.col === c && b.row === r);
-                    if (bombIdx !== -1) {
-                        e.fireCells.push({ col: c, row: r });
-                        this.bombs[bombIdx].ignitedBy = e;
-                        this.detonateBomb(bombIdx);
-                        this.addFloatingText(cx, cy - 20, '引爆炸弹!', '#ef4444', 15);
-                        break;
-                    }
-
-                    const itemIdx = this.powerups.findIndex(pw => pw.col === c && pw.row === r && pw.type !== 'GOLDEN_BAG');
-                    if (itemIdx !== -1) {
-                        const destroyed = this.powerups.splice(itemIdx, 1)[0];
-                        this.spawnMonstersFromDestroyedPowerup(destroyed);
-                        e.fireCells.push({ col: c, row: r });
-                        break;
-                    }
-
-                    e.fireCells.push({ col: c, row: r });
-                }
-
-                if (e.fireCells.length > 0) {
-                    this.explosions.push({
-                        cells: e.fireCells.map(fc => ({ col: fc.col, row: fc.row, dir: 'CENTER', isEnd: false })),
-                        timer: cfg.flameLife,
-                        maxTimer: cfg.flameLife,
-                        fever: true,
-                        owner: e,
-                        // 小火龙直接喷出的火焰只伤玩家，不伤其它怪物（否则等价于帮玩家清怪）
-                        noEnemyDamage: true,
-                        statsRef: { obstacles: 0, enemies: 0 }
-                    });
-                }
-            }
-
-            skillTortoiseWater(e, curCol, curRow, cfg) {
-                const target = this.findBombAround(e, curCol, curRow, 3, 'flameFirst');
-                e.skillAnim = 26;
-                this.sound.playFreeze();
-                const dirText = target ? '喷水冻结炸弹!' : '喷水!';
-                this.addFloatingText(e.x, e.y - 30, dirText, '#38bdf8', 15);
-                this.spawnSkillBolt(e.x, e.y, target ? (target.bomb.col + 0.5) * TILE_SIZE : e.x, target ? (target.bomb.row + 0.5) * TILE_SIZE : e.y, '#38bdf8');
-
-                e.waterGuard = cfg.immuneWindow;
-
-                if (!target) return;
-
-                const b = target.bomb;
-                if (b.isRemote) return;
-
-                b.frozen = true;
-                b.frozenTimer = (b.frozenTimer || 0) + cfg.freezeTicks;
-                b.frozenBy = e;
-                b.timer = Math.max(b.timer, 60);
-
-                const cx = (b.col + 0.5) * TILE_SIZE;
-                const cy = (b.row + 0.5) * TILE_SIZE;
-                for (let i = 0; i < 16; i++) {
-                    const ang = Math.random() * Math.PI * 2;
-                    const spd = 1 + Math.random() * 3.5;
-                    this.particles.push({
-                        x: cx, y: cy,
-                        vx: Math.cos(ang) * spd, vy: Math.sin(ang) * spd,
-                        radius: 3.5 + Math.random() * 4,
-                        color: i % 2 === 0 ? '#bae6fd' : '#38bdf8',
-                        life: 26, maxLife: 26
-                    });
-                }
-            }
-
-            skillAzureBirdWind(e, curCol, curRow, cfg) {
-                const target = this.findBombAround(e, curCol, curRow, 3, 'nearest');
-                e.skillAnim = 24;
-                this.sound.playWind();
-                this.addFloatingText(e.x, e.y - 30, target ? '吹退炸弹!' : '刮风!', '#22d3ee', 15);
-
-                if (!target) return;
-
-                const b = target.bomb;
-                if (b.pushCd > 0) return;
-                b.pushCd = cfg.pushCd;
-
-                const fromCol = curCol;
-                const fromRow = curRow;
-                const dc = Math.sign(b.col - fromCol);
-                const dr = Math.sign(b.row - fromRow);
-
-                const candidates = [
-                    { c: b.col + (dc || 0), r: b.row + (dr || 0) },
-                    { c: b.col + (dc ? dc : 0), r: b.row + (dc ? 0 : (dr ? dr : 1)) },
-                    { c: b.col + 1, r: b.row },
-                    { c: b.col - 1, r: b.row },
-                    { c: b.col, r: b.row + 1 },
-                    { c: b.col, r: b.row - 1 }
-                ];
-
-                let dest = null;
-                for (const cand of candidates) {
-                    if (cand.c <= 0 || cand.c >= this.mapCols - 1 || cand.r <= 0 || cand.r >= this.mapRows - 1) continue;
-                    if (this.grid[cand.r][cand.c] === TILE.WALL) continue;
-                    if (this.bombs.some(bb => bb.col === cand.c && bb.row === cand.r)) continue;
-                    if (this.powerups.some(pw => pw.col === cand.c && pw.row === cand.r)) continue;
-                    dest = cand;
-                    break;
-                }
-
-                const wx = (b.col + 0.5) * TILE_SIZE;
-                const wy = (b.row + 0.5) * TILE_SIZE;
-                for (let i = 0; i < 14; i++) {
-                    const ang = Math.random() * Math.PI * 2;
-                    this.particles.push({
-                        x: wx + (Math.random() - 0.5) * 40,
-                        y: wy + (Math.random() - 0.5) * 40,
-                        vx: (dest ? Math.sign(dest.c - b.col) : dc) * (2 + Math.random() * 3),
-                        vy: (dest ? Math.sign(dest.r - b.row) : dr) * (2 + Math.random() * 3),
-                        radius: 2.5 + Math.random() * 3,
-                        color: i % 2 === 0 ? '#a5f3fc' : '#ffffff',
-                        life: 20, maxLife: 20
-                    });
-                }
-                this.spawnSkillBolt(e.x, e.y, wx, wy, '#22d3ee');
-
-                if (!dest) return;
-                if (dest.c === b.col && dest.r === b.row) return;
-
-                const t = this.grid[dest.r][dest.c];
-                if (t === TILE.CRATE) {
-                    this.destroyCrate(dest.c, dest.r);
-                    this.addFloatingText((dest.c + 0.5) * TILE_SIZE, (dest.r + 0.5) * TILE_SIZE - 18, '撞爆木箱!', '#f59e0b', 14);
-                } else if (t === TILE.FROST_CRATE) {
-                    this.crackFrostCrate(dest.c, dest.r);
-                } else if (t === TILE.VINE) {
-                    this.destroyVine(dest.c, dest.r);
-                }
-
-                b.col = dest.c;
-                b.row = dest.r;
-                b.scalePhase = 0;
-                this.updateHUD();
-            }
-
-            skillWhiteTigerDevour(e, curCol, curRow, cfg) {
-                const target = this.findBombAround(e, curCol, curRow, 3, 'nearest');
-                e.skillAnim = 28;
-                this.addFloatingText(e.x, e.y - 30, target ? '吞掉炸弹!' : '咆哮!', '#a855f7', 15);
-
-                if (!target) {
-                    this.sound.playEnemyDefeat();
-                    return;
-                }
-
-                const b = target.bomb;
-                const bIdx = this.bombs.indexOf(b);
-                if (bIdx !== -1) this.bombs.splice(bIdx, 1);
-
-                this.sound.playItemCurseSpawn();
-                e.feedCount++;
-                if (e.hp < cfg.maxHpCap) {
-                    e.hp++;
-                    e.maxHp = Math.max(e.maxHp, e.hp);
-                }
-                e.enrageTimer = 200;
-                e.hurtTimer = 26;
-
-                const cx = (b.col + 0.5) * TILE_SIZE;
-                const cy = (b.row + 0.5) * TILE_SIZE;
-                for (let i = 0; i < 20; i++) {
-                    const ang = (Math.PI * 2 * i) / 20;
-                    const spd = 2 + Math.random() * 4;
-                    this.particles.push({
-                        x: cx, y: cy,
-                        vx: Math.cos(ang) * spd, vy: Math.sin(ang) * spd,
-                        radius: 4 + Math.random() * 4,
-                        color: ['#a855f7', '#c084fc', '#f472b6', '#ffffff'][i % 4],
-                        life: 26, maxLife: 26
-                    });
-                }
-                this.spawnSkillBolt(cx, cy, e.x, e.y, '#c084fc');
-                this.addFloatingText(e.x, e.y - 44, `强化! ${e.hp}/${e.maxHp}`, '#9333ea', 15);
-                this.updateHUD();
-            }
-
-            spawnSkillBolt(x1, y1, x2, y2, color) {
-                this.rainbowBolts.push({
-                    x1, y1, x2, y2,
-                    color,
-                    life: 20,
-                    maxLife: 20
-                });
-            }
 
             updateBombsAndExplosions(dtScale) {
                 for (let i = this.bombs.length - 1; i >= 0; i--) {
@@ -3889,59 +2724,6 @@
                 }
             }
 
-            releaseSpecialistEffects(e) {
-                if (!this.isSpecialist(e.type)) return;
-
-                if (e.type === 'TORTOISE') {
-                    let freed = 0;
-                    this.bombs.forEach(b => {
-                        if (b.frozenBy === e) {
-                            b.frozen = false;
-                            b.frozenTimer = 0;
-                            b.frozenBy = null;
-                            freed++;
-                        }
-                    });
-                    if (freed > 0) {
-                        this.addFloatingText(e.x, e.y - 26, `${freed} 颗炸弹解冻!`, '#0ea5e9', 15);
-                    }
-                }
-
-                if (e.type === 'SALAMANDER') {
-                    for (let i = this.explosions.length - 1; i >= 0; i--) {
-                        if (this.explosions[i].owner === e) {
-                            this.explosions[i].timer = Math.min(this.explosions[i].timer, 8);
-                        }
-                    }
-                }
-
-                if (e.type === 'WHITETIGER' && e.feedCount > 0) {
-                    const curCol = Math.floor(e.x / TILE_SIZE);
-                    const curRow = Math.floor(e.y / TILE_SIZE);
-                    const spots = [
-                        { c: curCol, r: curRow },
-                        { c: curCol + 1, r: curRow }, { c: curCol - 1, r: curRow },
-                        { c: curCol, r: curRow + 1 }, { c: curCol, r: curRow - 1 }
-                    ];
-                    let refund = 0;
-                    for (const sp of spots) {
-                        if (refund >= e.feedCount) break;
-                        if (sp.c <= 0 || sp.c >= this.mapCols - 1 || sp.r <= 0 || sp.r >= this.mapRows - 1) continue;
-                        if (this.grid[sp.r][sp.c] !== TILE.EMPTY) continue;
-                        if (this.bombs.some(b => b.col === sp.c && b.row === sp.r)) continue;
-                        this.bombs.push({
-                            col: sp.c, row: sp.r, isRemote: false, timer: 200, maxTimer: 165,
-                            range: this.playerStats.bombRange, fever: false, scalePhase: 0,
-                            frozen: false, frozenTimer: 0, frozenBy: null, pushCd: 0
-                        });
-                        refund++;
-                    }
-                    if (refund > 0) {
-                        this.sound.playSpit();
-                        this.addFloatingText(e.x, e.y - 30, `吐出 ${refund} 颗炸弹!`, '#9333ea', 16);
-                    }
-                }
-            }
 
             damageEnemy(index, dmg = 1) {
                 const e = this.enemies[index];
@@ -3980,8 +2762,7 @@
                 this.megaCharge = Math.min(MEGA_COST * 3, this.megaCharge + 1);
                 if (this.megaCharge === MEGA_COST) {
                     this.showToast('超必杀就绪! 按 L 释放!', 'star', 2200);
-                    this.showComboToast(' 超必杀就绪!', '按 L 或点 释放', '#d946ef');
-                }
+                                    }
 
                 this.registerKillForCombo();
 
@@ -4082,13 +2863,26 @@
                 const ctx = this.ctx;
                 ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
-                if (this.shakeAmt > 0.15) {
+                // Game-feel (game-dev-skills): 基于 Decaying Trauma 模型计算平滑相机震动（非纯随机白噪）
+                let shakeX = 0, shakeY = 0;
+                if (this.trauma > 0.005) {
+                    this.trauma = Math.max(0, this.trauma - 0.035);
+                    this.shakeAmt = this.trauma * 16;
+                    this._shakeTime = (this._shakeTime || 0) + 0.45;
+                    const shakeIntensity = this.trauma * this.trauma; // quadratic: 小震柔和，大震极具爆发力
+                    const maxOffset = 15;
+                    shakeX = maxOffset * shakeIntensity * Math.sin(this._shakeTime * 1.7) * Math.cos(this._shakeTime * 0.7);
+                    shakeY = maxOffset * shakeIntensity * Math.sin(this._shakeTime * 2.3);
+                } else if (this.shakeAmt > 0.15) {
                     this.shakeAmt *= 0.86;
+                    this._shakeTime = (this._shakeTime || 0) + 0.45;
+                    const factor = this.shakeAmt / 16;
+                    shakeX = factor * 14 * Math.sin(this._shakeTime * 1.7);
+                    shakeY = factor * 14 * Math.sin(this._shakeTime * 2.3);
                 } else {
+                    this.trauma = 0;
                     this.shakeAmt = 0;
                 }
-                const shakeX = this.shakeAmt > 0 ? (Math.random() * 2 - 1) * this.shakeAmt : 0;
-                const shakeY = this.shakeAmt > 0 ? (Math.random() * 2 - 1) * this.shakeAmt : 0;
 
                 const isMoba = document.body.classList.contains('moba-mode');
                 const baseViewW = isMoba ? 14 : VIEW_COLS; // 改为 14，视野更广
@@ -4174,9 +2968,8 @@
 
                 ctx.restore();
 
-                // 小地图节流：每 6 帧重绘一次
-                this._minimapTick = (this._minimapTick || 0) + 1;
-                if (this._minimapTick % 6 === 0) this.drawMinimap();
+                // 大地图小地图雷达：每帧正常绘制，禁止跳帧/节流（主画布每帧重绘，跳帧会导致频闪）
+                this.drawMinimap();
 
                 if (this.screenFlashTimer > 0) {
                     this.screenFlashTimer--;
@@ -4211,1428 +3004,6 @@
                 }
             }
 
-            drawStoneWall(col, row) {
-                const ctx = this.ctx;
-                const x = col * TILE_SIZE;
-                const y = row * TILE_SIZE;
-
-                ctx.fillStyle = 'rgba(0, 0, 0, 0.18)';
-                drawRoundRect(ctx, x + 3, y + 6, TILE_SIZE - 6, TILE_SIZE - 6, 14);
-                ctx.fill();
-
-                ctx.fillStyle = '#64748b';
-                drawRoundRect(ctx, x + 3, y + 3, TILE_SIZE - 6, TILE_SIZE - 8, 14);
-                ctx.fill();
-
-                ctx.fillStyle = '#94a3b8';
-                drawRoundRect(ctx, x + 5, y + 4, TILE_SIZE - 10, TILE_SIZE - 14, 12);
-                ctx.fill();
-
-                // 砖缝：两横一竖
-                ctx.strokeStyle = 'rgba(71, 85, 105, 0.6)';
-                ctx.lineWidth = 2;
-                ctx.beginPath();
-                ctx.moveTo(x + 7, y + 20); ctx.lineTo(x + TILE_SIZE - 7, y + 20);
-                ctx.moveTo(x + 7, y + 36); ctx.lineTo(x + TILE_SIZE - 7, y + 36);
-                ctx.moveTo(x + TILE_SIZE / 2, y + 20); ctx.lineTo(x + TILE_SIZE / 2, y + 36);
-                ctx.moveTo(x + 16, y + 6); ctx.lineTo(x + 16, y + 20);
-                ctx.moveTo(x + TILE_SIZE - 16, y + 36); ctx.lineTo(x + TILE_SIZE - 16, y + 50);
-                ctx.stroke();
-
-                // 顶部高光
-                ctx.fillStyle = 'rgba(203, 213, 225, 0.55)';
-                drawRoundRect(ctx, x + 9, y + 6, TILE_SIZE - 18, 6, 3);
-                ctx.fill();
-
-                ctx.fillStyle = '#475569';
-                ctx.beginPath();
-                ctx.arc(x + 13, y + TILE_SIZE - 16, 2.5, 0, Math.PI * 2);
-                ctx.arc(x + TILE_SIZE - 13, y + TILE_SIZE - 16, 2.5, 0, Math.PI * 2);
-                ctx.fill();
-            }
-
-            drawWoodCrate(col, row) {
-                const ctx = this.ctx;
-                const x = col * TILE_SIZE;
-                const y = row * TILE_SIZE;
-
-                ctx.fillStyle = 'rgba(0,0,0,0.16)';
-                drawRoundRect(ctx, x + 4, y + 7, TILE_SIZE - 8, TILE_SIZE - 8, 12);
-                ctx.fill();
-
-                // 箱体底色
-                ctx.fillStyle = '#b45309';
-                drawRoundRect(ctx, x + 4, y + 4, TILE_SIZE - 8, TILE_SIZE - 10, 12);
-                ctx.fill();
-
-                ctx.fillStyle = '#d97706';
-                drawRoundRect(ctx, x + 8, y + 7, TILE_SIZE - 16, TILE_SIZE - 17, 9);
-                ctx.fill();
-
-                // 木板纹理：竖向木纹线
-                ctx.strokeStyle = 'rgba(146, 64, 14, 0.55)';
-                ctx.lineWidth = 1.6;
-                const px = [x + 17, x + 28, x + 39];
-                px.forEach((lx, i) => {
-                    ctx.beginPath();
-                    ctx.moveTo(lx, y + 10);
-                    ctx.bezierCurveTo(lx + (i % 2 ? 2 : -2), y + 20, lx + (i % 2 ? -2 : 2), y + 32, lx, y + 42);
-                    ctx.stroke();
-                });
-
-                // 金属包边
-                ctx.fillStyle = '#92400e';
-                ctx.fillRect(x + 8, y + 7, TILE_SIZE - 16, 4);
-                ctx.fillRect(x + 8, y + TILE_SIZE - 14, TILE_SIZE - 16, 4);
-
-                // 四角铆钉
-                ctx.fillStyle = '#78716c';
-                [[x + 13, y + 12], [x + TILE_SIZE - 13, y + 12], [x + 13, y + TILE_SIZE - 13], [x + TILE_SIZE - 13, y + TILE_SIZE - 13]].forEach(([nx, ny]) => {
-                    ctx.beginPath(); ctx.arc(nx, ny, 2.6, 0, Math.PI * 2); ctx.fill();
-                    ctx.fillStyle = '#d6d3d1';
-                    ctx.beginPath(); ctx.arc(nx - 0.8, ny - 0.8, 1, 0, Math.PI * 2); ctx.fill();
-                    ctx.fillStyle = '#78716c';
-                });
-
-                // 高光
-                ctx.fillStyle = 'rgba(253, 230, 138, 0.5)';
-                drawRoundRect(ctx, x + 10, y + 9, 8, TILE_SIZE - 22, 4);
-                ctx.fill();
-            }
-
-            drawFrostCrate(col, row) {
-                this.drawWoodCrate(col, row);
-                const ctx = this.ctx;
-                const x = col * TILE_SIZE;
-                const y = row * TILE_SIZE;
-
-                ctx.fillStyle = 'rgba(125, 211, 252, 0.78)';
-                drawRoundRect(ctx, x + 3, y + 3, TILE_SIZE - 6, TILE_SIZE - 8, 12);
-                ctx.fill();
-
-                ctx.strokeStyle = '#ffffff';
-                ctx.lineWidth = 2.5;
-                drawRoundRect(ctx, x + 6, y + 6, TILE_SIZE - 12, TILE_SIZE - 14, 10);
-                ctx.stroke();
-
-                ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
-                drawRoundRect(ctx, x + 9, y + 8, TILE_SIZE - 26, 8, 4);
-                ctx.fill();
-
-                this.drawIcon('snow', x + TILE_SIZE / 2, y + TILE_SIZE / 2 + 1, 22);
-            }
-
-            drawVineTile(col, row) {
-                const ctx = this.ctx;
-                const x = col * TILE_SIZE;
-                const y = row * TILE_SIZE;
-                const cx = x + TILE_SIZE / 2;
-                const cy = y + TILE_SIZE / 2;
-                const sway = Math.sin(this.globalTime * 0.08 + col + row) * 2.5;
-
-                ctx.fillStyle = 'rgba(22, 163, 74, 0.25)';
-                drawRoundRect(ctx, x + 5, y + 5, TILE_SIZE - 10, TILE_SIZE - 10, 14);
-                ctx.fill();
-
-                ctx.strokeStyle = '#15803d';
-                ctx.lineWidth = 3.5;
-                ctx.beginPath();
-                ctx.arc(cx, cy, 18 + sway * 0.5, 0, Math.PI * 2);
-                ctx.stroke();
-
-                ctx.fillStyle = '#4ade80';
-                ctx.beginPath();
-                ctx.arc(cx - 12, cy - 10, 5, 0, Math.PI * 2);
-                ctx.arc(cx + 13, cy + 9, 5, 0, Math.PI * 2);
-                ctx.fill();
-
-                this.drawIcon('leaf', cx + sway * 0.4, cy, 24);
-            }
-
-            drawPortal(portal) {
-                const ctx = this.ctx;
-                const cx = (portal.col + 0.5) * TILE_SIZE;
-                const cy = (portal.row + 0.5) * TILE_SIZE;
-
-                if (!portal.active) {
-                    ctx.save();
-                    ctx.translate(cx, cy);
-
-                    ctx.fillStyle = '#475569';
-                    ctx.beginPath();
-                    ctx.arc(0, 0, 23, 0, Math.PI * 2);
-                    ctx.fill();
-
-                    ctx.fillStyle = '#1e293b';
-                    ctx.beginPath();
-                    ctx.arc(0, 0, 17, 0, Math.PI * 2);
-                    ctx.fill();
-
-                    ctx.strokeStyle = 'rgba(148, 163, 184, 0.55)';
-                    ctx.lineWidth = 2.5;
-                    ctx.setLineDash([5, 5]);
-                    ctx.beginPath();
-                    ctx.arc(0, 0, 14, this.globalTime * 0.015, this.globalTime * 0.015 + Math.PI * 2);
-                    ctx.stroke();
-                    ctx.setLineDash([]);
-
-                    ctx.strokeStyle = '#94a3b8';
-                    ctx.lineWidth = 4;
-                    ctx.lineCap = 'round';
-                    ctx.beginPath();
-                    ctx.moveTo(-14, -14);
-                    ctx.lineTo(14, 14);
-                    ctx.moveTo(14, -14);
-                    ctx.lineTo(-14, 14);
-                    ctx.stroke();
-
-                    ctx.font = '15px sans-serif';
-                    ctx.textAlign = 'center';
-                    ctx.textBaseline = 'middle';
-                    this.drawIcon('lock', 0, 1, 20);
-
-                    ctx.restore();
-                } else {
-                    const pulse = Math.sin(this.globalTime * 0.12) * 4;
-
-                    if (this.state === 'PLAYING' && Math.random() < 0.35) {
-                        const ang = Math.random() * Math.PI * 2;
-                        this.particles.push({
-                            x: cx + Math.cos(ang) * 18,
-                            y: cy + Math.sin(ang) * 18,
-                            vx: (Math.random() - 0.5) * 1.2,
-                            vy: -0.8 - Math.random() * 1.5,
-                            radius: 3 + Math.random() * 2.5,
-                            color: ['#fde047', '#f472b6', '#38bdf8', '#c084fc'][Math.floor(Math.random() * 4)],
-                            life: 22,
-                            maxLife: 22
-                        });
-                    }
-
-                    ctx.save();
-                    ctx.translate(cx, cy);
-
-                    const grad = ctx.createRadialGradient(0, 0, 3, 0, 0, 28 + pulse);
-                    grad.addColorStop(0, '#fef08a');
-                    grad.addColorStop(0.45, '#ec4899');
-                    grad.addColorStop(0.75, '#8b5cf6');
-                    grad.addColorStop(1, 'rgba(139, 92, 246, 0)');
-                    ctx.fillStyle = grad;
-                    ctx.beginPath();
-                    ctx.arc(0, 0, 28 + pulse, 0, Math.PI * 2);
-                    ctx.fill();
-
-                    ctx.rotate(this.globalTime * 0.06);
-                    ctx.strokeStyle = '#fde047';
-                    ctx.lineWidth = 2.5;
-                    ctx.beginPath();
-                    ctx.arc(0, 0, 20, 0, Math.PI * 2);
-                    ctx.stroke();
-
-                    ctx.strokeStyle = '#ffffff';
-                    ctx.lineWidth = 3;
-                    for (let i = 0; i < 6; i++) {
-                        ctx.rotate(Math.PI / 3);
-                        ctx.beginPath();
-                        ctx.arc(6, 6, 9, 0, Math.PI);
-                        ctx.stroke();
-                    }
-                    ctx.restore();
-
-                    const floatY = cy - 30 + Math.sin(this.globalTime * 0.15) * 4;
-                    ctx.font = '900 12px "Fredoka", "Noto Sans SC", sans-serif';
-                    ctx.textAlign = 'center';
-                    ctx.strokeStyle = '#ffffff';
-                    ctx.lineWidth = 3.5;
-                    ctx.strokeText('进入过关 ▼', cx, floatY);
-                    ctx.fillStyle = '#7e22ce';
-                    ctx.fillText('进入过关 ▼', cx, floatY);
-                }
-            }
-
-            drawPowerup(item) {
-                const ctx = this.ctx;
-                const cx = (item.col + 0.5) * TILE_SIZE;
-                const bounceY = Math.sin(this.globalTime * 0.1 + item.floatPhase) * 4;
-                const cy = (item.row + 0.5) * TILE_SIZE + bounceY;
-
-                ctx.fillStyle = 'rgba(0,0,0,0.15)';
-                ctx.beginPath();
-                ctx.ellipse(cx, (item.row + 0.5) * TILE_SIZE + 18, 14, 5, 0, 0, Math.PI * 2);
-                ctx.fill();
-
-                if (item.type === 'GOLDEN_BAG') {
-                    const glow = 0.5 + 0.5 * Math.sin(this.globalTime * 0.18);
-                    ctx.save();
-                    ctx.shadowColor = `rgba(250, 204, 21, ${glow})`;
-                    ctx.shadowBlur = 18;
-                    ctx.fillStyle = '#ffffff';
-                    ctx.beginPath();
-                    ctx.arc(cx, cy, 21, 0, Math.PI * 2);
-                    ctx.fill();
-                    ctx.restore();
-
-                    ctx.fillStyle = '#eab308';
-                    ctx.beginPath();
-                    ctx.arc(cx, cy, 17.5, 0, Math.PI * 2);
-                    ctx.fill();
-
-                    ctx.fillStyle = 'rgba(255,255,255,0.5)';
-                    ctx.beginPath();
-                    ctx.arc(cx - 6, cy - 6, 4.5, 0, Math.PI * 2);
-                    ctx.fill();
-
-                    this.drawIcon('coin', cx, cy, 24);
-                    return;
-                }
-
-                const bgColors = {
-                    [POWERUP_TYPE.BOMB_UP]: '#334155',
-                    [POWERUP_TYPE.FIRE_UP]: '#f97316',
-                    [POWERUP_TYPE.SPEED_UP]: '#0ea5e9',
-                    [POWERUP_TYPE.SHIELD]: '#10b981',
-                    [POWERUP_TYPE.REMOTE_BOMB]: '#0284c7',
-                    [POWERUP_TYPE.GHOST_CAPE]: '#9333ea',
-                    [POWERUP_TYPE.FLAME_VEST]: '#f59e0b',
-                    [POWERUP_TYPE.MAGIC_BIRD]: '#ec4899'
-                };
-                const icons = {
-                    [POWERUP_TYPE.BOMB_UP]: 'bomb',
-                    [POWERUP_TYPE.FIRE_UP]: 'fire',
-                    [POWERUP_TYPE.SPEED_UP]: 'bolt',
-                    [POWERUP_TYPE.SHIELD]: 'shield',
-                    [POWERUP_TYPE.REMOTE_BOMB]: 'clock',
-                    [POWERUP_TYPE.GHOST_CAPE]: 'ghost',
-                    [POWERUP_TYPE.FLAME_VEST]: 'vest',
-                    [POWERUP_TYPE.MAGIC_BIRD]: 'bird'
-                };
-
-                ctx.fillStyle = '#ffffff';
-                ctx.beginPath();
-                ctx.arc(cx, cy, 20, 0, Math.PI * 2);
-                ctx.fill();
-
-                ctx.fillStyle = bgColors[item.type] || '#334155';
-                ctx.beginPath();
-                ctx.arc(cx, cy, 16.5, 0, Math.PI * 2);
-                ctx.fill();
-
-                ctx.fillStyle = 'rgba(255,255,255,0.45)';
-                ctx.beginPath();
-                ctx.arc(cx - 6, cy - 6, 4.5, 0, Math.PI * 2);
-                ctx.fill();
-
-                ctx.font = '18px sans-serif';
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-                this.drawIcon(icons[item.type] || 'star', cx, cy, 22);
-            }
-
-            drawBomb(bomb) {
-                const ctx = this.ctx;
-                const cx = (bomb.col + 0.5) * TILE_SIZE;
-                const cy = (bomb.row + 0.5) * TILE_SIZE;
-
-                const urgency = bomb.isRemote ? 1.3 : (1 + (1 - bomb.timer / bomb.maxTimer) * 2.2);
-                const scaleX = 1 + Math.sin(bomb.scalePhase * urgency) * 0.1;
-                const scaleY = 1 - Math.sin(bomb.scalePhase * urgency) * 0.08;
-
-                const frozen = !!bomb.frozen;
-
-                if (bomb.fever && !frozen) {
-                    ctx.strokeStyle = `hsl(${(this.globalTime * 10) % 360}, 95%, 60%)`;
-                    ctx.lineWidth = 3.5;
-                    ctx.beginPath();
-                    ctx.arc(cx, cy + 2, 26 + Math.sin(this.globalTime * 0.3) * 3, 0, Math.PI * 2);
-                    ctx.stroke();
-                }
-
-                if (bomb.isRemote) {
-                    const pulseR = 23 + Math.sin(this.globalTime * 0.2) * 4;
-                    ctx.fillStyle = 'rgba(56, 189, 248, 0.28)';
-                    ctx.beginPath();
-                    ctx.arc(cx, cy + 2, pulseR, 0, Math.PI * 2);
-                    ctx.fill();
-                }
-
-                ctx.fillStyle = 'rgba(0,0,0,0.22)';
-                ctx.beginPath();
-                ctx.ellipse(cx, cy + 19, 18 * scaleX, 6, 0, 0, Math.PI * 2);
-                ctx.fill();
-
-                ctx.save();
-                ctx.translate(cx, cy + 2);
-                ctx.scale(scaleX, scaleY);
-
-                const isRedFlash = !frozen && !bomb.isRemote && bomb.timer < 55 && Math.floor(bomb.timer / 5) % 2 === 0;
-                const grad = ctx.createRadialGradient(-6, -6, 3, 0, 0, 22);
-                if (bomb.isRemote) {
-                    grad.addColorStop(0, '#7dd3fc');
-                    grad.addColorStop(0.5, '#0284c7');
-                    grad.addColorStop(1, '#0c4a6e');
-                } else if (isRedFlash) {
-                    grad.addColorStop(0, '#fca5a5');
-                    grad.addColorStop(0.5, '#ef4444');
-                    grad.addColorStop(1, '#7f1d1d');
-                } else if (frozen) {
-                    grad.addColorStop(0, '#e0f2fe');
-                    grad.addColorStop(0.5, '#38bdf8');
-                    grad.addColorStop(1, '#075985');
-                } else {
-                    grad.addColorStop(0, '#64748b');
-                    grad.addColorStop(0.5, '#1e293b');
-                    grad.addColorStop(1, '#0f172a');
-                }
-
-                ctx.fillStyle = grad;
-                ctx.beginPath();
-                ctx.arc(0, 0, 21, 0, Math.PI * 2);
-                ctx.fill();
-
-                ctx.fillStyle = '#94a3b8';
-                drawRoundRect(ctx, -6, -24, 12, 6, 3);
-                ctx.fill();
-
-                if (bomb.isRemote) {
-                    ctx.strokeStyle = '#e0f2fe';
-                    ctx.lineWidth = 3;
-                    ctx.beginPath();
-                    ctx.moveTo(0, -24);
-                    ctx.lineTo(0, -32);
-                    ctx.stroke();
-
-                    ctx.fillStyle = frozen ? '#bae6fd' : (Math.floor(this.globalTime / 8) % 2 === 0 ? '#38bdf8' : '#f43f5e');
-                    ctx.beginPath();
-                    ctx.arc(0, -33, 4.5, 0, Math.PI * 2);
-                    ctx.fill();
-                } else if (frozen) {
-                    ctx.strokeStyle = '#dbeafe';
-                    ctx.lineWidth = 3;
-                    ctx.lineCap = 'round';
-                    ctx.beginPath();
-                    ctx.moveTo(0, -24);
-                    ctx.quadraticCurveTo(6, -31, 10, -26);
-                    ctx.stroke();
-                } else {
-                    ctx.strokeStyle = '#fde047';
-                    ctx.lineWidth = 3;
-                    ctx.lineCap = 'round';
-                    ctx.beginPath();
-                    ctx.moveTo(0, -24);
-                    ctx.quadraticCurveTo(6, -31, 10, -26);
-                    ctx.stroke();
-                }
-
-                ctx.fillStyle = 'rgba(255,255,255,0.65)';
-                ctx.beginPath();
-                ctx.ellipse(-8, -8, 5, 3, -Math.PI / 4, 0, Math.PI * 2);
-                ctx.fill();
-
-                ctx.fillStyle = frozen ? '#f0f9ff' : '#ffffff';
-                ctx.beginPath();
-                ctx.arc(-5, 3, 2.2, 0, Math.PI * 2);
-                ctx.arc(6, 3, 2.2, 0, Math.PI * 2);
-                ctx.fill();
-
-                if (frozen) {
-                    ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
-                    ctx.lineWidth = 2.2;
-                    ctx.beginPath();
-                    ctx.moveTo(-16, -14); ctx.lineTo(-4, -2);
-                    ctx.moveTo(16, -15); ctx.lineTo(3, 4);
-                    ctx.moveTo(-14, 15); ctx.lineTo(-2, 3);
-                    ctx.stroke();
-                }
-
-                ctx.restore();
-
-                if (frozen) {
-                    ctx.font = '900 15px "Fredoka", "Noto Sans SC", sans-serif';
-                    ctx.textAlign = 'center';
-                    ctx.textBaseline = 'middle';
-                    this.drawIcon('snow', cx, cy - 44, 20);
-
-                    const maxF = SPECIALIST_CFG.TORTOISE.freezeTicks;
-                    const pct = Math.max(0, Math.min(1, bomb.frozenTimer / maxF));
-                    ctx.strokeStyle = 'rgba(56, 189, 248, 0.9)';
-                    ctx.lineWidth = 3;
-                    ctx.beginPath();
-                    ctx.arc(cx, cy + 2, 27, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * pct);
-                    ctx.stroke();
-                }
-            }
-
-            drawExplosion(exp) {
-                const ctx = this.ctx;
-                const progress = exp.timer / exp.maxTimer;
-                const radiusScale = Math.sin(progress * Math.PI);
-
-                exp.cells.forEach(cell => {
-                    const cx = (cell.col + 0.5) * TILE_SIZE;
-                    const cy = (cell.row + 0.5) * TILE_SIZE;
-                    const r = (TILE_SIZE * 0.46) * (0.5 + 0.5 * radiusScale);
-
-                    if (exp.fever) {
-                        ctx.fillStyle = `hsl(${(this.globalTime * 14 + cell.col * 24) % 360}, 95%, 62%)`;
-                        ctx.beginPath();
-                        ctx.arc(cx, cy, r * 1.3, 0, Math.PI * 2);
-                        ctx.fill();
-                    }
-
-                    ctx.fillStyle = '#f97316';
-                    ctx.beginPath();
-                    ctx.arc(cx, cy, r * 1.1, 0, Math.PI * 2);
-                    ctx.fill();
-
-                    ctx.fillStyle = '#facc15';
-                    ctx.beginPath();
-                    ctx.arc(cx, cy, r * 0.8, 0, Math.PI * 2);
-                    ctx.fill();
-
-                    ctx.fillStyle = '#fef08a';
-                    ctx.beginPath();
-                    ctx.arc(cx, cy, r * 0.45, 0, Math.PI * 2);
-                    ctx.fill();
-                });
-            }
-
-            drawEnemy(e) {
-                if (
-                    e.x < this.camera.x - TILE_SIZE * 2 ||
-                    e.x > this.camera.x + this.canvas.width + TILE_SIZE * 2 ||
-                    e.y < this.camera.y - TILE_SIZE * 2 ||
-                    e.y > this.camera.y + this.canvas.height + TILE_SIZE * 2
-                ) {
-                    return;
-                }
-
-                const ctx = this.ctx;
-                if (e.hurtTimer > 0 && Math.floor(e.hurtTimer / 3) % 2 === 0) {
-                    ctx.globalAlpha = 0.45;
-                }
-
-                const bounce = Math.sin(e.animPhase * 2) * 3.5;
-                const stretchX = 1 + Math.sin(e.animPhase * 2) * 0.07;
-                const stretchY = 1 - Math.sin(e.animPhase * 2) * 0.07;
-
-                ctx.fillStyle = 'rgba(0,0,0,0.18)';
-                ctx.beginPath();
-                ctx.ellipse(e.x, e.y + 19, 16 * stretchX, 5, 0, 0, Math.PI * 2);
-                ctx.fill();
-
-                ctx.save();
-                ctx.translate(e.x, e.y + bounce);
-                ctx.scale(stretchX, stretchY);
-
-                if (e.type === 'SLIME' || e.type === 'GOLD_SLIME') {
-                    ctx.fillStyle = e.type === 'GOLD_SLIME' ? '#facc15' : '#38bdf8';
-                    ctx.beginPath();
-                    ctx.arc(0, 2, 19, Math.PI, 0, false);
-                    ctx.quadraticCurveTo(19, 18, 0, 18);
-                    ctx.quadraticCurveTo(-19, 18, -19, 2);
-                    ctx.fill();
-
-                    if (e.type === 'GOLD_SLIME') {
-                        ctx.fillStyle = '#f97316';
-                        ctx.beginPath();
-                        ctx.moveTo(-10, -16);
-                        ctx.lineTo(-5, -24);
-                        ctx.lineTo(0, -18);
-                        ctx.lineTo(5, -24);
-                        ctx.lineTo(10, -16);
-                        ctx.closePath();
-                        ctx.fill();
-                    }
-
-                    ctx.fillStyle = 'rgba(255,255,255,0.6)';
-                    ctx.beginPath();
-                    ctx.ellipse(-7, -5, 5, 2.8, -0.5, 0, Math.PI * 2);
-                    ctx.fill();
-
-                    ctx.fillStyle = '#0f172a';
-                    ctx.beginPath();
-                    ctx.arc(-6, 3, 2.8, 0, Math.PI * 2);
-                    ctx.arc(6, 3, 2.8, 0, Math.PI * 2);
-                    ctx.fill();
-
-                    ctx.fillStyle = '#f472b6';
-                    ctx.beginPath();
-                    ctx.arc(-11, 6, 3, 0, Math.PI * 2);
-                    ctx.arc(11, 6, 3, 0, Math.PI * 2);
-                    ctx.fill();
-
-                } else if (e.type === 'IRON_SNAIL') {
-                    ctx.fillStyle = '#94a3b8';
-                    ctx.beginPath();
-                    ctx.arc(0, 0, 19, 0, Math.PI * 2);
-                    ctx.fill();
-                    ctx.strokeStyle = '#334155';
-                    ctx.lineWidth = 3;
-                    ctx.stroke();
-
-                    ctx.fillStyle = '#cbd5e1';
-                    ctx.beginPath();
-                    ctx.arc(0, 0, 11, 0, Math.PI * 2);
-                    ctx.fill();
-
-                    ctx.fillStyle = '#0f172a';
-                    ctx.beginPath();
-                    ctx.arc(-6, 6, 2.6, 0, Math.PI * 2);
-                    ctx.arc(6, 6, 2.6, 0, Math.PI * 2);
-                    ctx.fill();
-
-                } else if (e.type === 'MUSHROOM') {
-                    ctx.fillStyle = '#fef3c7';
-                    drawRoundRect(ctx, -11, 2, 22, 16, 7);
-                    ctx.fill();
-
-                    ctx.fillStyle = '#f43f5e';
-                    ctx.beginPath();
-                    ctx.arc(0, 3, 20, Math.PI, 0, false);
-                    ctx.closePath();
-                    ctx.fill();
-
-                    ctx.fillStyle = '#ffffff';
-                    ctx.beginPath();
-                    ctx.arc(-9, -6, 4, 0, Math.PI * 2);
-                    ctx.arc(8, -8, 3.5, 0, Math.PI * 2);
-                    ctx.arc(0, -13, 3, 0, Math.PI * 2);
-                    ctx.fill();
-
-                    ctx.fillStyle = '#1e293b';
-                    ctx.beginPath();
-                    ctx.arc(-5, 9, 2.4, 0, Math.PI * 2);
-                    ctx.arc(5, 9, 2.4, 0, Math.PI * 2);
-                    ctx.fill();
-
-                } else if (e.type === 'GHOST') {
-                    ctx.globalAlpha = 0.88;
-                    ctx.fillStyle = '#c084fc';
-                    ctx.beginPath();
-                    ctx.arc(0, -2, 18, Math.PI, 0, false);
-                    ctx.lineTo(18, 16);
-                    ctx.lineTo(9, 11);
-                    ctx.lineTo(0, 16);
-                    ctx.lineTo(-9, 11);
-                    ctx.lineTo(-18, 16);
-                    ctx.closePath();
-                    ctx.fill();
-
-                    ctx.fillStyle = '#ffffff';
-                    ctx.beginPath();
-                    ctx.arc(-6, 0, 4, 0, Math.PI * 2);
-                    ctx.arc(6, 0, 4, 0, Math.PI * 2);
-                    ctx.fill();
-
-                    ctx.fillStyle = '#3b0764';
-                    ctx.beginPath();
-                    ctx.arc(-6, 0, 2, 0, Math.PI * 2);
-                    ctx.arc(6, 0, 2, 0, Math.PI * 2);
-                    ctx.fill();
-
-                } else if (e.type === 'SALAMANDER') {
-                    ctx.fillStyle = '#fb923c';
-                    ctx.beginPath();
-                    ctx.ellipse(0, 4, 17, 15, 0, 0, Math.PI * 2);
-                    ctx.fill();
-
-                    ctx.strokeStyle = '#fb923c';
-                    ctx.lineWidth = 6;
-                    ctx.lineCap = 'round';
-                    ctx.beginPath();
-                    ctx.moveTo(-14, 8);
-                    ctx.quadraticCurveTo(-24, 4, -25, -6);
-                    ctx.stroke();
-
-                    const flick = Math.sin(this.globalTime * 0.35) * 2;
-                    ctx.fillStyle = '#facc15';
-                    ctx.beginPath();
-                    ctx.moveTo(-25, -5);
-                    ctx.lineTo(-21, -13 - flick);
-                    ctx.lineTo(-17, -4);
-                    ctx.closePath();
-                    ctx.fill();
-                    ctx.fillStyle = '#ef4444';
-                    ctx.beginPath();
-                    ctx.moveTo(-24, -4);
-                    ctx.lineTo(-21, -9 - flick);
-                    ctx.lineTo(-18, -3);
-                    ctx.closePath();
-                    ctx.fill();
-
-                    ctx.fillStyle = '#f97316';
-                    ctx.beginPath();
-                    ctx.moveTo(-8, -10);
-                    ctx.lineTo(-3, -19);
-                    ctx.lineTo(2, -11);
-                    ctx.lineTo(7, -18);
-                    ctx.lineTo(11, -9);
-                    ctx.closePath();
-                    ctx.fill();
-
-                    ctx.fillStyle = '#fed7aa';
-                    ctx.beginPath();
-                    ctx.ellipse(0, 9, 10, 8, 0, 0, Math.PI * 2);
-                    ctx.fill();
-
-                    ctx.fillStyle = '#fff7ed';
-                    ctx.beginPath();
-                    ctx.arc(-6, 0, 5, 0, Math.PI * 2);
-                    ctx.arc(6, 0, 5, 0, Math.PI * 2);
-                    ctx.fill();
-                    ctx.fillStyle = '#0f172a';
-                    ctx.beginPath();
-                    ctx.arc(-6, 1, 2.6, 0, Math.PI * 2);
-                    ctx.arc(6, 1, 2.6, 0, Math.PI * 2);
-                    ctx.fill();
-
-                    ctx.fillStyle = '#7c2d12';
-                    ctx.beginPath();
-                    ctx.arc(-2.5, 7, 1.2, 0, Math.PI * 2);
-                    ctx.arc(2.5, 7, 1.2, 0, Math.PI * 2);
-                    ctx.fill();
-
-                    if (e.windUp > 0) {
-                        const heat = 1 - e.windUp / Math.max(1, e.windUpMax);
-                        ctx.fillStyle = `rgba(250, 204, 21, ${0.35 + heat * 0.5})`;
-                        ctx.beginPath();
-                        ctx.arc(0, 12, 4 + heat * 5, 0, Math.PI * 2);
-                        ctx.fill();
-                    }
-
-                } else if (e.type === 'TORTOISE') {
-                    ctx.fillStyle = '#86efac';
-                    ctx.beginPath();
-                    ctx.arc(-14, 12, 5.5, 0, Math.PI * 2);
-                    ctx.arc(14, 12, 5.5, 0, Math.PI * 2);
-                    ctx.arc(-14, -6, 5, 0, Math.PI * 2);
-                    ctx.arc(14, -6, 5, 0, Math.PI * 2);
-                    ctx.fill();
-
-                    ctx.fillStyle = '#a7f3d0';
-                    ctx.beginPath();
-                    ctx.arc(0, -14, 9, 0, Math.PI * 2);
-                    ctx.fill();
-                    ctx.fillStyle = '#0f172a';
-                    ctx.beginPath();
-                    ctx.arc(-3.5, -16, 1.8, 0, Math.PI * 2);
-                    ctx.arc(3.5, -16, 1.8, 0, Math.PI * 2);
-                    ctx.fill();
-
-                    const shellGrad = ctx.createLinearGradient(0, -12, 0, 16);
-                    shellGrad.addColorStop(0, '#22c55e');
-                    shellGrad.addColorStop(1, '#15803d');
-                    ctx.fillStyle = shellGrad;
-                    ctx.beginPath();
-                    ctx.ellipse(0, 2, 18, 15, 0, 0, Math.PI * 2);
-                    ctx.fill();
-
-                    ctx.strokeStyle = 'rgba(240, 253, 244, 0.75)';
-                    ctx.lineWidth = 2;
-                    ctx.beginPath();
-                    ctx.moveTo(0, -13); ctx.lineTo(0, 17);
-                    ctx.moveTo(-17, 2); ctx.lineTo(17, 2);
-                    ctx.moveTo(-11, -9); ctx.lineTo(11, 13);
-                    ctx.moveTo(11, -9); ctx.lineTo(-11, 13);
-                    ctx.stroke();
-
-                    if (e.windUp > 0) {
-                        const heat = 1 - e.windUp / Math.max(1, e.windUpMax);
-                        ctx.fillStyle = `rgba(56, 189, 248, ${0.4 + heat * 0.5})`;
-                        ctx.beginPath();
-                        ctx.arc(0, -24 - heat * 3, 3 + heat * 3, 0, Math.PI * 2);
-                        ctx.fill();
-                    }
-
-                } else if (e.type === 'AZUREBIRD') {
-                    ctx.fillStyle = '#22d3ee';
-                    ctx.beginPath();
-                    ctx.ellipse(0, 2, 15, 13, 0, 0, Math.PI * 2);
-                    ctx.fill();
-
-                    ctx.fillStyle = '#06b6d4';
-                    ctx.beginPath();
-                    ctx.moveTo(-12, 2);
-                    ctx.lineTo(-26, -4);
-                    ctx.lineTo(-24, 4);
-                    ctx.lineTo(-26, 11);
-                    ctx.closePath();
-                    ctx.fill();
-
-                    const flap = Math.sin(e.animPhase * 3.2) * 5;
-                    ctx.fillStyle = '#67e8f9';
-                    ctx.beginPath();
-                    ctx.ellipse(-4, -8 - flap * 0.4, 12, 6, -0.5 - flap * 0.05, 0, Math.PI * 2);
-                    ctx.fill();
-                    ctx.beginPath();
-                    ctx.ellipse(6, -9 + flap * 0.4, 11, 5.5, 0.45 + flap * 0.05, 0, Math.PI * 2);
-                    ctx.fill();
-
-                    ctx.fillStyle = '#cffafe';
-                    ctx.beginPath();
-                    ctx.arc(11, -9, 8, 0, Math.PI * 2);
-                    ctx.fill();
-
-                    ctx.fillStyle = '#fbbf24';
-                    ctx.beginPath();
-                    ctx.moveTo(18, -9);
-                    ctx.lineTo(26, -7);
-                    ctx.lineTo(18, -5);
-                    ctx.closePath();
-                    ctx.fill();
-
-                    ctx.fillStyle = '#0f172a';
-                    ctx.beginPath();
-                    ctx.arc(13, -11, 2, 0, Math.PI * 2);
-                    ctx.fill();
-
-                    if (e.windUp > 0) {
-                        const heat = 1 - e.windUp / Math.max(1, e.windUpMax);
-                        ctx.strokeStyle = `rgba(165, 243, 252, ${0.4 + heat * 0.5})`;
-                        ctx.lineWidth = 2.5;
-                        for (let w = 0; w < 3; w++) {
-                            ctx.beginPath();
-                            ctx.arc(0, 0, 22 + w * 5 + heat * 6, -0.6, 0.6);
-                            ctx.stroke();
-                        }
-                    }
-
-                } else if (e.type === 'WHITETIGER') {
-                    ctx.fillStyle = '#f1f5f9';
-                    ctx.beginPath();
-                    ctx.ellipse(0, 4, 18, 16, 0, 0, Math.PI * 2);
-                    ctx.fill();
-
-                    ctx.fillStyle = '#e2e8f0';
-                    ctx.beginPath();
-                    ctx.moveTo(-14, -10); ctx.lineTo(-9, -22); ctx.lineTo(-4, -10);
-                    ctx.closePath();
-                    ctx.fill();
-                    ctx.beginPath();
-                    ctx.moveTo(14, -10); ctx.lineTo(9, -22); ctx.lineTo(4, -10);
-                    ctx.closePath();
-                    ctx.fill();
-                    ctx.fillStyle = '#f9a8d4';
-                    ctx.beginPath();
-                    ctx.moveTo(-12, -11); ctx.lineTo(-9, -18); ctx.lineTo(-6, -11);
-                    ctx.closePath();
-                    ctx.fill();
-                    ctx.beginPath();
-                    ctx.moveTo(12, -11); ctx.lineTo(9, -18); ctx.lineTo(6, -11);
-                    ctx.closePath();
-                    ctx.fill();
-
-                    ctx.strokeStyle = '#0f172a';
-                    ctx.lineWidth = 2.4;
-                    ctx.lineCap = 'round';
-                    ctx.beginPath();
-                    ctx.moveTo(-6, -14); ctx.lineTo(-6, -4);
-                    ctx.moveTo(0, -16); ctx.lineTo(0, -5);
-                    ctx.moveTo(6, -14); ctx.lineTo(6, -4);
-                    ctx.moveTo(-1, -11); ctx.lineTo(1, -11);
-                    ctx.stroke();
-
-                    ctx.fillStyle = '#facc15';
-                    ctx.beginPath();
-                    ctx.arc(-6.5, 1, 3.4, 0, Math.PI * 2);
-                    ctx.arc(6.5, 1, 3.4, 0, Math.PI * 2);
-                    ctx.fill();
-                    ctx.fillStyle = '#0f172a';
-                    ctx.beginPath();
-                    ctx.arc(-6.5, 1, 1.6, 0, Math.PI * 2);
-                    ctx.arc(6.5, 1, 1.6, 0, Math.PI * 2);
-                    ctx.fill();
-
-                    ctx.fillStyle = '#fbcfe8';
-                    ctx.beginPath();
-                    ctx.ellipse(0, 9, 6, 4.5, 0, 0, Math.PI * 2);
-                    ctx.fill();
-                    ctx.fillStyle = '#0f172a';
-                    ctx.beginPath();
-                    ctx.moveTo(-3, 11); ctx.lineTo(3, 11); ctx.lineTo(0, 14);
-                    ctx.closePath();
-                    ctx.fill();
-
-                    if (e.feedCount > 0) {
-                        ctx.strokeStyle = `rgba(192, 132, 252, ${0.45 + 0.35 * Math.sin(this.globalTime * 0.22)})`;
-                        ctx.lineWidth = 2;
-                        for (let s = -1; s <= 1; s += 2) {
-                            ctx.beginPath();
-                            ctx.moveTo(s * 8, 9);
-                            ctx.lineTo(s * 22, 7 + s * 3);
-                            ctx.stroke();
-                        }
-                    }
-
-                    if (e.windUp > 0) {
-                        const heat = 1 - e.windUp / Math.max(1, e.windUpMax);
-                        ctx.fillStyle = `rgba(168, 85, 247, ${0.2 + heat * 0.45})`;
-                        ctx.beginPath();
-                        ctx.arc(0, 10, 6 + heat * 8, 0, Math.PI * 2);
-                        ctx.fill();
-                    }
-                }
-
-                ctx.restore();
-                ctx.globalAlpha = 1.0;
-
-                if (e.enrageTimer > 0) {
-                    this.drawIcon('angry', e.x + 17, e.y - 21, 18);
-                }
-
-                if (this.isSpecialist(e.type)) {
-                    const badge = e.type === 'SALAMANDER' ? 'fire'
-                                : e.type === 'TORTOISE' ? 'water'
-                                : e.type === 'AZUREBIRD' ? 'wind' : 'swirl';
-                    if (e.windUp > 0) {
-                        this.drawIcon(badge, e.x - 18, e.y - 20, 20);
-                        const pct = 1 - e.windUp / Math.max(1, e.windUpMax);
-                        ctx.strokeStyle = 'rgba(250, 204, 21, 0.95)';
-                        ctx.lineWidth = 3.5;
-                        ctx.beginPath();
-                        ctx.arc(e.x, e.y - 2, 26, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * pct);
-                        ctx.stroke();
-                    } else if (e.skillCd <= 0) {
-                        this.drawIcon(badge, e.x - 18, e.y - 20, 20);
-                    }
-                }
-
-                if (e.waterGuard > 0) {
-                    ctx.strokeStyle = 'rgba(56, 189, 248, 0.9)';
-                    ctx.lineWidth = 3.5;
-                    ctx.setLineDash([7, 5]);
-                    ctx.beginPath();
-                    ctx.arc(e.x, e.y - 2, 27, 0, Math.PI * 2);
-                    ctx.stroke();
-                    ctx.setLineDash([]);
-                }
-
-                if (e.fireImmuneTimer > 0) {
-                    ctx.strokeStyle = 'rgba(249, 115, 22, 0.85)';
-                    ctx.lineWidth = 3;
-                    ctx.beginPath();
-                    ctx.arc(e.x, e.y - 2, 29 + Math.sin(this.globalTime * 0.3) * 2, 0, Math.PI * 2);
-                    ctx.stroke();
-                }
-
-                if (e.maxHp > 1) {
-                    const barW = 36;
-                    const barH = 6;
-                    const bx = e.x - barW / 2;
-                    const by = e.y - 31;
-
-                    ctx.fillStyle = 'rgba(15, 23, 42, 0.75)';
-                    drawRoundRect(ctx, bx - 1, by - 1, barW + 2, barH + 2, 3);
-                    ctx.fill();
-
-                    const segW = barW / e.maxHp;
-                    for (let s = 0; s < e.hp; s++) {
-                        ctx.fillStyle = e.hp === 1 ? '#f43f5e' : '#facc15';
-                        ctx.fillRect(bx + s * segW + 1, by, segW - 2, barH);
-                    }
-                }
-            }
-
-            // ============================================================
-            // 矢量图标系统：糖果风小图标，替代 emoji（精致游戏质感）
-            // 所有图标绘制在 24x24 网格上，(x,y) 为中心，s 为目标尺寸
-            // ============================================================
-            drawIcon(name, x, y, s, targetCtx = null) {
-                const ctx = targetCtx || this.ctx;
-                ctx.save();
-                ctx.translate(x, y);
-                const u = s / 24;
-                ctx.lineJoin = 'round';
-                ctx.lineCap = 'round';
-
-                const circle = (r, fill) => {
-                    if (!fill) return;
-                    ctx.fillStyle = fill;
-                    ctx.beginPath(); ctx.arc(0, 0, r * u, 0, Math.PI * 2); ctx.fill();
-                };
-                const shine = (sx, sy, r, a = 0.55) => {
-                    ctx.fillStyle = `rgba(255,255,255,${a})`;
-                    ctx.beginPath(); ctx.arc(sx * u, sy * u, r * u, 0, Math.PI * 2); ctx.fill();
-                };
-
-                switch (name) {
-                    case 'coin': {
-                        circle(11, '#92400e');
-                        circle(9.2, '#f59e0b');
-                        circle(7, '#fcd34d');
-                        ctx.strokeStyle = '#b45309';
-                        ctx.lineWidth = 1.4 * u;
-                        ctx.beginPath(); ctx.arc(0, 0, 4.6 * u, 0, Math.PI * 2); ctx.stroke();
-                        shine(-2.6, -3.2, 2, 0.65);
-                        break;
-                    }
-                    case 'bomb': {
-                        // 引线
-                        ctx.strokeStyle = '#92400e';
-                        ctx.lineWidth = 2.2 * u;
-                        ctx.beginPath(); ctx.moveTo(4 * u, -7 * u); ctx.quadraticCurveTo(8 * u, -11 * u, 10 * u, -8 * u); ctx.stroke();
-                        // 火花
-                        ctx.fillStyle = '#fbbf24';
-                        ctx.beginPath(); ctx.arc(10.5 * u, -8.5 * u, 2.6 * u, 0, Math.PI * 2); ctx.fill();
-                        ctx.fillStyle = '#f97316';
-                        ctx.beginPath(); ctx.arc(10.5 * u, -8.5 * u, 1.4 * u, 0, Math.PI * 2); ctx.fill();
-                        // 本体
-                        circle(9.2, '#1f2937');
-                        circle(9.2, null);
-                        ctx.fillStyle = '#374151';
-                        ctx.beginPath(); ctx.arc(0, 0, 9.2 * u, 0, Math.PI * 2); ctx.fill();
-                        ctx.fillStyle = '#111827';
-                        ctx.beginPath(); ctx.arc(1 * u, 1.5 * u, 7.6 * u, 0, Math.PI * 2); ctx.fill();
-                        shine(-3, -3.4, 2.4, 0.5);
-                        // 顶部盖
-                        ctx.fillStyle = '#6b7280';
-                        drawRoundRect(ctx, -3.4 * u, -11.6 * u, 6.8 * u, 3.4 * u, 1.4 * u);
-                        ctx.fill();
-                        break;
-                    }
-                    case 'fire': {
-                        // 外焰
-                        ctx.fillStyle = '#f97316';
-                        ctx.beginPath();
-                        ctx.moveTo(0, -11 * u);
-                        ctx.bezierCurveTo(7 * u, -4 * u, 9 * u, 2 * u, 6 * u, 8 * u);
-                        ctx.bezierCurveTo(4 * u, 11 * u, -4 * u, 11 * u, -6 * u, 8 * u);
-                        ctx.bezierCurveTo(-9 * u, 2 * u, -7 * u, -4 * u, 0, -11 * u);
-                        ctx.fill();
-                        // 内焰
-                        ctx.fillStyle = '#fde047';
-                        ctx.beginPath();
-                        ctx.moveTo(0, -5 * u);
-                        ctx.bezierCurveTo(4 * u, 0, 5 * u, 4 * u, 3 * u, 8 * u);
-                        ctx.bezierCurveTo(1.5 * u, 10 * u, -1.5 * u, 10 * u, -3 * u, 8 * u);
-                        ctx.bezierCurveTo(-5 * u, 4 * u, -4 * u, 0, 0, -5 * u);
-                        ctx.fill();
-                        break;
-                    }
-                    case 'bolt': {
-                        ctx.fillStyle = '#facc15';
-                        ctx.strokeStyle = '#b45309';
-                        ctx.lineWidth = 1.6 * u;
-                        ctx.beginPath();
-                        ctx.moveTo(4 * u, -11 * u);
-                        ctx.lineTo(-5 * u, 2 * u);
-                        ctx.lineTo(-1 * u, 2 * u);
-                        ctx.lineTo(-4 * u, 11 * u);
-                        ctx.lineTo(5 * u, -2 * u);
-                        ctx.lineTo(1 * u, -2 * u);
-                        ctx.closePath();
-                        ctx.fill(); ctx.stroke();
-                        break;
-                    }
-                    case 'shield': {
-                        ctx.fillStyle = '#10b981';
-                        ctx.strokeStyle = '#065f46';
-                        ctx.lineWidth = 1.6 * u;
-                        ctx.beginPath();
-                        ctx.moveTo(0, -10 * u);
-                        ctx.lineTo(8 * u, -6 * u);
-                        ctx.lineTo(8 * u, 1 * u);
-                        ctx.bezierCurveTo(8 * u, 7 * u, 4 * u, 10 * u, 0, 11.5 * u);
-                        ctx.bezierCurveTo(-4 * u, 10 * u, -8 * u, 7 * u, -8 * u, 1 * u);
-                        ctx.lineTo(-8 * u, -6 * u);
-                        ctx.closePath();
-                        ctx.fill(); ctx.stroke();
-                        shine(-2.6, -3.4, 1.8, 0.5);
-                        break;
-                    }
-                    case 'clock': {
-                        circle(9.4, '#e0f2fe');
-                        ctx.strokeStyle = '#0284c7';
-                        ctx.lineWidth = 2 * u;
-                        ctx.beginPath(); ctx.arc(0, 0, 9.4 * u, 0, Math.PI * 2); ctx.stroke();
-                        ctx.strokeStyle = '#0c4a6e';
-                        ctx.lineWidth = 2 * u;
-                        ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(0, -5.5 * u); ctx.stroke();
-                        ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(4 * u, 1.5 * u); ctx.stroke();
-                        circle(1.6, '#0c4a6e');
-                        break;
-                    }
-                    case 'ghost': {
-                        ctx.fillStyle = '#a78bfa';
-                        ctx.beginPath();
-                        ctx.arc(0, -2 * u, 8 * u, Math.PI, 0);
-                        ctx.lineTo(8 * u, 7 * u);
-                        // 波浪底边
-                        for (let i = 0; i < 3; i++) {
-                            ctx.arc((8 - (i * 2 + 1) * 16 / 6) * u, 7 * u, (16 / 6 / 2) * u, 0, Math.PI, true);
-                        }
-                        ctx.closePath();
-                        ctx.fill();
-                        // 眼睛
-                        ctx.fillStyle = '#1e1b4b';
-                        ctx.beginPath(); ctx.arc(-3 * u, -3 * u, 1.8 * u, 0, Math.PI * 2); ctx.fill();
-                        ctx.beginPath(); ctx.arc(3 * u, -3 * u, 1.8 * u, 0, Math.PI * 2); ctx.fill();
-                        shine(-3.4, -6, 1.6, 0.5);
-                        break;
-                    }
-                    case 'vest': {
-                        // 火焰纹章盾
-                        ctx.fillStyle = '#f59e0b';
-                        ctx.strokeStyle = '#92400e';
-                        ctx.lineWidth = 1.6 * u;
-                        ctx.beginPath();
-                        ctx.moveTo(0, -10 * u);
-                        ctx.lineTo(8 * u, -6 * u);
-                        ctx.lineTo(8 * u, 1 * u);
-                        ctx.bezierCurveTo(8 * u, 7 * u, 4 * u, 10 * u, 0, 11.5 * u);
-                        ctx.bezierCurveTo(-4 * u, 10 * u, -8 * u, 7 * u, -8 * u, 1 * u);
-                        ctx.lineTo(-8 * u, -6 * u);
-                        ctx.closePath();
-                        ctx.fill(); ctx.stroke();
-                        // 小火焰
-                        ctx.fillStyle = '#ef4444';
-                        ctx.beginPath();
-                        ctx.moveTo(0, -5 * u);
-                        ctx.bezierCurveTo(3.4 * u, -1 * u, 4 * u, 3 * u, 2.4 * u, 6 * u);
-                        ctx.bezierCurveTo(1 * u, 8 * u, -1 * u, 8 * u, -2.4 * u, 6 * u);
-                        ctx.bezierCurveTo(-4 * u, 3 * u, -3.4 * u, -1 * u, 0, -5 * u);
-                        ctx.fill();
-                        break;
-                    }
-                    case 'bird': {
-                        // 魔力鸟：圆身 + 翅膀 + 喙
-                        ctx.fillStyle = '#f472b6';
-                        ctx.beginPath(); ctx.ellipse(0, 1 * u, 7.5 * u, 6 * u, 0, 0, Math.PI * 2); ctx.fill();
-                        ctx.fillStyle = '#ec4899';
-                        ctx.beginPath(); ctx.ellipse(-5 * u, -1 * u, 4.5 * u, 3 * u, -0.5, 0, Math.PI * 2); ctx.fill();
-                        // 眼睛
-                        ctx.fillStyle = '#ffffff';
-                        ctx.beginPath(); ctx.arc(3 * u, -1 * u, 2.6 * u, 0, Math.PI * 2); ctx.fill();
-                        ctx.fillStyle = '#0f172a';
-                        ctx.beginPath(); ctx.arc(3.6 * u, -1 * u, 1.3 * u, 0, Math.PI * 2); ctx.fill();
-                        // 喙
-                        ctx.fillStyle = '#fbbf24';
-                        ctx.beginPath();
-                        ctx.moveTo(8.5 * u, 0); ctx.lineTo(11.5 * u, 1.6 * u); ctx.lineTo(8.5 * u, 3.2 * u);
-                        ctx.closePath(); ctx.fill();
-                        // 彩虹尾
-                        ctx.strokeStyle = '#a78bfa'; ctx.lineWidth = 2 * u;
-                        ctx.beginPath(); ctx.moveTo(-7 * u, 4 * u); ctx.quadraticCurveTo(-11 * u, 7 * u, -10 * u, 10 * u); ctx.stroke();
-                        break;
-                    }
-                    case 'snow': {
-                        ctx.strokeStyle = '#e0f2fe';
-                        ctx.lineWidth = 2.2 * u;
-                        for (let i = 0; i < 6; i++) {
-                            const a = (i / 6) * Math.PI * 2;
-                            ctx.beginPath();
-                            ctx.moveTo(0, 0);
-                            ctx.lineTo(Math.cos(a) * 9 * u, Math.sin(a) * 9 * u);
-                            ctx.stroke();
-                            // 小分叉
-                            const bx = Math.cos(a) * 6 * u, by = Math.sin(a) * 6 * u;
-                            ctx.lineWidth = 1.6 * u;
-                            ctx.beginPath();
-                            ctx.moveTo(bx, by);
-                            ctx.lineTo(bx + Math.cos(a + 0.5) * 2.6 * u, by + Math.sin(a + 0.5) * 2.6 * u);
-                            ctx.moveTo(bx, by);
-                            ctx.lineTo(bx + Math.cos(a - 0.5) * 2.6 * u, by + Math.sin(a - 0.5) * 2.6 * u);
-                            ctx.stroke();
-                            ctx.lineWidth = 2.2 * u;
-                        }
-                        circle(1.8, '#ffffff');
-                        break;
-                    }
-                    case 'leaf': {
-                        ctx.fillStyle = '#22c55e';
-                        ctx.beginPath();
-                        ctx.moveTo(0, -10 * u);
-                        ctx.bezierCurveTo(8 * u, -4 * u, 8 * u, 6 * u, 0, 10 * u);
-                        ctx.bezierCurveTo(-8 * u, 6 * u, -8 * u, -4 * u, 0, -10 * u);
-                        ctx.fill();
-                        ctx.strokeStyle = '#15803d';
-                        ctx.lineWidth = 1.4 * u;
-                        ctx.beginPath(); ctx.moveTo(0, -8 * u); ctx.lineTo(0, 8 * u); ctx.stroke();
-                        shine(-2.4, -3, 1.6, 0.5);
-                        break;
-                    }
-                    case 'heart': {
-                        ctx.fillStyle = '#f43f5e';
-                        ctx.strokeStyle = '#9f1239';
-                        ctx.lineWidth = 1.4 * u;
-                        ctx.beginPath();
-                        ctx.moveTo(0, 9 * u);
-                        ctx.bezierCurveTo(-11 * u, 1 * u, -9 * u, -8 * u, -4 * u, -8 * u);
-                        ctx.bezierCurveTo(-1.5 * u, -8 * u, 0, -6 * u, 0, -5 * u);
-                        ctx.bezierCurveTo(0, -6 * u, 1.5 * u, -8 * u, 4 * u, -8 * u);
-                        ctx.bezierCurveTo(9 * u, -8 * u, 11 * u, 1 * u, 0, 9 * u);
-                        ctx.closePath();
-                        ctx.fill(); ctx.stroke();
-                        shine(-3, -3.4, 1.6, 0.5);
-                        break;
-                    }
-                    case 'play': {
-                        ctx.fillStyle = '#ffffff';
-                        ctx.beginPath();
-                        ctx.moveTo(-4 * u, -8 * u);
-                        ctx.lineTo(8 * u, 0);
-                        ctx.lineTo(-4 * u, 8 * u);
-                        ctx.closePath();
-                        ctx.fill();
-                        break;
-                    }
-                    case 'pause': {
-                        ctx.fillStyle = '#ffffff';
-                        drawRoundRect(ctx, -7 * u, -8 * u, 5.5 * u, 16 * u, 2.4 * u);
-                        ctx.fill();
-                        drawRoundRect(ctx, 1.5 * u, -8 * u, 5.5 * u, 16 * u, 2.4 * u);
-                        ctx.fill();
-                        break;
-                    }
-                    case 'speaker': {
-                        ctx.fillStyle = '#ffffff';
-                        ctx.beginPath();
-                        ctx.moveTo(-8 * u, -4 * u);
-                        ctx.lineTo(-3 * u, -4 * u);
-                        ctx.lineTo(2 * u, -9 * u);
-                        ctx.lineTo(2 * u, 9 * u);
-                        ctx.lineTo(-3 * u, 4 * u);
-                        ctx.lineTo(-8 * u, 4 * u);
-                        ctx.closePath();
-                        ctx.fill();
-                        // 声波
-                        ctx.strokeStyle = '#ffffff';
-                        ctx.lineWidth = 2.2 * u;
-                        ctx.beginPath(); ctx.arc(3 * u, 0, 5 * u, -0.9, 0.9); ctx.stroke();
-                        ctx.beginPath(); ctx.arc(3 * u, 0, 8.5 * u, -0.9, 0.9); ctx.stroke();
-                        break;
-                    }
-                    case 'speakerOff': {
-                        ctx.fillStyle = '#ffffff';
-                        ctx.beginPath();
-                        ctx.moveTo(-8 * u, -4 * u);
-                        ctx.lineTo(-3 * u, -4 * u);
-                        ctx.lineTo(2 * u, -9 * u);
-                        ctx.lineTo(2 * u, 9 * u);
-                        ctx.lineTo(-3 * u, 4 * u);
-                        ctx.lineTo(-8 * u, 4 * u);
-                        ctx.closePath();
-                        ctx.fill();
-                        ctx.strokeStyle = '#fca5a5';
-                        ctx.lineWidth = 2.6 * u;
-                        ctx.beginPath();
-                        ctx.moveTo(5 * u, -5 * u); ctx.lineTo(11 * u, 5 * u);
-                        ctx.moveTo(11 * u, -5 * u); ctx.lineTo(5 * u, 5 * u);
-                        ctx.stroke();
-                        break;
-                    }
-                    case 'restart': {
-                        ctx.strokeStyle = '#ffffff';
-                        ctx.lineWidth = 3 * u;
-                        ctx.beginPath();
-                        ctx.arc(0, 0, 7.5 * u, -0.6, Math.PI * 1.35);
-                        ctx.stroke();
-                        // 箭头
-                        ctx.fillStyle = '#ffffff';
-                        ctx.beginPath();
-                        ctx.moveTo(9.5 * u, -6 * u);
-                        ctx.lineTo(4 * u, -8.5 * u);
-                        ctx.lineTo(7.5 * u, -2.5 * u);
-                        ctx.closePath();
-                        ctx.fill();
-                        break;
-                    }
-                    case 'fullscreen': {
-                        ctx.strokeStyle = '#ffffff';
-                        ctx.lineWidth = 3 * u;
-                        const corner = (sx, sy) => {
-                            ctx.beginPath();
-                            ctx.moveTo(sx * 9 * u, sy * 5.5 * u);
-                            ctx.lineTo(sx * 9 * u, sy * 9 * u);
-                            ctx.lineTo(sx * 5.5 * u, sy * 9 * u);
-                            ctx.stroke();
-                        };
-                        corner(-1, -1); corner(1, -1); corner(-1, 1); corner(1, 1);
-                        break;
-                    }
-                    case 'flag': {
-                        ctx.strokeStyle = '#ffffff';
-                        ctx.lineWidth = 2.4 * u;
-                        ctx.beginPath();
-                        ctx.moveTo(-5 * u, -9 * u); ctx.lineTo(-5 * u, 10 * u);
-                        ctx.stroke();
-                        ctx.fillStyle = '#ffffff';
-                        ctx.beginPath();
-                        ctx.moveTo(-5 * u, -9 * u);
-                        ctx.lineTo(8 * u, -5.5 * u);
-                        ctx.lineTo(-5 * u, -2 * u);
-                        ctx.closePath();
-                        ctx.fill();
-                        break;
-                    }
-                    case 'trophy': {
-                        // 杯身
-                        ctx.fillStyle = '#ffffff';
-                        ctx.beginPath();
-                        ctx.moveTo(-6 * u, -9 * u);
-                        ctx.lineTo(6 * u, -9 * u);
-                        ctx.lineTo(4 * u, 2 * u);
-                        ctx.quadraticCurveTo(0, 4 * u, -4 * u, 2 * u);
-                        ctx.closePath();
-                        ctx.fill();
-                        // 杯耳
-                        ctx.strokeStyle = '#ffffff';
-                        ctx.lineWidth = 2.2 * u;
-                        ctx.beginPath(); ctx.arc(-7.5 * u, -5 * u, 3 * u, Math.PI * 0.4, Math.PI * 1.5); ctx.stroke();
-                        ctx.beginPath(); ctx.arc(7.5 * u, -5 * u, 3 * u, Math.PI * 1.5, Math.PI * 0.6); ctx.stroke();
-                        // 底座
-                        ctx.fillRect(-2 * u, 4 * u, 4 * u, 3 * u);
-                        ctx.fillRect(-5 * u, 7 * u, 10 * u, 2.6 * u);
-                        break;
-                    }
-                    case 'target': {
-                        ctx.strokeStyle = '#ffffff';
-                        ctx.lineWidth = 2.4 * u;
-                        circle(8.5, null);
-                        ctx.beginPath(); ctx.arc(0, 0, 8.5 * u, 0, Math.PI * 2); ctx.stroke();
-                        ctx.fillStyle = '#ffffff';
-                        ctx.beginPath(); ctx.arc(0, 0, 4.8 * u, 0, Math.PI * 2); ctx.fill();
-                        ctx.fillStyle = 'rgba(0,0,0,0.25)';
-                        ctx.beginPath(); ctx.arc(0, 0, 2 * u, 0, Math.PI * 2); ctx.fill();
-                        break;
-                    }
-                    case 'monster': {
-                        // 小怪兽头
-                        ctx.fillStyle = '#ffffff';
-                        ctx.beginPath();
-                        ctx.arc(0, 1 * u, 8 * u, 0, Math.PI * 2);
-                        ctx.fill();
-                        // 角
-                        ctx.beginPath();
-                        ctx.moveTo(-6 * u, -5 * u); ctx.lineTo(-8 * u, -11 * u); ctx.lineTo(-2 * u, -7 * u);
-                        ctx.moveTo(6 * u, -5 * u); ctx.lineTo(8 * u, -11 * u); ctx.lineTo(2 * u, -7 * u);
-                        ctx.fill();
-                        // 眼睛
-                        ctx.fillStyle = 'rgba(0,0,0,0.35)';
-                        ctx.beginPath(); ctx.arc(-3 * u, 0, 1.8 * u, 0, Math.PI * 2); ctx.fill();
-                        ctx.beginPath(); ctx.arc(3 * u, 0, 1.8 * u, 0, Math.PI * 2); ctx.fill();
-                        // 嘴
-                        ctx.strokeStyle = 'rgba(0,0,0,0.35)';
-                        ctx.lineWidth = 1.8 * u;
-                        ctx.beginPath(); ctx.arc(0, 3 * u, 3 * u, 0.3, Math.PI - 0.3); ctx.stroke();
-                        break;
-                    }
-                    case 'rotate': {
-                        // 手机旋转
-                        ctx.strokeStyle = '#ffffff';
-                        ctx.lineWidth = 2.4 * u;
-                        drawRoundRect(ctx, -6 * u, -9 * u, 12 * u, 18 * u, 2.5 * u);
-                        ctx.stroke();
-                        ctx.fillStyle = '#ffffff';
-                        ctx.beginPath(); ctx.arc(0, 6.5 * u, 1.4 * u, 0, Math.PI * 2); ctx.fill();
-                        // 旋转箭头
-                        ctx.strokeStyle = '#ffffff';
-                        ctx.lineWidth = 2.2 * u;
-                        ctx.beginPath();
-                        ctx.arc(0, 0, 13 * u, -2.4, -0.9);
-                        ctx.stroke();
-                        ctx.beginPath();
-                        ctx.moveTo(12.5 * u, -4.5 * u);
-                        ctx.lineTo(13.5 * u, -11 * u);
-                        ctx.lineTo(7 * u, -9 * u);
-                        ctx.closePath();
-                        ctx.fill();
-                        break;
-                    }
-                    case 'help': {
-                        // 问号：帮助
-                        ctx.fillStyle = '#ffffff';
-                        ctx.beginPath(); ctx.arc(0, 0, 11 * u, 0, Math.PI * 2); ctx.fill();
-                        ctx.fillStyle = '#2e9e5b';
-                        ctx.font = `900 ${17 * u}px 'Fredoka', sans-serif`;
-                        ctx.textAlign = 'center';
-                        ctx.textBaseline = 'middle';
-                        ctx.fillText('?', 0, 1 * u);
-                        break;
-                    }
-                    case 'lock': {
-                        // 锁体
-                        ctx.fillStyle = '#64748b';
-                        drawRoundRect(ctx, -7 * u, -2 * u, 14 * u, 11 * u, 3 * u);
-                        ctx.fill();
-                        ctx.fillStyle = '#475569';
-                        drawRoundRect(ctx, -7 * u, -2 * u, 14 * u, 4 * u, 3 * u);
-                        ctx.fill();
-                        // 锁梁
-                        ctx.strokeStyle = '#cbd5e1';
-                        ctx.lineWidth = 3 * u;
-                        ctx.beginPath(); ctx.arc(0, -2 * u, 5 * u, Math.PI, 0); ctx.stroke();
-                        // 钥匙孔
-                        ctx.fillStyle = '#f8fafc';
-                        ctx.beginPath(); ctx.arc(0, 2.5 * u, 1.8 * u, 0, Math.PI * 2); ctx.fill();
-                        ctx.fillRect(-0.9 * u, 2.5 * u, 1.8 * u, 3.4 * u);
-                        break;
-                    }
-                    case 'angry': {
-                        // 怒气青筋（动漫式）
-                        ctx.strokeStyle = '#ef4444';
-                        ctx.lineWidth = 3.2 * u;
-                        const bump = (cx, cy, r) => {
-                            ctx.beginPath(); ctx.arc(cx * u, cy * u, r * u, 0, Math.PI * 2); ctx.stroke();
-                        };
-                        bump(-3.4, -2.4, 3.4); bump(3.4, -2.4, 3.4);
-                        bump(-3.4, 3.6, 3.4); bump(3.4, 3.6, 3.4);
-                        break;
-                    }
-                    case 'star': {
-                        ctx.fillStyle = '#facc15';
-                        ctx.strokeStyle = '#b45309';
-                        ctx.lineWidth = 1.4 * u;
-                        ctx.beginPath();
-                        for (let i = 0; i < 10; i++) {
-                            const r = (i % 2 === 0 ? 10 : 4.4) * u;
-                            const a = -Math.PI / 2 + (i / 10) * Math.PI * 2;
-                            const px = Math.cos(a) * r, py = Math.sin(a) * r;
-                            if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
-                        }
-                        ctx.closePath(); ctx.fill(); ctx.stroke();
-                        shine(-2.4, -3, 1.6, 0.6);
-                        break;
-                    }
-                    case 'water': {
-                        ctx.fillStyle = '#38bdf8';
-                        ctx.beginPath();
-                        ctx.moveTo(0, -10 * u);
-                        ctx.bezierCurveTo(6 * u, -2 * u, 8 * u, 3 * u, 8 * u, 6 * u);
-                        ctx.bezierCurveTo(8 * u, 10 * u, 4 * u, 11.5 * u, 0, 11.5 * u);
-                        ctx.bezierCurveTo(-4 * u, 11.5 * u, -8 * u, 10 * u, -8 * u, 6 * u);
-                        ctx.bezierCurveTo(-8 * u, 3 * u, -6 * u, -2 * u, 0, -10 * u);
-                        ctx.fill();
-                        shine(-2.6, 3.4, 1.8, 0.55);
-                        break;
-                    }
-                    case 'wind': {
-                        ctx.strokeStyle = '#7dd3fc';
-                        ctx.lineWidth = 2.4 * u;
-                        const gust = (yOff, len) => {
-                            ctx.beginPath();
-                            ctx.moveTo(-9 * u, yOff * u);
-                            ctx.bezierCurveTo(-3 * u, (yOff - 3) * u, 3 * u, (yOff + 3) * u, (len) * u, yOff * u);
-                            ctx.stroke();
-                        };
-                        gust(-5, 7); gust(0, 9); gust(5, 6);
-                        break;
-                    }
-                    case 'swirl': {
-                        ctx.strokeStyle = '#c4b5fd';
-                        ctx.lineWidth = 2.6 * u;
-                        ctx.beginPath();
-                        for (let a = 0; a < Math.PI * 3.4; a += 0.15) {
-                            const r = (1 + a * 1.9) * u;
-                            const px = Math.cos(a) * r, py = Math.sin(a) * r;
-                            if (a === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
-                        }
-                        ctx.stroke();
-                        break;
-                    }
-                }
-                ctx.restore();
-            }
 
             // 顶部提示 pill：不遮挡游戏面板，用于重要播报
             showToast(text, icon = 'star', ms = 1700) {
@@ -5715,10 +3086,13 @@
                     ctx.globalAlpha = 0.45;
                 } else if (this.playerStats.ghostTimer > 0) {
                     ctx.globalAlpha = 0.58;
+                } else if (this.playerStats.ghostExiting) {
+                    ctx.globalAlpha = (Math.floor(this.globalTime * 0.25) % 2 === 0) ? 0.72 : 0.42;
                 }
 
                 const breathScale = 1 + Math.sin(this.globalTime * 0.12) * 0.035;
                 const walkBob = p.isMoving ? Math.abs(Math.sin(p.walkCycle)) * 4 : 0;
+                const actionSquash = this.playerSquash || 0;
 
                 ctx.fillStyle = 'rgba(0,0,0,0.22)';
                 ctx.beginPath();
@@ -5727,7 +3101,7 @@
 
                 ctx.save();
                 ctx.translate(p.x, p.y - walkBob);
-                ctx.scale(breathScale, 2 - breathScale);
+                ctx.scale(breathScale * (1 + actionSquash), (2 - breathScale) * (1 - actionSquash * 0.82));
 
                 const footOffset = p.isMoving ? Math.sin(p.walkCycle) * 5 : 0;
                 ctx.fillStyle = '#f43f5e';
@@ -5859,33 +3233,11 @@
                 ctx.globalAlpha = 1.0;
             }
 
-            drawRainbowBolts() {
-                const ctx = this.ctx;
-                for (let i = this.rainbowBolts.length - 1; i >= 0; i--) {
-                    const b = this.rainbowBolts[i];
-                    b.life--;
-                    if (b.life <= 0) {
-                        this.rainbowBolts.splice(i, 1);
-                        continue;
-                    }
-                    ctx.save();
-                    ctx.globalAlpha = b.life / b.maxLife;
-                    ctx.strokeStyle = b.color;
-                    ctx.lineWidth = 4;
-                    ctx.beginPath();
-                    ctx.moveTo(b.x1, b.y1);
-                    const mx = (b.x1 + b.x2) / 2 + (Math.random() - 0.5) * 28;
-                    const my = (b.y1 + b.y2) / 2 + (Math.random() - 0.5) * 28;
-                    ctx.lineTo(mx, my);
-                    ctx.lineTo(b.x2, b.y2);
-                    ctx.stroke();
-                    ctx.restore();
-                }
-            }
 
             drawMinimap() {
                 if (document.body.classList.contains('moba-mode')) return;
-                if (this.mapCols <= 13 && this.difficultyIdx < 2) return;
+                // 仅在超出单屏视野的大地图（困难1/困难2）时绘制小地图；13x11 全景单屏地图无需小地图，避免遮挡与冗余
+                if (this.mapCols <= 13 && this.mapRows <= 11) return;
 
                 const ctx = this.ctx;
                 const maxW = 148;
@@ -5944,84 +3296,29 @@
                     ctx.fillRect(mx + ec * scale - 1.2, my + er * scale - 1.2, 2.5, 2.5);
                 });
 
-                ctx.fillStyle = '#4ade80';
-                const pc = this.player.x / TILE_SIZE;
-                const pr = this.player.y / TILE_SIZE;
-                ctx.beginPath();
-                ctx.arc(mx + pc * scale, my + pr * scale, 3, 0, Math.PI * 2);
-                ctx.fill();
+                if (this.player) {
+                    ctx.fillStyle = '#4ade80';
+                    const pc = this.player.x / TILE_SIZE;
+                    const pr = this.player.y / TILE_SIZE;
+                    ctx.beginPath();
+                    ctx.arc(mx + pc * scale, my + pr * scale, 3, 0, Math.PI * 2);
+                    ctx.fill();
+                }
 
-                ctx.strokeStyle = '#fde047';
-                ctx.lineWidth = 1.2;
-                ctx.strokeRect(
-                    mx + (this.camera.x / TILE_SIZE) * scale,
-                    my + (this.camera.y / TILE_SIZE) * scale,
-                    (this.canvas.width / TILE_SIZE) * scale,
-                    (this.canvas.height / TILE_SIZE) * scale
-                );
+                if (this.camera) {
+                    ctx.strokeStyle = '#fde047';
+                    ctx.lineWidth = 1.2;
+                    ctx.strokeRect(
+                        mx + (this.camera.x / TILE_SIZE) * scale,
+                        my + (this.camera.y / TILE_SIZE) * scale,
+                        (this.canvas.width / TILE_SIZE) * scale,
+                        (this.canvas.height / TILE_SIZE) * scale
+                    );
+                }
 
                 ctx.restore();
             }
 
-            drawParticlesAndTexts() {
-                const ctx = this.ctx;
-
-                for (let i = this.particles.length - 1; i >= 0; i--) {
-                    const pt = this.particles[i];
-                    pt.x += pt.vx;
-                    pt.y += pt.vy;
-                    pt.life--;
-
-                    if (pt.life <= 0) {
-                        this.particles.splice(i, 1);
-                        continue;
-                    }
-
-                    const lifeRatio = pt.life / pt.maxLife;
-                    ctx.globalAlpha = lifeRatio;
-
-                    if (pt.ring) {
-                        const rr = pt.ringMax * (1 - lifeRatio) + 6;
-                        ctx.strokeStyle = pt.color;
-                        ctx.lineWidth = 3 * lifeRatio;
-                        ctx.beginPath();
-                        ctx.arc(pt.x, pt.y, rr, 0, Math.PI * 2);
-                        ctx.stroke();
-                        continue;
-                    }
-
-                    ctx.fillStyle = pt.color;
-                    ctx.beginPath();
-                    ctx.arc(pt.x, pt.y, pt.radius * lifeRatio, 0, Math.PI * 2);
-                    ctx.fill();
-                }
-
-                if (this.particles.length > 420) {
-                    this.particles.splice(0, this.particles.length - 420);
-                }
-
-                for (let i = this.floatingTexts.length - 1; i >= 0; i--) {
-                    const ft = this.floatingTexts[i];
-                    ft.y -= 0.8;
-                    ft.life--;
-
-                    if (ft.life <= 0) {
-                        this.floatingTexts.splice(i, 1);
-                        continue;
-                    }
-
-                    ctx.globalAlpha = Math.min(1, (ft.life / ft.maxLife) * 1.5);
-                    ctx.font = `900 ${ft.fontSize || 15}px "Fredoka", "Noto Sans SC", sans-serif`;
-                    ctx.textAlign = 'center';
-                    ctx.strokeStyle = '#ffffff';
-                    ctx.lineWidth = 4;
-                    ctx.strokeText(ft.text, ft.x, ft.y);
-                    ctx.fillStyle = ft.color;
-                    ctx.fillText(ft.text, ft.x, ft.y);
-                }
-
-                ctx.globalAlpha = 1.0;
-            }
 
             loop(timestamp) {
                 // 任何一帧内的未捕获异常都不能让 rAF 链断掉——否则整个游戏永久卡死（画面静止、按键无反应）
@@ -6031,6 +3328,13 @@
                     const dtScale = dt / 16.667;
 
                     this.globalTime += dtScale;
+
+                    // Game-feel (game-dev-skills): Hit-stop (Freeze frame) 定格逻辑帧，突出打击与受击质感
+                    if (this.hitStopFrames > 0) {
+                        this.hitStopFrames--;
+                        this.draw();
+                        return;
+                    }
 
                     const perfStart = this.perf.enabled ? performance.now() : 0;
 
@@ -6080,6 +3384,30 @@
             }
         }
 
-        window.onload = function () {
-            window.game = new ChibiBombermanGame();
-        };
+
+        function applyMixin(TargetClass, SourceClass) {
+            if (!SourceClass || !SourceClass.prototype) return;
+            const props = Object.getOwnPropertyNames(SourceClass.prototype);
+            for (let i = 0; i < props.length; i++) {
+                const prop = props[i];
+                if (prop !== 'constructor') {
+                    const desc = Object.getOwnPropertyDescriptor(SourceClass.prototype, prop);
+                    if (desc) {
+                        Object.defineProperty(TargetClass.prototype, prop, desc);
+                    }
+                }
+            }
+        }
+
+        const g = typeof window !== 'undefined' ? window : globalThis;
+        applyMixin(ChibiBombermanGame, g.GameUIMixin);
+        applyMixin(ChibiBombermanGame, g.GameRenderMixin);
+        applyMixin(ChibiBombermanGame, g.GameEnemySkillsMixin);
+        applyMixin(ChibiBombermanGame, g.GameTutorialMixin);
+        g.ChibiBombermanGame = ChibiBombermanGame;
+
+        if (typeof window !== 'undefined') {
+            window.onload = function () {
+                window.game = new ChibiBombermanGame();
+            };
+        }

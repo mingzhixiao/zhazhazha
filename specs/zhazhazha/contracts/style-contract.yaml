@@ -1,0 +1,68 @@
+schema_version: 1
+project_id: "zhazhazha"
+status: approved
+platform:
+  target: mobile-and-web
+  orientation: adaptive-portrait-and-landscape
+  aspect_ratio: "13:11"
+  reference_size: [780, 660]
+  safe_area:
+    top: 12
+    right: 12
+    bottom: 16
+    left: 12
+visual:
+  theme: "Q版糖果街机风 (Candy Arcade Bomberman)"
+  keywords: ["vibrant", "candy-gloss", "tactile-3d", "rounded", "accessible", "zero-emoji"]
+  mood: "欢快、活泼、富有打击感与成就感"
+  complexity: medium
+  materials: ["frosted-glass", "candy-enamel", "soft-shadow", "rim-highlight"]
+  lighting:
+    direction: top-left
+    softness: soft-crisp
+colors:
+  primary: "#10b981"        # 翡翠绿 - 确认/开始/下一关
+  secondary: "#f43f5e"      # 糖果红 - 放炸弹主动作
+  accent: "#0ea5e9"         # 天空蓝 - 遥控引爆/移动
+  ultimate: "#a855f7"       # 魔法紫 - 超必杀/魔力
+  gold: "#f59e0b"           # 金币/奖励/得分
+  surface: "rgba(255, 255, 255, 0.92)" # 高光白瓷/果冻面板
+  background: "linear-gradient(135deg, #fff1eb 0%, #ace0f9 100%)"
+  text-primary: "#0f172a"
+  text-secondary: "#64748b"
+typography:
+  language: zh-CN
+  font-family: "'Fredoka', 'Noto Sans SC', sans-serif"
+  title: {size: 32, weight: 900}
+  section: {size: 18, weight: 900}
+  body: {size: 12, weight: 700}
+  number: {size: 14, weight: 900}
+  button: {size: 15, weight: 900}
+geometry:
+  radius: {small: 10, card: 20, modal: 28, pill: 9999}
+  stroke: {thin: 2, regular: 3, strong: 4}
+  button_height: {small: 36, medium: 48, primary: 64}
+  icon_size: {utility: 18, stat: 20, action: 32}
+effects:
+  shadow-depth: "0 4px 0 rgba(0, 0, 0, 0.16), 0 8px 16px rgba(15, 23, 42, 0.1)"
+  shadow-press: "0 1px 0 rgba(0, 0, 0, 0.16), 0 2px 4px rgba(15, 23, 42, 0.08)"
+  rim-highlight: "inset 0 1.5px 0 rgba(255, 255, 255, 0.9)"
+  ambient-blur: "blur(10px)"
+tokens:
+  color:
+    action-primary: "#10b981"
+    action-bomb: "#f43f5e"
+    action-detonate: "#0ea5e9"
+    action-mega: "#a855f7"
+  spacing:
+    xs: 4
+    sm: 8
+    md: 12
+    lg: 20
+  motion:
+    press-ms: 100
+    spring-curve: "cubic-bezier(0.34, 1.56, 0.64, 1)"
+consistency_rules:
+  - 所有图标使用原生 Canvas 糖果矢量图标绘制，严禁使用系统 Emoji。
+  - 次要控制按钮（全屏/音效/暂停/重玩）采用统一玻璃胶囊质感，不与核心放弹红色抢夺视觉重心。
+  - 核心放弹按钮保持最强对比度与立体压感，触控热区在手机端不低于 64px。

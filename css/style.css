@@ -70,15 +70,27 @@
             0%, 100% { transform: scale(1); }
             50% { transform: scale(1.04); }
         }
-        .quest-active { animation: pulseGlow 1.5s ease-in-out infinite; }
+        #questBanner {
+            background: linear-gradient(180deg, #fef3c7 0%, #fde68a 100%);
+            border: 2px solid #f59e0b;
+            color: #78350f;
+            box-shadow: 0 3px 0 #d97706, 0 4px 10px rgba(245, 158, 11, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.85);
+            font-weight: 900;
+            letter-spacing: 0.02em;
+        }
+        @keyframes questShimmer {
+            0%, 100% { box-shadow: 0 3px 0 #d97706, 0 4px 10px rgba(245, 158, 11, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.85); transform: scale(1); }
+            50% { box-shadow: 0 3px 0 #d97706, 0 0 18px 4px rgba(245, 158, 11, 0.65), inset 0 1px 0 rgba(255, 255, 255, 1); transform: scale(1.03); }
+        }
+        .quest-active { animation: questShimmer 1.4s ease-in-out infinite; }
         @keyframes detonatePulse {
-            0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(14, 165, 233, 0.7), 0 4px 0 rgba(0,0,0,0.2); }
-            50% { transform: scale(1.06); box-shadow: 0 0 18px 4px rgba(56, 189, 248, 0.85), 0 4px 0 rgba(0,0,0,0.2); }
+            0%, 100% { transform: scale(1); box-shadow: 0 6px 0 #0369a1, 0 10px 20px rgba(2, 132, 199, 0.4), inset 0 2px 0 rgba(255, 255, 255, 0.6); }
+            50% { transform: scale(1.06); box-shadow: 0 6px 0 #0369a1, 0 0 22px 5px rgba(56, 189, 248, 0.85), inset 0 2px 0 rgba(255, 255, 255, 0.85); }
         }
         .detonate-glow { animation: detonatePulse 1.1s infinite ease-in-out; }
         @keyframes megaPulse {
-            0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(236, 72, 153, 0.75), 0 6px 0 rgba(0,0,0,0.2); }
-            50% { transform: scale(1.06); box-shadow: 0 0 22px 6px rgba(217, 70, 239, 0.9), 0 6px 0 rgba(0,0,0,0.2); }
+            0%, 100% { transform: scale(1); box-shadow: 0 6px 0 #6b21a8, 0 10px 20px rgba(147, 51, 234, 0.4), inset 0 2px 0 rgba(255, 255, 255, 0.6); }
+            50% { transform: scale(1.06); box-shadow: 0 6px 0 #6b21a8, 0 0 24px 6px rgba(236, 72, 153, 0.85), inset 0 2px 0 rgba(255, 255, 255, 0.85); }
         }
         .mega-glow { animation: megaPulse 0.95s infinite ease-in-out; }
         @keyframes dangerBreath {
@@ -86,17 +98,50 @@
             50% { opacity: 0.85; }
         }
         .danger-ring { animation: dangerBreath 1.1s ease-in-out infinite; }
+
+        /* 顶部控制栏实用按钮：微渐变胶囊风格，统一视觉降噪 */
+        .header-util-btn {
+            background: linear-gradient(180deg, #ffffff 0%, #f8fafc 55%, #edf2f7 100%);
+            border: 2px solid #ffffff;
+            color: #334155;
+            box-shadow: 0 3px 0 #cbd5e1, 0 4px 8px rgba(15, 23, 42, 0.08);
+            transition: transform 0.1s ease, box-shadow 0.1s ease, background 0.15s ease;
+        }
+        .header-util-btn:hover {
+            background: linear-gradient(180deg, #ffffff 0%, #f1f5f9 100%);
+        }
+        .header-util-btn:active, .header-util-btn.active-touch {
+            transform: translateY(2px) scale(0.96);
+            box-shadow: 0 1px 0 #cbd5e1, 0 2px 4px rgba(15, 23, 42, 0.08);
+        }
+        .header-util-btn.btn-danger {
+            background: linear-gradient(180deg, #fb7185 0%, #f43f5e 55%, #e11d48 100%);
+            border-color: #ffe4e6;
+            color: #ffffff;
+            box-shadow: 0 3px 0 #9f1239, 0 4px 10px rgba(225, 29, 72, 0.25);
+        }
+        .header-util-btn.btn-danger:hover {
+            background: linear-gradient(180deg, #fda4af 0%, #fb7185 100%);
+        }
+        .header-util-btn.btn-danger:active {
+            box-shadow: 0 1px 0 #9f1239, 0 2px 4px rgba(225, 29, 72, 0.25);
+        }
+
         /* HUD 属性胶囊：开心消消乐式糖果质感 */
         .hud-stat {
             display: flex;
             align-items: center;
             justify-content: center;
             gap: 0.25rem;
-            padding: 0.2rem 0.35rem;
+            padding: 0.22rem 0.38rem;
             border-radius: 0.9rem;
-            background: linear-gradient(180deg, #ffffff 0%, #f1f5f9 60%, #e2e8f0 100%);
+            background: linear-gradient(180deg, #ffffff 0%, #f8fafc 55%, #edf2f7 100%);
             border: 2px solid #ffffff;
-            box-shadow: 0 3px 8px rgba(15, 23, 42, 0.12), inset 0 1px 2px rgba(255, 255, 255, 0.9);
+            box-shadow: 0 3px 0 #cbd5e1, 0 4px 8px rgba(15, 23, 42, 0.08), inset 0 1.5px 0 rgba(255, 255, 255, 1);
+            transition: transform 0.12s ease;
+        }
+        .hud-stat:hover {
+            transform: translateY(-1px);
         }
         .hud-stat .hud-icon {
             width: 20px;
@@ -110,6 +155,7 @@
             line-height: 1;
             text-shadow: 0 1px 0 rgba(255, 255, 255, 0.8);
             font-variant-numeric: tabular-nums;
+            letter-spacing: -0.02em;
         }
         @media (min-width: 640px) {
             .hud-stat { padding: 0.3rem 0.5rem; gap: 0.35rem; }
@@ -156,39 +202,55 @@
             0% { transform: scale(0.7) translateY(-8px); opacity: 0; }
             100% { transform: scale(1) translateY(0); opacity: 1; }
         }
-        /* 关卡开场横幅 */
+        /* 关卡开场横幅：精简紧凑胶囊，贴顶实心外墙展示，不遮挡棋盘内部操作与视野 */
+        #levelBanner {
+            top: 0.35rem;
+        }
         .level-banner-card {
-            background: linear-gradient(135deg, rgba(30, 41, 59, 0.88), rgba(51, 65, 85, 0.88));
-            border: 3px solid rgba(255, 255, 255, 0.9);
-            border-radius: 1.25rem;
-            padding: 0.6rem 2.2rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            background: rgba(15, 23, 42, 0.78);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            border: 2px solid rgba(255, 255, 255, 0.75);
+            border-radius: 9999px;
+            padding: 0.25rem 0.85rem;
             text-align: center;
-            box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255,255,255,0.25);
-            animation: bannerPop 0.45s cubic-bezier(0.34, 1.56, 0.64, 1);
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+            animation: bannerPop 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
         }
         .level-banner-num {
-            font-size: 1.6rem;
+            font-size: 0.85rem;
             font-weight: 900;
             color: #fde047;
-            text-shadow: 0 2px 8px rgba(0,0,0,0.4);
-            letter-spacing: 0.1em;
-            line-height: 1.2;
+            text-shadow: 0 1px 3px rgba(0,0,0,0.4);
+            letter-spacing: 0.04em;
+            line-height: 1;
+            white-space: nowrap;
+        }
+        .level-banner-sep {
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: rgba(255, 255, 255, 0.55);
+            line-height: 1;
         }
         .level-banner-theme {
-            font-size: 0.85rem;
-            font-weight: 700;
-            color: #e2e8f0;
-            letter-spacing: 0.3em;
-            margin-top: 0.15rem;
+            font-size: 0.8rem;
+            font-weight: 800;
+            color: #f1f5f9;
+            letter-spacing: 0.06em;
+            line-height: 1;
+            white-space: nowrap;
         }
         @keyframes bannerPop {
-            0% { transform: scale(0.6); opacity: 0; }
-            100% { transform: scale(1); opacity: 1; }
+            0% { transform: scale(0.7) translateY(-6px); opacity: 0; }
+            100% { transform: scale(1) translateY(0); opacity: 1; }
         }
         .level-banner-hide {
-            transition: opacity 0.4s ease, transform 0.4s ease;
+            transition: opacity 0.3s ease, transform 0.3s ease;
             opacity: 0;
-            transform: translateY(-12px);
+            transform: translateY(-8px);
         }
         .joystick-base {
             position: relative;
@@ -589,6 +651,38 @@
             .joystick-base { touch-action: none; }
         }
 
+        /* 核心动作按键：3D 街机按压手感与顶缘高光 */
+        #btnPlaceBomb {
+            background: linear-gradient(180deg, #fb7185 0%, #f43f5e 45%, #e11d48 100%);
+            border: 3.5px solid #ffffff;
+            box-shadow: 0 6px 0 #9f1239, 0 10px 22px rgba(225, 29, 72, 0.45), inset 0 2px 0 rgba(255, 255, 255, 0.7);
+            transition: transform 0.08s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.08s ease;
+        }
+        #btnPlaceBomb:active, #btnPlaceBomb.active-touch {
+            transform: translateY(4px) scale(0.96);
+            box-shadow: 0 2px 0 #9f1239, 0 4px 8px rgba(225, 29, 72, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.4);
+        }
+        #btnDetonateRemote {
+            background: linear-gradient(180deg, #38bdf8 0%, #0ea5e9 45%, #0284c7 100%);
+            border: 3.5px solid #ffffff;
+            box-shadow: 0 6px 0 #0369a1, 0 10px 22px rgba(2, 132, 199, 0.45), inset 0 2px 0 rgba(255, 255, 255, 0.7);
+            transition: transform 0.08s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.08s ease;
+        }
+        #btnDetonateRemote:active, #btnDetonateRemote.active-touch {
+            transform: translateY(4px) scale(0.96);
+            box-shadow: 0 2px 0 #0369a1, 0 4px 8px rgba(2, 132, 199, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.4);
+        }
+        #btnMegaBomb {
+            background: linear-gradient(180deg, #e879f9 0%, #c026d3 45%, #9333ea 100%);
+            border: 3.5px solid #ffffff;
+            box-shadow: 0 6px 0 #6b21a8, 0 10px 22px rgba(147, 51, 234, 0.45), inset 0 2px 0 rgba(255, 255, 255, 0.7);
+            transition: transform 0.08s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.08s ease;
+        }
+        #btnMegaBomb:active, #btnMegaBomb.active-touch {
+            transform: translateY(4px) scale(0.96);
+            box-shadow: 0 2px 0 #6b21a8, 0 4px 8px rgba(147, 51, 234, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.4);
+        }
+
         /* 窄屏（≤400）：缩小摇杆与操作按钮，确保不被挤压到不可用尺寸 */
         @media (max-width: 400px) {
             #joystickContainer { width: 96px !important; height: 96px !important; }
@@ -645,27 +739,78 @@
         .shop-item {
             display: flex;
             align-items: center;
-            gap: 9px;
+            gap: 10px;
             width: 100%;
-            padding: 7px 9px;
-            border-radius: 16px;
+            padding: 8px 12px;
+            border-radius: 18px;
             border: 2px solid #e2e8f0;
-            background: #fff;
+            background: #ffffff;
+            box-shadow: 0 3px 0 #e2e8f0, 0 4px 10px rgba(15, 23, 42, 0.04);
             text-align: left;
-            transition: transform 0.1s, border-color 0.2s, background 0.2s;
+            transition: transform 0.1s cubic-bezier(0.34, 1.56, 0.64, 1), border-color 0.2s, box-shadow 0.15s, background 0.2s;
             cursor: pointer;
         }
         .shop-item.buyable {
-            border-color: #fcd34d;
-            background: linear-gradient(180deg, #fffbeb, #ffffff);
+            border-color: #f59e0b;
+            background: linear-gradient(180deg, #fffdf5 0%, #fef9c3 100%);
+            box-shadow: 0 4px 0 #d97706, 0 6px 14px rgba(245, 158, 11, 0.2);
         }
-        .shop-item.buyable:hover { transform: translateY(-1px); }
-        .shop-item.buyable:active { transform: translateY(2px) scale(0.98); }
+        .shop-item.buyable:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 0 #d97706, 0 8px 18px rgba(245, 158, 11, 0.25);
+        }
+        .shop-item.buyable:active {
+            transform: translateY(2px) scale(0.98);
+            box-shadow: 0 1px 0 #d97706, 0 2px 4px rgba(245, 158, 11, 0.15);
+        }
         .shop-item.maxed {
-            background: linear-gradient(180deg, #ecfdf5, #ffffff);
-            border-color: #6ee7b7;
+            background: linear-gradient(180deg, #f0fdf4 0%, #dcfce7 100%);
+            border-color: #10b981;
+            box-shadow: 0 3px 0 #059669, 0 4px 10px rgba(16, 185, 129, 0.15);
+            cursor: default;
         }
         .shop-item:disabled { cursor: default; }
+
+        .shop-pip {
+            width: 14px;
+            height: 6px;
+            border-radius: 9999px;
+            background: #e2e8f0;
+            border: 1px solid #cbd5e1;
+            transition: all 0.2s ease;
+        }
+        .shop-pip.filled {
+            background: linear-gradient(90deg, #10b981 0%, #059669 100%);
+            border-color: #047857;
+            box-shadow: 0 1px 2px rgba(16, 185, 129, 0.35);
+        }
+        .shop-cost-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 3px 9px;
+            border-radius: 9999px;
+            font-size: 11px;
+            font-weight: 900;
+            line-height: 1;
+            white-space: nowrap;
+        }
+        .shop-cost-pill.can-buy {
+            background: linear-gradient(180deg, #fef3c7 0%, #fde68a 100%);
+            border: 1.5px solid #f59e0b;
+            color: #92400e;
+            box-shadow: 0 2px 0 #d97706;
+        }
+        .shop-cost-pill.cannot-buy {
+            background: #f1f5f9;
+            border: 1.5px solid #cbd5e1;
+            color: #94a3b8;
+        }
+        .shop-cost-pill.is-maxed {
+            background: linear-gradient(180deg, #dcfce7 0%, #bbf7d0 100%);
+            border: 1.5px solid #10b981;
+            color: #065f46;
+        }
 
         /* 连击倍率浮标 */
         @keyframes multPop {
@@ -674,6 +819,7 @@
             100% { transform: translateX(-50%) scale(1); opacity: 1; }
         }
         #comboMeter {
+            display: none !important;
             position: absolute;
             left: 50%;
             top: 62%;
@@ -682,7 +828,11 @@
             z-index: 18;
             animation: multPop 0.3s cubic-bezier(0.34,1.56,0.64,1);
         }
-        #comboMeter.hidden { display: none; }
+        #comboMeter.hidden { display: none !important; }
+        #comboToast {
+            display: none !important;
+        }
+        #comboToast.hidden { display: none !important; }
 
         /* ============================================================
            首页：底部锚点 + 中部舞台（产品级布局）
@@ -844,10 +994,10 @@
             height: 64px;
             padding: 0 48px;
             border-radius: 40px;
-            border: 3px solid rgba(255, 255, 255, 0.9);
+            border: 3px solid rgba(255, 255, 255, 0.95);
             /* 绿色系：放松 / 安全 / 前进 */
             background: linear-gradient(180deg, #4ade80 0%, #22c55e 55%, #16a34a 100%);
-            box-shadow: 0 6px 0 #15803d, 0 10px 24px rgba(34, 197, 94, 0.45);
+            box-shadow: 0 6px 0 #15803d, 0 10px 24px rgba(34, 197, 94, 0.45), inset 0 2px 0 rgba(255, 255, 255, 0.8);
             color: #ffffff;
             font-family: 'Fredoka', 'Noto Sans SC', sans-serif;
             font-size: 22px;
@@ -859,10 +1009,23 @@
             transition: transform 0.12s ease, box-shadow 0.12s ease;
             -webkit-tap-highlight-color: transparent;
             animation: btnBreathe 2.2s ease-in-out infinite;
+            position: relative;
+            overflow: hidden;
+        }
+        .start-main-btn::after {
+            content: '';
+            position: absolute;
+            top: 2px;
+            left: 12%;
+            width: 76%;
+            height: 38%;
+            background: linear-gradient(180deg, rgba(255, 255, 255, 0.65) 0%, rgba(255, 255, 255, 0.05) 100%);
+            border-radius: 999px;
+            pointer-events: none;
         }
         .start-main-btn:active {
             transform: translateY(4px);
-            box-shadow: 0 2px 0 #15803d, 0 6px 14px rgba(34, 197, 94, 0.4);
+            box-shadow: 0 2px 0 #15803d, 0 6px 14px rgba(34, 197, 94, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.4);
             animation: none;
         }
         @keyframes btnBreathe {

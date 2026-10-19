@@ -43,13 +43,14 @@
                 const dur = opts.dur || 0.16;
                 const slide = opts.slide || null;
 
+                const pitchMul = opts.pitchVary ? (0.95 + Math.random() * 0.1) : 1;
                 notes.forEach((freq, idx) => {
                     const now = this.ctx.currentTime + idx * gap;
                     const osc = this.ctx.createOscillator();
                     const gain = this.ctx.createGain();
                     osc.type = type;
-                    osc.frequency.setValueAtTime(freq, now);
-                    if (slide) osc.frequency.exponentialRampToValueAtTime(slide, now + dur);
+                    osc.frequency.setValueAtTime(freq * pitchMul, now);
+                    if (slide) osc.frequency.exponentialRampToValueAtTime(slide * pitchMul, now + dur);
                     gain.gain.setValueAtTime(vol, now);
                     gain.gain.exponentialRampToValueAtTime(0.008, now + dur);
                     osc.connect(gain);
@@ -69,8 +70,10 @@
                 const osc = this.ctx.createOscillator();
                 const gain = this.ctx.createGain();
                 osc.type = 'sine';
-                osc.frequency.setValueAtTime(240, now);
-                osc.frequency.exponentialRampToValueAtTime(580, now + 0.12);
+                // Audio-design (game-dev-skills): ±5% 音调微扰动，打破高频机械重复感（SFX variation）
+                const pitch = 0.95 + Math.random() * 0.1;
+                osc.frequency.setValueAtTime(240 * pitch, now);
+                osc.frequency.exponentialRampToValueAtTime(580 * pitch, now + 0.12);
 
                 gain.gain.setValueAtTime(0.25, now);
                 gain.gain.exponentialRampToValueAtTime(0.01, now + 0.14);
@@ -119,10 +122,12 @@
                 const noise = this.ctx.createBufferSource();
                 noise.buffer = buffer;
 
+                // Audio-design (game-dev-skills): 爆炸音高微扰动，营造多样化爆炸声场
+                const pitch = 0.94 + Math.random() * 0.12;
                 const filter = this.ctx.createBiquadFilter();
                 filter.type = 'lowpass';
-                filter.frequency.setValueAtTime(850, now);
-                filter.frequency.exponentialRampToValueAtTime(90, now + 0.36);
+                filter.frequency.setValueAtTime(850 * pitch, now);
+                filter.frequency.exponentialRampToValueAtTime(90 * pitch, now + 0.36);
 
                 const gain = this.ctx.createGain();
                 gain.gain.setValueAtTime(0.45, now);
@@ -136,8 +141,8 @@
                 const osc = this.ctx.createOscillator();
                 const oscGain = this.ctx.createGain();
                 osc.type = 'triangle';
-                osc.frequency.setValueAtTime(150, now);
-                osc.frequency.exponentialRampToValueAtTime(35, now + 0.3);
+                osc.frequency.setValueAtTime(150 * pitch, now);
+                osc.frequency.exponentialRampToValueAtTime(35 * pitch, now + 0.3);
                 oscGain.gain.setValueAtTime(0.35, now);
                 oscGain.gain.exponentialRampToValueAtTime(0.01, now + 0.32);
 
@@ -211,7 +216,7 @@
 
             playCoin() {
                 this.vibrate(15);
-                this.playNotes([1318.51, 1760.0], { type: 'sine', vol: 0.18, gap: 0.055, dur: 0.12 });
+                this.playNotes([1318.51, 1760.0], { type: 'sine', vol: 0.18, gap: 0.055, dur: 0.12, pitchVary: true });
             }
 
             playItemCurseSpawn() {

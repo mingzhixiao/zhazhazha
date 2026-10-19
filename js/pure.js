@@ -236,11 +236,69 @@
                 return { data, errors, migrated };
             }
 
+            // ---------- 穿墙脱离与防卡死：纯函数判定与安全点位搜索 ----------
+            function isBoxOverlappingCrate(grid, rows, cols, x, y, r, TILE, tileSize = 60) {
+                const minCol = Math.floor((x - r + 0.1) / tileSize);
+                const maxCol = Math.floor((x + r - 0.1) / tileSize);
+                const minRow = Math.floor((y - r + 0.1) / tileSize);
+                const maxRow = Math.floor((y + r - 0.1) / tileSize);
+
+                for (let rIdx = minRow; rIdx <= maxRow; rIdx++) {
+                    for (let cIdx = minCol; cIdx <= maxCol; cIdx++) {
+                        if (rIdx >= 0 && rIdx < rows && cIdx >= 0 && cIdx < cols) {
+                            const tile = grid[rIdx][cIdx];
+                            if (tile === TILE.CRATE || tile === TILE.FROST_CRATE) {
+                                return true;
+                            }
+                        }
+                    }
+                }
+                return false;
+            }
+
+            function findNearestWalkableTile(grid, rows, cols, startCol, startRow, bombPositions, TILE) {
+                const queue = [{ c: startCol, r: startRow }];
+                const visited = new Set([`${startCol},${startRow}`]);
+                const dirs = [
+                    { dc: 0, dr: -1 },
+                    { dc: 0, dr: 1 },
+                    { dc: -1, dr: 0 },
+                    { dc: 1, dr: 0 }
+                ];
+
+                const bombSet = new Set((bombPositions || []).map(b => `${b.col},${b.row}`));
+
+                while (queue.length > 0) {
+                    const cur = queue.shift();
+                    const tile = grid[cur.r] && grid[cur.r][cur.c];
+                    const isSolid = (tile === TILE.WALL || tile === TILE.CRATE || tile === TILE.FROST_CRATE);
+                    const hasBomb = bombSet.has(`${cur.c},${cur.r}`);
+
+                    if (!isSolid && !hasBomb && cur.c > 0 && cur.c < cols - 1 && cur.r > 0 && cur.r < rows - 1) {
+                        return cur;
+                    }
+
+                    for (const d of dirs) {
+                        const nc = cur.c + d.dc;
+                        const nr = cur.r + d.dr;
+                        const key = `${nc},${nr}`;
+                        if (nc <= 0 || nc >= cols - 1 || nr <= 0 || nr >= rows - 1) continue;
+                        if (visited.has(key)) continue;
+                        if (grid[nr][nc] === TILE.WALL) continue;
+                        visited.add(key);
+                        queue.push({ c: nc, r: nr });
+                    }
+                }
+                return null;
+            }
+
             global.GamePure = {
                 calcEnemyCount,
                 pickSpawnSpots,
                 generateMapGrid,
                 isReachableWithBombing,
+                isBoxOverlappingCrate,
+                findNearestWalkableTile,
                 SAVE_SCHEMA_VERSION,
                 SAVE_KEY,
                 UPGRADE_MAX,

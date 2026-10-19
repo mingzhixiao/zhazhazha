@@ -114,3 +114,68 @@ describe('migrateSaveData', () => {
         assert.equal(migrated, false);
     });
 });
+
+describe('isBoxOverlappingCrate', () => {
+    const TILE = { EMPTY: 0, WALL: 1, CRATE: 2, FROST_CRATE: 3, VINE: 4 };
+    const grid = [
+        [1, 1, 1, 1, 1],
+        [1, 0, 2, 0, 1],
+        [1, 0, 3, 0, 1],
+        [1, 0, 0, 0, 1],
+        [1, 1, 1, 1, 1]
+    ];
+
+    it('在空地上不重叠木块', () => {
+        assert.equal(P.isBoxOverlappingCrate(grid, 5, 5, 90, 90, 17.5, TILE, 60), false);
+    });
+
+    it('在木块内判定为重叠', () => {
+        assert.equal(P.isBoxOverlappingCrate(grid, 5, 5, 150, 90, 17.5, TILE, 60), true);
+    });
+
+    it('在冰块内判定为重叠', () => {
+        assert.equal(P.isBoxOverlappingCrate(grid, 5, 5, 150, 150, 17.5, TILE, 60), true);
+    });
+
+    it('边缘轻微侵入木块即判定为重叠（与玩家碰撞体一致）', () => {
+        assert.equal(P.isBoxOverlappingCrate(grid, 5, 5, 110, 90, 17.5, TILE, 60), true);
+        assert.equal(P.isBoxOverlappingCrate(grid, 5, 5, 100, 90, 17.5, TILE, 60), false);
+    });
+});
+
+describe('findNearestWalkableTile', () => {
+    const TILE = { EMPTY: 0, WALL: 1, CRATE: 2, FROST_CRATE: 3, VINE: 4 };
+    const grid = [
+        [1, 1, 1, 1, 1],
+        [1, 0, 2, 0, 1],
+        [1, 2, 2, 0, 1],
+        [1, 0, 0, 0, 1],
+        [1, 1, 1, 1, 1]
+    ];
+
+    it('在木块 (2, 1) 时能找到相邻最近的空地', () => {
+        const spot = P.findNearestWalkableTile(grid, 5, 5, 2, 1, [], TILE);
+        assert.ok(spot !== null);
+        assert.ok(grid[spot.r][spot.c] === TILE.EMPTY);
+        assert.equal(Math.abs(spot.c - 2) + Math.abs(spot.r - 1), 1);
+    });
+
+    it('避开炸弹格，选择其他安全空地', () => {
+        const bombs = [{ col: 3, row: 1 }, { col: 1, row: 1 }];
+        const spot = P.findNearestWalkableTile(grid, 5, 5, 2, 1, bombs, TILE);
+        assert.ok(spot !== null);
+        assert.ok(grid[spot.r][spot.c] === TILE.EMPTY);
+        assert.ok(!bombs.some(b => b.col === spot.c && b.row === spot.r));
+    });
+
+    it('完全被实心墙包围时返回 null', () => {
+        const fullyBlocked = [
+            [1, 1, 1],
+            [1, 2, 1],
+            [1, 1, 1]
+        ];
+        const spot = P.findNearestWalkableTile(fullyBlocked, 3, 3, 1, 1, [], TILE);
+        assert.equal(spot, null);
+    });
+});
+

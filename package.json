@@ -6,7 +6,7 @@
   "license": "UNLICENSED",
   "name": "zhazhazha",
   "scripts": {
-    "check": "for f in js/rng.js js/pure.js js/config.js js/audio.js js/save.js js/game.js; do node --check \"$f\" || exit 1; done && echo \"all syntax OK\"",
+    "check": "node -e \"['js/rng.js','js/pure.js','js/tutorial-core.js','js/config.js','js/audio.js','js/save.js','js/ui.js','js/render.js','js/enemy-skills.js','js/tutorial.js','js/game.js'].forEach(f => require('child_process').execSync('node --check ' + f)); console.log('all syntax OK');\"",
     "test": "node --test tests/test-rng.js tests/test-pure.js tests/test-config.js tests/test-save.js tests/test-smoke.js tests/test-tutorial.js tests/test-map.js tests/test-layout.js",
     "test:watch": "node --test --watch tests/test-rng.js tests/test-pure.js tests/test-config.js tests/test-save.js tests/test-smoke.js tests/test-tutorial.js tests/test-map.js tests/test-layout.js",
     "build:css": "tailwindcss -i ./css/tailwind-input.css -o ./css/tailwind-built.css",
