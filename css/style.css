@@ -1,3 +1,22 @@
+        /* ------------------------------------------------------------------
+         * 自托管字体：Fredoka（OFL 授权，可商用）
+         * 原方案从 fonts.googleapis.com 外链加载，在中国大陆网络下会被阻塞，
+         * 浏览器先等超时再回退到系统衬线字体——标题会突然变成"宋体"，
+         * 首屏第一印象直接崩掉。改为随包分发的 29KB 可变字体，零外部依赖。
+         * 中文不下载字体（全量 Noto Sans SC 走 CDN 要分 100+ 片），
+         * 直接使用各平台原生中文字体，渲染更清晰、体积更小。
+         * ------------------------------------------------------------------ */
+        @font-face {
+            font-family: 'Fredoka';
+            font-style: normal;
+            font-weight: 300 700;
+            font-display: swap;
+            src: url('../assets/fonts/fredoka-latin.woff2') format('woff2');
+            unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
+                           U+02DC, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212,
+                           U+2215, U+FEFF, U+FFFD;
+        }
+
         * {
             user-select: none;
             -webkit-user-select: none;
@@ -15,8 +34,11 @@
             overflow: hidden;
             touch-action: none;
             overscroll-behavior: none;
-            font-family: 'Fredoka', 'Noto Sans SC', sans-serif;
+            font-family: 'Fredoka', system-ui, -apple-system, 'Segoe UI', 'PingFang SC',
+                         'Hiragino Sans GB', 'Microsoft YaHei', 'Noto Sans SC', sans-serif;
             background: linear-gradient(135deg, #fff1eb 0%, #ace0f9 100%);
+            -webkit-text-size-adjust: 100%;
+            text-size-adjust: 100%;
         }
         body {
             padding-top: env(safe-area-inset-top, 0px);
@@ -374,7 +396,9 @@
             margin-right: 130px !important;
             margin-top: 5px !important;
             margin-bottom: 10px !important;
-            width: auto !important;
+            /* 必须显式给宽度：body 是 align-items:center 的纵向 flex，
+               width:auto 会让 stage 收缩到画布尺寸，形成"画布算了舞台、舞台又算画布"的循环，棋盘越算越小 */
+            width: calc(100% - 260px) !important;
             height: auto !important;
             flex: 1 1 auto;
             display: flex;
@@ -382,10 +406,22 @@
             justify-content: center;
         }
 
+        /* 横屏 MOBA：提示条改为浮层，别用固定 2.4rem 吃掉棋盘高度 */
+        body.moba-mode #gameToasts {
+            position: absolute;
+            top: 4px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: auto;
+            max-width: min(46vw, 320px);
+            height: auto;
+            z-index: 40;
+        }
+
         body.moba-mode .canvas-wrapper {
             aspect-ratio: 13 / 11 !important;
-            width: 100% !important;
-            height: auto !important;
+            /* 尺寸由 setupResponsiveCanvas 按舞台可用空间精确计算；
+               这里若再写 width:100%，会与 max-height 冲突导致棋盘被横向拉伸 */
             max-width: 100%;
             max-height: 100%;
             border-radius: 12px;
@@ -562,8 +598,9 @@
         .moba-energy {
             position: absolute;
             right: calc(8px + env(safe-area-inset-right, 0px));
-            top: calc(6px + env(safe-area-inset-top, 0px));
-            width: 100px;
+            /* 让开顶栏的 6 个功能按钮，避免必杀/狂暴条被压在按钮下面 */
+            top: calc(44px + env(safe-area-inset-top, 0px));
+            width: 96px;
             display: flex;
             flex-direction: column;
             gap: 4px;
@@ -584,7 +621,7 @@
 
         .moba-buffs {
             position: absolute;
-            top: calc(36px + env(safe-area-inset-top, 0px));
+            top: calc(44px + env(safe-area-inset-top, 0px));
             left: calc(8px + env(safe-area-inset-left, 0px));
             display: flex;
             gap: 3px;
@@ -606,7 +643,7 @@
 
         .moba-minimap {
             position: absolute;
-            top: calc(48px + env(safe-area-inset-top, 0px));
+            top: calc(92px + env(safe-area-inset-top, 0px));
             right: calc(8px + env(safe-area-inset-right, 0px));
             border-radius: 10px;
             background: rgba(8, 15, 30, 0.62);
@@ -847,7 +884,8 @@
             flex-direction: column;
             align-items: center;
             overflow: hidden;
-            font-family: 'Fredoka', 'Noto Sans SC', sans-serif;
+            font-family: 'Fredoka', system-ui, -apple-system, 'Segoe UI', 'PingFang SC',
+                         'Hiragino Sans GB', 'Microsoft YaHei', 'Noto Sans SC', sans-serif;
         }
         #startScreen.hidden { display: none; }
 
@@ -864,12 +902,16 @@
             inset: 0;
             background: rgba(255, 255, 255, 0.15);
         }
-        /* 云朵：低对比装饰 */
+        /* 云朵：用径向渐变叠成柔软云团，避免看起来像加载占位条 */
         .start-cloud {
             position: absolute;
-            background: rgba(255, 255, 255, 0.55);
-            border-radius: 999px;
-            filter: blur(2px);
+            border-radius: 50%;
+            background:
+                radial-gradient(closest-side at 28% 62%, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0) 100%),
+                radial-gradient(closest-side at 52% 34%, rgba(255, 255, 255, 0.5), rgba(255, 255, 255, 0) 100%),
+                radial-gradient(closest-side at 78% 64%, rgba(255, 255, 255, 0.45), rgba(255, 255, 255, 0) 100%);
+            filter: blur(3px);
+            opacity: 0.85;
         }
         .start-cloud-1 { width: 130px; height: 38px; top: 12%; left: 8%; animation: cloudDrift 14s ease-in-out infinite; }
         .start-cloud-2 { width: 90px; height: 28px; top: 30%; right: 10%; animation: cloudDrift 18s ease-in-out infinite reverse; }
@@ -904,10 +946,34 @@
             min-height: 64px;
             display: flex;
             align-items: flex-start;
-            justify-content: flex-end;
+            justify-content: space-between;
             gap: 10px;
             padding: max(14px, env(safe-area-inset-top)) 18px 0;
         }
+        .start-top-icons {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+        }
+        .start-logic-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            height: 40px;
+            padding: 0 12px;
+            border-radius: 14px;
+            border: 2px solid rgba(255, 255, 255, 0.95);
+            background: linear-gradient(180deg, #fde68a 0%, #f59e0b 100%);
+            box-shadow: 0 3px 0 #b45309, 0 2px 8px rgba(180, 83, 9, 0.25);
+            color: #1e293b;
+            font-size: 13px;
+            font-weight: 900;
+            letter-spacing: 0.04em;
+            text-decoration: none;
+            white-space: nowrap;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .start-logic-btn:active { transform: translateY(2px); box-shadow: 0 1px 0 #b45309; }
         .start-icon-btn {
             width: 40px;
             height: 40px;
@@ -940,7 +1006,8 @@
             pointer-events: none;
         }
         .start-title {
-            font-family: 'Fredoka', 'Noto Sans SC', sans-serif;
+            font-family: 'Fredoka', system-ui, -apple-system, 'Segoe UI', 'PingFang SC',
+                         'Hiragino Sans GB', 'Microsoft YaHei', 'Noto Sans SC', sans-serif;
             font-weight: 700;
             font-size: clamp(44px, 13vw, 64px);
             line-height: 1.1;
@@ -967,9 +1034,9 @@
             user-select: none;
         }
         #heroCanvas {
-            width: min(44vw, 200px);
-            height: min(44vw, 200px);
-            margin-top: 6px;
+            width: min(48vw, 248px);
+            height: min(48vw, 248px);
+            margin-top: 2px;
             filter: drop-shadow(0 10px 14px rgba(46, 111, 144, 0.25));
         }
 
@@ -979,7 +1046,9 @@
             z-index: 2;
             width: 100%;
             max-width: 520px;
-            flex: 0 0 28%;
+            /* 原为 0 0 28%：内容只有约 130px，剩余高度变成死白，把主角推得离草坡很远。
+               改为按内容撑高，把空间还给舞台区。 */
+            flex: 0 0 auto;
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -999,7 +1068,8 @@
             background: linear-gradient(180deg, #4ade80 0%, #22c55e 55%, #16a34a 100%);
             box-shadow: 0 6px 0 #15803d, 0 10px 24px rgba(34, 197, 94, 0.45), inset 0 2px 0 rgba(255, 255, 255, 0.8);
             color: #ffffff;
-            font-family: 'Fredoka', 'Noto Sans SC', sans-serif;
+            font-family: 'Fredoka', system-ui, -apple-system, 'Segoe UI', 'PingFang SC',
+                         'Hiragino Sans GB', 'Microsoft YaHei', 'Noto Sans SC', sans-serif;
             font-size: 22px;
             font-weight: 700;
             letter-spacing: 0.2em;
@@ -1273,3 +1343,1014 @@
             position: relative;
             z-index: 66;
         }
+
+        /* ============================================================
+           上线打磨层 v1.1：图标可见性 / 响应式 / 交互反馈 / 无障碍
+           ============================================================ */
+
+        /* 页面内联图标按 canvas 属性尺寸显示，避免被全局 canvas{width:100%} 拉伸 */
+        canvas.guide-icon,
+        canvas.shop-icon {
+            width: auto;
+            height: auto;
+            flex: none;
+        }
+
+        /* 所有可点击元素的基础触控与焦点反馈 */
+        button, a, select {
+            -webkit-tap-highlight-color: transparent;
+        }
+        button:focus-visible,
+        a:focus-visible,
+        select:focus-visible {
+            outline: 3px solid #6366f1;
+            outline-offset: 2px;
+            border-radius: 12px;
+        }
+        button:disabled {
+            cursor: not-allowed;
+        }
+
+        .start-logic-btn {
+            gap: 6px;
+        }
+        .start-logic-btn span {
+            line-height: 1;
+        }
+        .start-logic-icon {
+            width: 16px;
+            height: 16px;
+        }
+
+        /* 首页难度胶囊：禁止换行 / 图标不再被拉伸 */
+        .start-diff-pill {
+            white-space: nowrap;
+            min-height: 40px;
+            max-width: calc(100vw - 40px);
+            flex-wrap: nowrap;
+        }
+        .start-diff-pill > span:not(.start-diff-arrow) {
+            white-space: nowrap;
+        }
+        .start-diff-arrow {
+            font-size: 18px;
+            line-height: 1;
+            opacity: 0.55;
+            margin-left: 2px;
+            transform: translateY(-1px);
+        }
+        @media (hover: hover) {
+            .start-diff-pill:hover,
+            .start-icon-btn:hover {
+                background: #ffffff;
+                transform: translateY(-1px);
+            }
+        }
+
+        /* 顶部任务条：移动端独占一行，桌面端居中 */
+        #questBanner {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 26px;
+            white-space: nowrap;
+        }
+        #questBanner.quest-ready {
+            background: linear-gradient(180deg, #d1fae5 0%, #a7f3d0 100%);
+            border-color: #10b981;
+            color: #065f46;
+        }
+
+        /* 能量槽：每条「标签 + 进度条」一行，读起来不歧义 */
+        .energy-cell {
+            min-width: 0;
+        }
+        .energy-row {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            width: 100%;
+            min-width: 0;
+        }
+        .energy-name {
+            flex: 0 0 auto;
+            font-size: 10px;
+            line-height: 1;
+            font-weight: 900;
+            color: #a21caf;
+            white-space: nowrap;
+        }
+        #megaLabel {
+            color: #7e22ce;
+        }
+        #megaLabel.is-ready {
+            color: #e11d48;
+        }
+        .energy-track {
+            flex: 1 1 0;
+            height: 7px;
+            /* 原 #cbd5e1 太浅，空槽在白底胶囊里几乎看不见，玩家无法判断"还差多少" */
+            background: #94a3b8;
+            box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.30);
+            border: 1px solid #ffffff;
+            border-radius: 9999px;
+            overflow: hidden;
+            min-width: 0;
+        }
+
+        /* 通用二次确认弹层 */
+        #confirmModal {
+            position: fixed;
+            inset: 0;
+            z-index: 80;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        #confirmModal.hidden { display: none; }
+        .confirm-card {
+            position: relative;
+            width: 100%;
+            max-width: 340px;
+            background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+            border: 3px solid #ffffff;
+            border-radius: 24px;
+            padding: 20px;
+            box-shadow: 0 16px 44px rgba(15, 23, 42, 0.32);
+            text-align: center;
+            animation: sheetUp 0.26s cubic-bezier(0.34, 1.4, 0.64, 1);
+        }
+        .confirm-icon {
+            width: 48px;
+            height: 48px;
+            margin: 0 auto 8px;
+            border-radius: 16px;
+            background: linear-gradient(180deg, #ffe4e6, #fecdd3);
+            border: 2px solid #ffffff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 0 #fda4af;
+        }
+        .confirm-title {
+            margin: 0 0 6px;
+            font-size: 17px;
+            font-weight: 900;
+            color: #1e293b;
+        }
+        .confirm-desc {
+            margin: 0 0 16px;
+            font-size: 12px;
+            line-height: 1.6;
+            font-weight: 700;
+            color: #64748b;
+        }
+        .confirm-actions {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+        .confirm-btn {
+            min-height: 42px;
+            border-radius: 14px;
+            font-size: 14px;
+            font-weight: 900;
+            border: 2px solid #ffffff;
+            cursor: pointer;
+            transition: transform 0.1s ease, box-shadow 0.1s ease;
+        }
+        .confirm-btn:active { transform: translateY(2px) scale(0.98); }
+        .confirm-cancel {
+            background: #f1f5f9;
+            color: #475569;
+            box-shadow: 0 3px 0 #cbd5e1;
+        }
+        .confirm-ok {
+            background: linear-gradient(180deg, #fb7185, #e11d48);
+            color: #ffffff;
+            box-shadow: 0 3px 0 #9f1239;
+        }
+
+        /* 弹层滚动：允许触摸滚动但不把滚动传给游戏页面 */
+        .help-scroll,
+        .shop-card,
+        #shopModal,
+        #helpModal,
+        #diffSheet,
+        #careerPop,
+        #tutorialOffer {
+            overscroll-behavior: contain;
+        }
+        .help-scroll,
+        .shop-card {
+            touch-action: pan-y;
+        }
+        #tutorialOffer {
+            overflow-y: auto;
+        }
+        .tutorial-offer-card {
+            max-height: 92dvh;
+            overflow-y: auto;
+        }
+
+        /* 移动端 HUD 紧凑化：先保证 8 格不换行、不溢出 */
+        @media (max-width: 639px) {
+            .header-bar {
+                row-gap: 4px;
+            }
+            .header-actions {
+                gap: 3px;
+            }
+            .header-util-btn {
+                width: 40px;
+                height: 40px;
+                padding: 0;
+            }
+            #btnControlMode {
+                width: auto;
+                padding: 0 5px;
+                font-size: 10px;
+            }
+            .hud-stat {
+                gap: 2px;
+                padding: 2px 3px;
+                border-radius: 10px;
+            }
+            .hud-stat .hud-icon {
+                width: 16px;
+                height: 16px;
+            }
+            .hud-stat span:last-child {
+                font-size: 11px;
+            }
+            #hudGrid {
+                grid-template-columns: repeat(7, minmax(0, 1fr));
+                gap: 4px;
+            }
+            #hudGrid > .hud-stat {
+                min-width: 0;
+            }
+            .energy-cell {
+                grid-column: 1 / -1;
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 8px;
+                padding: 3px 7px;
+            }
+            .energy-track {
+                height: 6px;
+            }
+            .level-banner-card {
+                font-size: 11px;
+                padding: 3px 10px;
+            }
+        }
+        @media (max-width: 359px) {
+            .header-brand h1 { font-size: 11px; }
+            .header-actions { gap: 2px; }
+            .header-util-btn { width: 36px; height: 36px; }
+            #btnControlMode { padding: 0 4px; }
+            #hudGrid { gap: 3px; }
+            .hud-stat { padding: 2px; gap: 1px; }
+            .hud-stat .hud-icon { width: 14px; height: 14px; }
+            .hud-stat span:last-child { font-size: 10px; }
+        }
+
+        /* 首页在横屏 / 矮屏下的自适应，避免标题被裁切 */
+        @media (max-height: 620px) {
+            .start-top {
+                height: auto;
+                min-height: 48px;
+                padding-top: max(8px, env(safe-area-inset-top));
+            }
+            .start-stage {
+                flex: 1 1 auto;
+                justify-content: center;
+                gap: 0;
+            }
+            .start-title {
+                font-size: clamp(28px, min(11vh, 9vw), 52px);
+            }
+            .start-subtitle {
+                font-size: 12px;
+                letter-spacing: 0.2em;
+            }
+            #heroCanvas {
+                width: min(24vh, 150px);
+                height: min(24vh, 150px);
+                margin-top: 0;
+            }
+            .start-bottom {
+                flex: 0 0 auto;
+                padding-top: 4px;
+                padding-bottom: max(8px, env(safe-area-inset-bottom));
+                gap: 8px;
+            }
+            .start-main-btn {
+                height: 52px;
+                font-size: 19px;
+            }
+            .start-deco,
+            .start-cloud {
+                display: none;
+            }
+            .start-cloud-1,
+            .start-cloud-2 { display: block; opacity: 0.7; }
+        }
+        @media (orientation: landscape) and (max-height: 520px) {
+            .start-top { min-height: 40px; }
+            .start-main-btn { height: 46px; min-width: 260px; }
+            .start-diff-pill { min-height: 34px; padding: 4px 12px; }
+            #heroCanvas { width: 110px; height: 110px; }
+        }
+
+        /* 商店：底部主按钮吸底，长列表也能随时“进入下一关” */
+        #shopModal .shop-card {
+            position: relative;
+        }
+        #shopContinueBtn {
+            position: sticky;
+            bottom: 0;
+            z-index: 2;
+            box-shadow: 0 6px 0 #15803d, 0 -8px 18px rgba(255, 255, 255, 0.9), 0 10px 24px rgba(34, 197, 94, 0.35);
+        }
+        #shopItems {
+            padding-bottom: 14px;
+        }
+        .shop-item .shop-buy-tag {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 44px;
+            padding: 3px 8px;
+            border-radius: 9999px;
+            font-size: 10px;
+            font-weight: 900;
+            line-height: 1;
+            white-space: nowrap;
+        }
+        .shop-item.buyable .shop-buy-tag {
+            background: #f59e0b;
+            color: #ffffff;
+            box-shadow: 0 2px 0 #b45309;
+        }
+        .shop-item .shop-buy-tag.locked {
+            background: #e2e8f0;
+            color: #94a3b8;
+        }
+        .shop-item .shop-buy-tag.maxed {
+            background: #d1fae5;
+            color: #047857;
+        }
+        .shop-item .shop-effect {
+            display: block;
+            font-size: 9px;
+            font-weight: 800;
+            color: #64748b;
+            margin-top: 2px;
+        }
+        .shop-item.buyable .shop-effect { color: #b45309; }
+        @keyframes coinFly {
+            0% { transform: translateY(0) scale(1); opacity: 1; }
+            100% { transform: translateY(-26px) scale(1.25); opacity: 0; }
+        }
+        .coin-fly {
+            position: absolute;
+            right: 14px;
+            top: 10px;
+            pointer-events: none;
+            font-size: 13px;
+            font-weight: 900;
+            color: #d97706;
+            animation: coinFly 0.7s ease-out forwards;
+            z-index: 3;
+        }
+
+        /* 降低动态效果偏好：关闭呼吸/浮动/震屏类动画 */
+        @media (prefers-reduced-motion: reduce) {
+            *,
+            *::before,
+            *::after {
+                animation-duration: 0.001ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.001ms !important;
+                scroll-behavior: auto !important;
+            }
+        }
+
+        .shop-notice {
+            min-height: 16px;
+            text-align: center;
+            font-size: 11px;
+            font-weight: 900;
+            line-height: 16px;
+            color: #b45309;
+            transition: opacity 0.2s ease;
+        }
+        .shop-notice:empty { opacity: 0; }
+        #shopCoins.coin-spend { animation: coinSpend 0.45s ease-out; }
+        @keyframes coinSpend {
+            0% { transform: scale(1); color: #f59e0b; }
+            40% { transform: scale(1.35); color: #e11d48; }
+            100% { transform: scale(1); }
+        }
+
+        /* MOBA 横屏：增益标签限制在左侧控制区，避免压到棋盘 */
+        body.moba-mode .moba-buffs {
+            max-width: 118px;
+            flex-wrap: wrap;
+        }
+
+        @media (max-width: 339px) {
+            /* 超窄屏：隐藏顶栏文字标题，只留炸弹 Logo，给 6 个功能键让位 */
+            .header-brand h1 { display: none; }
+        }
+
+        /* 玩法说明：允许换行，窄屏单列，避免关键规则被省略号吃掉 */
+        .help-card .truncate {
+            white-space: normal;
+            overflow: visible;
+            text-overflow: clip;
+        }
+        @media (max-width: 639px) {
+            .help-card .grid-cols-2 {
+                grid-template-columns: minmax(0, 1fr);
+            }
+        }
+
+        /* 桌面端难度选择改为居中弹窗，避免底部 sheet 贴边像被裁切 */
+        @media (min-width: 640px) {
+            #diffSheet {
+                align-items: center;
+                padding: 24px;
+            }
+            #diffSheet .sheet-card {
+                border-radius: 24px;
+                border: 3px solid #ffffff;
+                padding: 20px;
+                box-shadow: 0 18px 48px rgba(15, 40, 60, 0.3);
+            }
+        }
+
+        /* 桌面端给能量槽多分一点宽度，双条更易读 */
+        @media (min-width: 640px) {
+            #hudGrid {
+                grid-template-columns: repeat(7, minmax(0, 1fr)) 1.7fr;
+            }
+            .energy-name {
+                font-size: 10px;
+            }
+        }
+
+        .energy-name.is-ready {
+            color: #e11d48;
+        }
+        @media (max-width: 639px) {
+            /* 竖屏首页：星形装饰会压到标题右侧，隐藏它让标题更干净 */
+            .start-deco-2 { display: none; }
+        }
+
+        /* 矮屏（320x568 / 844x390）压缩暂停弹层，保证两个按钮都在可视区 */
+        @media (max-height: 640px) {
+            #overlayModal { padding: 6px; }
+            #overlayModal .candy-panel {
+                padding: 9px 12px;
+                gap: 5px;
+            }
+            #modalBadge {
+                width: 38px;
+                height: 38px;
+                border-width: 3px;
+                border-radius: 14px;
+            }
+            #modalBadgeCanvas {
+                width: 34px;
+                height: 34px;
+            }
+            #modalTitle { font-size: 1rem; line-height: 1.25; }
+            #modalDesc { font-size: 10px; line-height: 1.4; }
+            #modalActionBtn,
+            #modalHomeBtn {
+                padding-top: 5px;
+                padding-bottom: 5px;
+                font-size: 13px;
+                line-height: 20px;
+            }
+        }
+
+/* ============================================================================
+   桌面端布局收敛（2026-10 质量提升）
+   ----------------------------------------------------------------------------
+   问题：桌面 1280×800 下，顶部 HUD + 底部控制区占掉约 41% 高度，棋盘只渲染
+   543×458；而底部还摆着一个键盘玩家根本不会用的虚拟摇杆，留白极大。
+   处理：精确指针设备隐藏虚拟摇杆/十字键、压缩操作区高度，把垂直空间还给棋盘。
+   触屏设备与 MOBA 模式完全不受影响（用 pointer:fine 与 body:not(.moba-mode) 隔离）。
+   ============================================================================ */
+@media (hover: hover) and (pointer: fine) and (min-width: 900px) {
+    body:not(.moba-mode) #joystickContainer,
+    body:not(.moba-mode) #dpadContainer {
+        display: none !important;
+    }
+
+    body:not(.moba-mode) #bottomFooter > div {
+        padding: 10px 20px;
+    }
+
+    body:not(.moba-mode) #actionPad {
+        gap: 12px;
+        padding-right: 2px;
+    }
+
+    body:not(.moba-mode) #btnPlaceBomb {
+        width: 60px !important;
+        height: 60px !important;
+    }
+    body:not(.moba-mode) #btnDetonateRemote {
+        width: 52px !important;
+        height: 52px !important;
+    }
+    body:not(.moba-mode) #btnMegaBomb {
+        width: 46px !important;
+        height: 46px !important;
+    }
+
+    body:not(.moba-mode) .pc-hint {
+        max-width: 460px;
+        padding: 4px 11px;
+        line-height: 1.5;
+    }
+}
+
+/* ============================================================================
+   首页视觉升级（2026-10 质量提升）
+   ----------------------------------------------------------------------------
+   原来的首页只有"天蓝渐变 + 两朵云 + 几个 0.5 透明度小图标"，第一屏空旷、
+   没有纵深，像半成品。这里补上太阳光晕、双层草坡、主角光环与成绩行，
+   让首屏有明确的视觉重心（标题 → 主角 → 开始按钮）。
+   ============================================================================ */
+
+/* 天空：比原来更通透（原渐变偏灰），并拉开冷暖层次 */
+.start-bg {
+    background: linear-gradient(180deg, #8ecdea 0%, #b3e0f0 34%, #d2efec 62%, #d8f2cf 100%);
+    filter: saturate(1.02);
+}
+
+/* 右上角太阳光晕：给画面一个光源，避免"平铺色块" */
+.start-sun {
+    position: absolute;
+    top: -22%;
+    right: -8%;
+    width: 54%;
+    aspect-ratio: 1;
+    background: radial-gradient(
+        closest-side,
+        rgba(255, 250, 214, 0.85) 0%,
+        rgba(255, 246, 200, 0.42) 38%,
+        rgba(255, 244, 190, 0.12) 66%,
+        rgba(255, 244, 190, 0) 100%
+    );
+    pointer-events: none;
+}
+
+/* 双层草坡：制造纵深，让主角"站在草地上"而不是飘在空气里 */
+.start-hill {
+    position: absolute;
+    left: -14%;
+    right: -14%;
+    pointer-events: none;
+    border-radius: 50% 50% 0 0 / 100% 100% 0 0;
+}
+.start-hill-far {
+    bottom: -9%;
+    height: 24%;
+    background: linear-gradient(180deg, #a8e07a 0%, #93d566 100%);
+    opacity: 0.85;
+}
+.start-hill-near {
+    bottom: -11%;
+    height: 15%;
+    left: -22%;
+    right: -22%;
+    background: linear-gradient(180deg, #8ed05e 0%, #79c24d 100%);
+    box-shadow: 0 -6px 18px rgba(70, 140, 50, 0.18);
+}
+
+/* 主角光环：让立绘从背景里跳出来 */
+#heroCanvas {
+    position: relative;
+    z-index: 1;
+    filter: drop-shadow(0 10px 18px rgba(40, 110, 60, 0.22))
+            drop-shadow(0 0 34px rgba(255, 255, 255, 0.55));
+}
+
+/* 漂浮装饰：原来 0.5 透明度 + 小尺寸，几乎看不见；加大并加投影 */
+.start-deco {
+    opacity: 0.62;
+    filter: drop-shadow(0 6px 10px rgba(35, 85, 45, 0.20));
+}
+.start-deco canvas {
+    width: 132%;
+    height: 132%;
+}
+
+/* 成绩行：让玩家一眼看到"我玩到哪了"，是留存的基础信息 */
+.start-best-line {
+    font-size: clamp(10px, 2.6vw, 12px);
+    font-weight: 700;
+    color: #3f7a58;
+    letter-spacing: 0.02em;
+    padding: 3px 12px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.62);
+    border: 1px solid rgba(255, 255, 255, 0.9);
+    box-shadow: 0 2px 6px rgba(40, 100, 60, 0.10);
+    margin-bottom: 4px;
+    white-space: nowrap;
+}
+.start-best-line .hl {
+    color: #b45309;
+    font-weight: 900;
+}
+
+/* ============================================================================
+   H5 移动端适配（2026-10）
+   ----------------------------------------------------------------------------
+   目标：竖屏手机（320~430px 宽）为主战场。实测三个问题：
+
+   1) 比例失衡 —— 放弹按钮 80px，而棋盘每格只有 28px（13 列挤在 371px 里）。
+      拇指上的按钮比游戏本体大 2.8 倍，视线被 UI 抢走，棋盘显得"袖珍"。
+   2) 死白 —— 13:11 的棋盘在 19.5:9 屏幕上宽度受限，上下必然留白 200px 左右；
+      原背景是粉白→淡蓝渐变，和草地绿完全不搭，留白看着像"没加载完"。
+   3) 棋盘没有托底，浮在背景上，缺少"游戏台面"的实体感。
+
+   处理：缩小触控控件到"够准但不过分"的尺寸，把背景换成天空→草地的一致色系，
+   给舞台加柔光地台 + 棋盘加强投影。横幅/提示不再抢高度。
+   ============================================================================ */
+
+/* ---------- 1. 全局背景：天空 → 草地，与棋盘同一色系 ---------- */
+body {
+    background:
+        radial-gradient(ellipse 130% 62% at 50% -6%, rgba(255, 255, 255, 0.92) 0%, rgba(226, 246, 255, 0.55) 42%, rgba(226, 246, 255, 0) 70%),
+        linear-gradient(180deg, #d9f0fb 0%, #e4f5f0 44%, #d8f0d2 100%);
+}
+
+/* ---------- 2. 舞台：柔光地台，让棋盘成为视觉焦点 ---------- */
+#stageArea {
+    isolation: isolate;
+    background:
+        radial-gradient(ellipse 86% 60% at 50% 48%,
+            rgba(255, 255, 255, 0.92) 0%,
+            rgba(255, 255, 255, 0.30) 50%,
+            rgba(255, 255, 255, 0) 76%),
+        linear-gradient(180deg,
+            rgba(206, 236, 186, 0) 0%,
+            rgba(197, 231, 172, 0.58) 22%,
+            rgba(193, 228, 168, 0.66) 78%,
+            rgba(206, 236, 186, 0) 100%);
+}
+#stageArea::before {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: min(132%, 760px);
+    height: 86%;
+    transform: translate(-50%, -50%);
+    background: radial-gradient(ellipse at center,
+        rgba(255, 255, 255, 0.86) 0%,
+        rgba(255, 255, 255, 0.44) 42%,
+        rgba(255, 255, 255, 0) 72%);
+    pointer-events: none;
+    z-index: 0;
+}
+#stageArea > * {
+    position: relative;
+    z-index: 1;
+}
+
+.canvas-wrapper {
+    box-shadow:
+        0 16px 36px rgba(31, 84, 58, 0.26),
+        0 5px 12px rgba(31, 84, 58, 0.16),
+        inset 0 0 0 1px rgba(255, 255, 255, 0.55);
+}
+
+/* ---------- 3. 触控控件尺寸：拇指够得着，但不喧宾夺主 ---------- */
+@media (pointer: coarse) and (max-width: 639px) {
+    body:not(.moba-mode) #bottomFooter > div {
+        padding: 6px 10px 8px;
+        gap: 4px;
+    }
+
+    /* 摇杆 132px：接近主流手游（王者/吃鸡 130~160px）的拇指盲按半径，
+       比原来的 122px 略大，同时把棋盘下方的空白吃掉一部分，画面不空。 */
+    body:not(.moba-mode) #joystickContainer {
+        width: 134px !important;
+        height: 134px !important;
+    }
+    body:not(.moba-mode) #joystickZone {
+        width: 130px !important;
+        height: 130px !important;
+    }
+    body:not(.moba-mode) #joystickKnob {
+        width: 58px !important;
+        height: 58px !important;
+    }
+
+    /* 主操作键 84px：拇指主落点，按压力度与命中率优先 */
+    body:not(.moba-mode) #btnPlaceBomb {
+        width: 84px !important;
+        height: 84px !important;
+    }
+    body:not(.moba-mode) #btnDetonateRemote {
+        width: 70px !important;
+        height: 70px !important;
+    }
+    body:not(.moba-mode) #btnMegaBomb {
+        width: 60px !important;
+        height: 60px !important;
+    }
+    body:not(.moba-mode) #actionPad {
+        gap: 9px;
+    }
+
+    /* 提示行：只保留一行，去掉重复说明，避免挤占高度 */
+    body:not(.moba-mode) #mobileHintBox {
+        gap: 6px;
+        font-size: 10px;
+        line-height: 1.3;
+    }
+
+    /* HUD：图标与内边距再收一档，8 格在 320px 屏上也不至于挤压换行 */
+    body:not(.moba-mode) .hud-stat {
+        padding: 0.16rem 0.24rem;
+        gap: 0.14rem;
+        border-radius: 0.75rem;
+        border-width: 1.5px;
+        box-shadow: 0 2px 0 #cbd5e1, 0 3px 6px rgba(15, 23, 42, 0.07), inset 0 1px 0 rgba(255, 255, 255, 1);
+    }
+    body:not(.moba-mode) .hud-stat .hud-icon {
+        width: 16px;
+        height: 16px;
+    }
+    body:not(.moba-mode) .hud-stat span:last-child {
+        font-size: 11px;
+    }
+    body:not(.moba-mode) .energy-cell {
+        padding: 2px 5px !important;
+    }
+    body:not(.moba-mode) .energy-track {
+        height: 5px;
+    }
+}
+
+/* 极窄屏（320/360 安卓）：再退一档，保证 8 格 HUD 与按钮不换行 */
+@media (pointer: coarse) and (max-width: 374px) {
+    body:not(.moba-mode) #joystickContainer {
+        width: 116px !important;
+        height: 116px !important;
+    }
+    body:not(.moba-mode) #joystickZone {
+        width: 112px !important;
+        height: 112px !important;
+    }
+    body:not(.moba-mode) #joystickKnob {
+        width: 50px !important;
+        height: 50px !important;
+    }
+    body:not(.moba-mode) #btnPlaceBomb {
+        width: 74px !important;
+        height: 74px !important;
+    }
+    body:not(.moba-mode) #btnDetonateRemote {
+        width: 62px !important;
+        height: 62px !important;
+    }
+    body:not(.moba-mode) #btnMegaBomb {
+        width: 54px !important;
+        height: 54px !important;
+    }
+    body:not(.moba-mode) .hud-stat .hud-icon {
+        width: 14px;
+        height: 14px;
+    }
+    body:not(.moba-mode) .hud-stat span:last-child {
+        font-size: 10px;
+    }
+}
+
+/* ---------- 4. 触摸反馈：去掉 iOS 300ms 点击延迟与长按放大镜 ---------- */
+@media (pointer: coarse) {
+    button, a, .candy-btn, .hud-stat {
+        -webkit-tap-highlight-color: transparent;
+        touch-action: manipulation;
+    }
+}
+/* 触屏上 hover 效果会"卡住"（点完仍保持 hover 态），改成只在按下时反馈 */
+@media (hover: none) {
+    .hud-stat:hover {
+        transform: none;
+    }
+    .header-util-btn:hover {
+        background: linear-gradient(180deg, #ffffff 0%, #f8fafc 55%, #edf2f7 100%);
+    }
+}
+
+/* ---------- 5. 竖屏小地图：裁掉装饰外墙，让可玩区铺满屏宽 ---------- */
+/* 由 ui.js setupResponsiveCanvas 依据「竖屏 + 粗指针 + 地图不大于视野」动态加类。
+   放大 116% 后 wrapper 的 overflow:hidden 会把左右各约 1 格的外墙裁掉，
+   可玩区（11×9）刚好填满，单格从 28px 提升到 33px。 */
+body.board-crop .canvas-wrapper {
+    /* 加厚描边：把放大后的画面收成一台"游戏主机屏"，同时压住裁切边缘 */
+    border-width: 8px;
+}
+body.board-crop #gameCanvas {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    /* 宽度 118.2% = 13/11：左右各裁掉正好 1 格装饰外墙（可玩区 11 列铺满屏宽）。
+       高度多 2.8%：横向等比缩放时上下只能裁掉 0.85 格，会露出一条断墙；
+       这点非等比拉伸肉眼不可辨（格子 32.8 → 32.1px），换来上下边缘干净。 */
+    width: 118.2%;
+    height: 121.5%;
+    max-width: none;
+    max-height: none;
+    transform: translate(-50%, -50%);
+}
+
+/* 横屏 MOBA 模式是深色"电竞"主题，舞台柔光是给浅色竖屏用的，这里必须撤掉 */
+body.moba-mode #stageArea {
+    background: none;
+}
+body.moba-mode #stageArea::before {
+    display: none;
+}
+body.moba-mode .canvas-wrapper {
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(255, 255, 255, 0.12);
+}
+
+/* 横屏 MOBA：能量条原来 96px 宽，"狂暴/必杀"四个字就占掉一半，
+   进度几乎看不出长短。加宽到 128px 并把文字缩成竖排标签以外的形式。 */
+@media (orientation: landscape) and (pointer: coarse) {
+    body.moba-mode .moba-energy {
+        width: 128px;
+        gap: 5px;
+    }
+    body.moba-mode .moba-bar {
+        height: 8px;
+    }
+    body.moba-mode .moba-bar-icon {
+        font-size: 10px;
+        min-width: 24px;
+        text-align: right;
+    }
+    body.moba-mode .moba-buffs {
+        top: calc(48px + env(safe-area-inset-top, 0px));
+    }
+}
+
+/* 360/375 窄屏：品牌名 + 6 个功能按钮刚好差十几像素，会被 flex-wrap 顶成两行，
+   顶栏凭空多出 36px。收 3px 按钮宽 + 收紧间距即可并回一行，把高度还给棋盘。 */
+@media (pointer: coarse) and (min-width: 340px) and (max-width: 389px) {
+    body:not(.moba-mode) #topHeader .header-actions {
+        gap: 1px !important;
+    }
+    body:not(.moba-mode) #topHeader .header-util-btn {
+        width: 36px !important;
+        height: 36px !important;
+        border-width: 2px;
+    }
+    body:not(.moba-mode) #btnControlMode {
+        width: auto !important;
+        padding: 0 3px !important;
+        font-size: 10px !important;
+    }
+}
+
+/* 320×568 这类超矮屏：footer 高度会直接挤压棋盘（stage 高度成为瓶颈）。
+   这里退一档控件尺寸，把 26px 还给棋盘，单格从 24.8 → 28.4px。
+   仅 max-height 600 触发，360×640 及以上不受影响（那些屏是宽度瓶颈）。 */
+@media (pointer: coarse) and (max-height: 600px) and (orientation: portrait) {
+    body:not(.moba-mode) #joystickContainer {
+        width: 106px !important;
+        height: 106px !important;
+    }
+    body:not(.moba-mode) #joystickZone {
+        width: 102px !important;
+        height: 102px !important;
+    }
+    body:not(.moba-mode) #joystickKnob {
+        width: 46px !important;
+        height: 46px !important;
+    }
+    body:not(.moba-mode) #btnPlaceBomb {
+        width: 70px !important;
+        height: 70px !important;
+    }
+    body:not(.moba-mode) #btnDetonateRemote {
+        width: 60px !important;
+        height: 60px !important;
+    }
+    body:not(.moba-mode) #bottomFooter > div {
+        padding: 4px 8px 6px;
+    }
+}
+
+/* ============================================================================
+   首屏启动占位（H5 弱网）
+   ----------------------------------------------------------------------------
+   脚本 600KB+ 未压缩，弱网下 HTML 已渲染但游戏没起来，用户只能看到一片渐变。
+   这里用纯 CSS 画一个炸弹 logo 顶住第一秒，游戏就绪（showStartScreen）后淡出。
+   零额外请求，不依赖图片/字体，冷启动时也能立刻出现。
+   ============================================================================ */
+#bootSplash {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    min-height: 100dvh;
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    /* 尾色与 body 背景同色，避免占位退场后出现色带拼接感 */
+    background: linear-gradient(180deg, #8ecdea 0%, #b3e0f0 34%, #d2efec 62%, #d9f0db 100%);
+    transition: opacity 0.36s ease, visibility 0.36s ease;
+}
+#bootSplash.is-done {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+}
+.boot-bomb {
+    position: relative;
+    width: 62px;
+    height: 62px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 34% 28%, #7b8494 0%, #374151 46%, #111827 78%, #0b1220 100%);
+    box-shadow: 0 10px 18px rgba(15, 40, 60, 0.28), inset -6px -8px 14px rgba(0, 0, 0, 0.45);
+    animation: bootBounce 1.15s cubic-bezier(0.34, 1.56, 0.64, 1) infinite;
+}
+.boot-bomb::before {
+    content: '';
+    position: absolute;
+    top: -13px;
+    right: 10px;
+    width: 6px;
+    height: 17px;
+    border-radius: 3px;
+    background: linear-gradient(180deg, #d97706, #92400e);
+    transform: rotate(20deg);
+}
+.boot-bomb::after {
+    content: '';
+    position: absolute;
+    top: -22px;
+    right: 2px;
+    width: 11px;
+    height: 11px;
+    border-radius: 50%;
+    background: #fde047;
+    box-shadow: 0 0 14px 5px rgba(251, 191, 36, 0.72);
+    animation: bootSpark 0.5s ease-in-out infinite alternate;
+}
+.boot-title {
+    font-size: 21px;
+    font-weight: 900;
+    letter-spacing: 0.06em;
+    color: #1f5e3f;
+    text-shadow: 0 2px 0 rgba(255, 255, 255, 0.85);
+}
+.boot-dots {
+    display: flex;
+    gap: 6px;
+}
+.boot-dots i {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #4ea675;
+    opacity: 0.35;
+    animation: bootDot 1.05s ease-in-out infinite;
+}
+.boot-dots i:nth-child(2) { animation-delay: 0.15s; }
+.boot-dots i:nth-child(3) { animation-delay: 0.3s; }
+@keyframes bootBounce {
+    0%, 100% { transform: translateY(0) scale(1); }
+    45% { transform: translateY(-9px) scale(1.03); }
+    62% { transform: translateY(0) scale(0.97, 1.03); }
+}
+@keyframes bootSpark {
+    from { transform: scale(0.82); opacity: 0.75; }
+    to { transform: scale(1.18); opacity: 1; }
+}
+@keyframes bootDot {
+    0%, 100% { opacity: 0.28; transform: translateY(0); }
+    50% { opacity: 1; transform: translateY(-3px); }
+}
+@media (prefers-reduced-motion: reduce) {
+    .boot-bomb, .boot-dots i, .boot-bomb::after { animation: none; }
+}

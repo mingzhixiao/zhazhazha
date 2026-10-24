@@ -145,6 +145,11 @@
 
             setRotateMode(on) {
                 document.body.classList.toggle('rotate-mode', on);
+                if (on) {
+                    clearTimeout(this._rotateHintTimer);
+                    const toasts = document.getElementById('gameToasts');
+                    if (toasts) toasts.innerHTML = '';
+                }
                 const btn = document.getElementById('btnRotate');
                 if (btn) {
                     btn.classList.toggle('rot-on', on);
@@ -342,6 +347,19 @@
 
                     let targetW, targetH;
 
+                    // 竖屏手机 + 小地图（地图不大于视野）时，可以安全裁掉四周的装饰外墙：
+                    // 地图边界 1 圈是纯 WALL（见 pure.js generateMapGrid），可玩区恒为
+                    // (1..cols-2) × (1..rows-2)。按 118% 放大画布后，左右各裁掉约 1 格外墙，
+                    // 可玩区正好铺满屏宽——单格从 ~28px 涨到 ~33px，是手机上最直接的观感提升。
+                    // 大地图（41×35）视野本来就在滚动，裁边会出现残缺墙面，故不启用。
+                    const isCoarse = window.matchMedia ? window.matchMedia('(pointer: coarse)').matches : false;
+                    const portraitPhone = isCoarse && window.innerWidth <= 639 && window.innerHeight > window.innerWidth;
+                    const canCrop = portraitPhone && !isMoba && this.mapCols <= VIEW_COLS && this.mapRows <= VIEW_ROWS;
+                    if (document.body.classList.contains('board-crop') !== canCrop) {
+                        document.body.classList.toggle('board-crop', canCrop);
+                    }
+                    const cropZoom = canCrop ? 1.182 : 1;
+
                     if (isMoba) {
                         // MOBA 模式下保持纵横比，居中显示
                         targetW = availW;
@@ -363,16 +381,43 @@
                     wrapper.style.height = `${Math.floor(targetH)}px`;
 
                     if (isMoba) {
-                        const dpr = Math.min(2, window.devicePixelRatio || 1);
-                        const pixW = Math.round(targetW * dpr);
-                        const pixH = Math.round(targetH * dpr);
+                        // MOBA/横屏同样按物理像素渲染：横屏时棋盘离眼睛更远感，糊了更明显。
+                        // 保留 2.0MP 像素预算，避免横屏大面积填充拖垮中低端机。
+                        const dpr = Math.min(3, Math.max(1, window.devicePixelRatio || 1)) * (this._qualityScale || 1);
+                        let pixW = Math.round(targetW * dpr);
+                        let pixH = Math.round(targetH * dpr);
+                        const MAX_PIXELS = 2.0e6;
+                        if (pixW * pixH > MAX_PIXELS) {
+                            const k = Math.sqrt(MAX_PIXELS / (pixW * pixH));
+                            pixW = Math.round(pixW * k);
+                            pixH = Math.round(pixH * k);
+                        }
                         if (this.canvas.width !== pixW || this.canvas.height !== pixH) {
                             this.canvas.width = pixW;
                             this.canvas.height = pixH;
                         }
-                    } else if (this.canvas.width !== 780 || this.canvas.height !== 660) {
-                        this.canvas.width = 780;
-                        this.canvas.height = 660;
+                    } else {
+                        // 画布分辨率必须跟随「CSS 尺寸 × 物理像素比」。
+                        // H5 手机 dpr 普遍是 2~3：若只给 780 逻辑宽，等于把画面放大 1.4~2 倍显示，
+                        // 角色描边、方块贴图、文字全部发虚——这是手机上"糊"的第一来源。
+                        // 上限 2.6 倍基准宽（≈2028px）+ 2.0MP 总像素护栏，
+                        // 兼顾高分屏清晰度与中低端机 GPU 填充率。
+                        const dpr = Math.min(3, Math.max(1, window.devicePixelRatio || 1));
+                        const baseW = 780; // 逻辑基准：13 格 × 60px
+                        // 自适应画质系数：中低端机持续掉帧时自动降采样，保帧率优先
+                        const qScale = this._qualityScale || 1;
+                        let pixW = Math.max(baseW, Math.min(Math.round(baseW * 2.6), Math.round(targetW * cropZoom * dpr * qScale)));
+                        let pixH = Math.round(pixW * (660 / 780));
+                        const MAX_PIXELS = 2.0e6;
+                        if (pixW * pixH > MAX_PIXELS) {
+                            const k = Math.sqrt(MAX_PIXELS / (pixW * pixH));
+                            pixW = Math.round(pixW * k);
+                            pixH = Math.round(pixH * k);
+                        }
+                        if (this.canvas.width !== pixW || this.canvas.height !== pixH) {
+                            this.canvas.width = pixW;
+                            this.canvas.height = pixH;
+                        }
                     }
                 };
 
@@ -385,6 +430,87 @@
                     setTimeout(updateCanvasSize, 350);
                 });
                 updateCanvasSize();
+            }
+
+            // 自适应画质：H5 设备性能跨度极大（旗舰机 120Hz vs 千元机 30fps），
+            // 与其让弱机卡成幻灯片，不如自动降画布采样率保操作手感。
+            // 降档快（连续 2 秒 < 45fps）、升档慢（连续 5 秒 > 57fps），带滞回避免来回跳。
+            setupAdaptiveQuality() {
+                if (this._qualityActive) return;
+                this._qualityActive = true;
+                this._qualityScale = 1;
+                this._qFrames = 0;
+                this._qLast = performance.now();
+                this._qLow = 0;
+                this._qHigh = 0;
+                // 玩家一旦手动切换过画质，就不再自动干预
+                this._qUserLocked = false;
+
+                const applyScale = (next) => {
+                    const clamped = Math.max(0.55, Math.min(1, next));
+                    if (Math.abs(clamped - this._qualityScale) < 0.03) return;
+                    this._qualityScale = clamped;
+                    this._qLow = 0;
+                    this._qHigh = 0;
+                    if (this._updateCanvasSize) this._updateCanvasSize();
+                };
+                this._setQualityScale = applyScale;
+
+                const tick = () => {
+                    const now = performance.now();
+                    this._qFrames++;
+                    const elapsed = now - this._qLast;
+                    if (elapsed >= 1000) {
+                        const fps = (this._qFrames * 1000) / elapsed;
+                        this._qFrames = 0;
+                        this._qLast = now;
+                        // 只在实战中判断：菜单/暂停/弹窗停帧不代表性能
+                        const inGame = this.state === 'PLAYING' && !document.hidden;
+                        if (inGame && !this._qUserLocked) {
+                            if (fps < 45) { this._qLow++; this._qHigh = 0; }
+                            else if (fps > 57) { this._qHigh++; this._qLow = 0; }
+                            else { this._qLow = 0; this._qHigh = 0; }
+
+                            if (this._qLow >= 2) applyScale(this._qualityScale - 0.18);
+                            else if (this._qHigh >= 5 && this._qualityScale < 0.999) applyScale(this._qualityScale + 0.12);
+                        }
+                        // 屏幕常亮：手游里手一停看局势就息屏，回来已经死了。
+                        // 只在实战持有，回到菜单/暂停即刻释放（省电、也不打扰系统）。
+                        if (inGame) this._acquireWakeLock && this._acquireWakeLock();
+                        else this._releaseWakeLock && this._releaseWakeLock();
+                    }
+                    requestAnimationFrame(tick);
+                };
+                requestAnimationFrame(tick);
+            }
+
+            // Wake Lock：Chrome/Edge/Android 直接可用；iOS 16.4+ 支持，但同样需要页面可见。
+            // 失败（不支持/被策略拒绝）时静默降级，游戏不受影响。
+            setupWakeLock() {
+                this._wakeLock = null;
+                this._wakeLastTry = 0;
+                this._acquireWakeLock = () => {
+                    if (!navigator.wakeLock || this._wakeLock || document.hidden) return;
+                    const now = performance.now();
+                    if (now - this._wakeLastTry < 5000) return; // 失败时别每帧重试
+                    this._wakeLastTry = now;
+                    try {
+                        navigator.wakeLock.request('screen').then((lock) => {
+                            this._wakeLock = lock;
+                            lock.addEventListener('release', () => { this._wakeLock = null; });
+                        }).catch(() => { this._wakeLock = null; });
+                    } catch (e) {
+                        this._wakeLock = null;
+                    }
+                };
+                this._releaseWakeLock = () => {
+                    if (!this._wakeLock) return;
+                    try { this._wakeLock.release(); } catch (e) {}
+                    this._wakeLock = null;
+                };
+                document.addEventListener('visibilitychange', () => {
+                    if (document.hidden) this._releaseWakeLock();
+                });
             }
 
             showModal(title, desc, btnText, badgeIcon = 'bomb') {
@@ -416,6 +542,17 @@
                 this.updateCareerPanel();
                 this.setDifficulty(this.difficultyIdx || 0);
                 this.syncStartSoundIcon();
+                // 首屏启动占位淡出（只在冷启动第一次有效）。
+                // 至少展示 300ms：本地秒开时若立刻淡出，会闪一下 logo 反而更廉价。
+                const splash = document.getElementById('bootSplash');
+                if (splash && !splash.classList.contains('is-done')) {
+                    const shown = Date.now() - (window.__bootT || Date.now());
+                    const wait = Math.max(0, 300 - shown);
+                    setTimeout(() => {
+                        splash.classList.add('is-done');
+                        setTimeout(() => splash.remove(), 420);
+                    }, wait);
+                }
             }
 
             hideStartScreen() {
@@ -447,12 +584,93 @@
                 document.getElementById('careerPop').classList.add('hidden');
             }
 
+            // 破坏性操作统一二次确认（重开 / 切换难度）
+            showConfirm({ title, desc, okText = '确认', cancelText = '取消', onConfirm = null, onCancel = null, danger = true }) {
+                const modal = document.getElementById('confirmModal');
+                if (!modal) return;
+                this._confirmAction = onConfirm;
+                this._confirmCancel = onCancel;
+                document.getElementById('confirmTitle').textContent = title || '确认操作';
+                document.getElementById('confirmDesc').textContent = desc || '';
+                const ok = document.getElementById('confirmOkBtn');
+                const cancel = document.getElementById('confirmCancelBtn');
+                ok.textContent = okText;
+                cancel.textContent = cancelText;
+                ok.classList.toggle('confirm-ok', danger);
+                ok.classList.toggle('confirm-cancel', !danger);
+                this._confirmLastFocus = document.activeElement;
+                modal.classList.remove('hidden');
+                setTimeout(() => {
+                    const initial = danger ? cancel : ok;
+                    try { initial.focus({ preventScroll: true }); } catch (e) {}
+                }, 30);
+            }
+
+            hideConfirm() {
+                const modal = document.getElementById('confirmModal');
+                if (modal) modal.classList.add('hidden');
+                const cancel = this._confirmCancel;
+                this._confirmAction = null;
+                this._confirmCancel = null;
+                if (this._confirmLastFocus && this._confirmLastFocus.focus) {
+                    try { this._confirmLastFocus.focus({ preventScroll: true }); } catch (e) {}
+                }
+                if (typeof cancel === 'function') cancel();
+            }
+
+            runConfirm() {
+                const action = this._confirmAction;
+                const modal = document.getElementById('confirmModal');
+                if (modal) modal.classList.add('hidden');
+                this._confirmAction = null;
+                this._confirmCancel = null;
+                if (this._confirmLastFocus && this._confirmLastFocus.focus) {
+                    try { this._confirmLastFocus.focus({ preventScroll: true }); } catch (e) {}
+                }
+                if (typeof action === 'function') action();
+            }
+
+            // Esc 优先关闭最上层弹层；返回 true 表示已消费
+            closeTopOverlay() {
+                if (!document.getElementById('confirmModal').classList.contains('hidden')) {
+                    this.hideConfirm();
+                    return true;
+                }
+                if (!document.getElementById('tutorialOffer').classList.contains('hidden')) {
+                    document.getElementById('tutorialSkipOfferBtn').click();
+                    return true;
+                }
+                if (!document.getElementById('helpModal').classList.contains('hidden')) {
+                    this.hideHelpModal();
+                    return true;
+                }
+                if (!document.getElementById('careerPop').classList.contains('hidden')) {
+                    this.hideCareerPop();
+                    return true;
+                }
+                if (!document.getElementById('diffSheet').classList.contains('hidden')) {
+                    this.hideDiffSheet();
+                    return true;
+                }
+                if (!document.getElementById('shopModal').classList.contains('hidden')) {
+                    document.getElementById('shopContinueBtn').click();
+                    return true;
+                }
+                if (this.state === 'PAUSED') {
+                    this.togglePause();
+                    return true;
+                }
+                if (this.state === 'PLAYING') {
+                    this.togglePause();
+                    return true;
+                }
+                return false;
+            }
+
             syncStartSoundIcon() {
                 const cv = document.getElementById('startSoundIcon');
-                if (cv && this.drawIcon) {
-                    const cctx = cv.getContext('2d');
-                    cctx.clearRect(0, 0, 22, 22);
-                    this.drawIcon(this.sound.enabled ? 'speaker' : 'speakerOff', 11, 11, 18, cctx);
+                if (cv && this.paintIconCanvas) {
+                    this.paintIconCanvas(cv, this.sound.enabled ? 'speaker' : 'speakerOff');
                 }
             }
 
@@ -504,6 +722,7 @@
                     const cost = getUpgradeCost(item, lvl);
                     const maxed = cost === null;
                     const canBuy = !maxed && this.coins >= cost;
+                    const shortfall = maxed ? 0 : Math.max(0, cost - this.coins);
 
                     const cls = maxed
                         ? 'shop-item maxed'
@@ -528,8 +747,19 @@
                         `;
                     }
 
+                    const actionTag = maxed
+                        ? '<span class="shop-buy-tag maxed">满级</span>'
+                        : (canBuy
+                            ? '<span class="shop-buy-tag">购买</span>'
+                            : `<span class="shop-buy-tag locked">差 ${shortfall}</span>`);
+                    const ariaLabel = maxed
+                        ? `${item.name}已达到最高等级`
+                        : (canBuy
+                            ? `购买${item.name}，花费 ${cost} 金币`
+                            : `${item.name}还差 ${shortfall} 金币`);
+
                     html += `
-                        <button data-key="${item.key}" class="${cls}" ${canBuy ? '' : 'disabled'}>
+                        <button type="button" data-key="${item.key}" class="${cls}" ${maxed ? 'disabled' : ''} aria-label="${ariaLabel}">
                             <span class="w-10 h-10 shrink-0 rounded-2xl bg-gradient-to-br ${item.color} flex items-center justify-center border-2 border-white shadow-sm">
                                 <canvas class="shop-icon" data-icon="${item.icon}" width="30" height="30"></canvas>
                             </span>
@@ -541,7 +771,10 @@
                                 <span class="block text-[10px] text-slate-500 font-bold truncate mt-0.5">${item.desc}</span>
                                 <span class="flex items-center gap-1 mt-1.5">${pipsHtml}</span>
                             </span>
-                            ${costLabel}
+                            <span class="flex flex-col items-end gap-1 shrink-0">
+                                ${costLabel}
+                                ${actionTag}
+                            </span>
                         </button>
                     `;
                 }
@@ -562,7 +795,10 @@
                 container.querySelectorAll('.shop-item').forEach(btn => {
                     btn.addEventListener('click', () => {
                         this.sound.playClick();
-                        if (btn.disabled) return;
+                        if (btn.disabled) {
+                            this.setShopNotice('已经满级啦');
+                            return;
+                        }
                         const key = btn.getAttribute('data-key');
                         this.buyUpgrade(key);
                     });
@@ -570,6 +806,14 @@
 
                 document.getElementById('shopCoins').textContent = this.coins;
                 document.getElementById('shopContinueBtn').textContent = `进入第 ${this.level + 1} 关`;
+            }
+
+            setShopNotice(text, ms = 1800) {
+                const el = document.getElementById('shopNotice');
+                if (!el) return;
+                el.textContent = text;
+                clearTimeout(this._shopNoticeTimer);
+                this._shopNoticeTimer = setTimeout(() => { el.textContent = ''; }, ms);
             }
 
             buyUpgrade(key) {
@@ -580,8 +824,14 @@
                 const lvl = up[key] || 0;
                 const cost = getUpgradeCost(item, lvl);
 
-                if (cost === null || this.coins < cost) {
+                if (cost === null) {
                     this.sound.playPortalLocked();
+                    this.setShopNotice(`${item.name}已经满级啦`);
+                    return;
+                }
+                if (this.coins < cost) {
+                    this.sound.playPortalLocked();
+                    this.setShopNotice(`还差 ${cost - this.coins} 金币`);
                     return;
                 }
 
@@ -591,6 +841,13 @@
 
                 this.sound.playPurchase();
                 this.renderShop();
+                const coinsEl = document.getElementById('shopCoins');
+                if (coinsEl) {
+                    coinsEl.classList.remove('coin-spend');
+                    void coinsEl.offsetWidth;
+                    coinsEl.classList.add('coin-spend');
+                }
+                this.setShopNotice(`已升级 ${item.name} → Lv.${lvl + 1}`);
             }
 
             updateCareerPanel() {
@@ -602,6 +859,18 @@
                 set('careerBest2', d.bestScore.toLocaleString());
                 set('careerKills2', d.totalKills.toLocaleString());
                 set('careerLevels2', d.totalLevelsCleared);
+
+                // 首页成绩行：让玩家第一眼看到既有进度（留存的基础信息）
+                const bestLine = document.getElementById('startBestLine');
+                if (bestLine) {
+                    const best = d.bestScore.toLocaleString();
+                    const cleared = d.totalLevelsCleared || 0;
+                    if (d.bestScore > 0) {
+                        bestLine.innerHTML = '最高分 <span class="hl">' + best + '</span> · 生涯通关 <span class="hl">' + cleared + '</span> 关';
+                    } else {
+                        bestLine.textContent = '首次冒险 · 清光怪物即可过关';
+                    }
+                }
             }
     }
 

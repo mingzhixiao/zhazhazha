@@ -16,11 +16,19 @@
                 document.querySelectorAll('.guide-icon').forEach(cv => {
                     // 装饰性 canvas 不抢占辅助技术焦点
                     if (!cv.hasAttribute('aria-hidden')) cv.setAttribute('aria-hidden', 'true');
-                    const bctx = cv.getContext('2d');
-                    bctx.clearRect(0, 0, cv.width, cv.height);
-                    const s = Math.min(cv.width, cv.height);
-                    this.drawIcon(cv.dataset.icon, cv.width / 2, cv.height / 2, s * 0.92, bctx);
+                    this.paintIconCanvas(cv, cv.dataset.icon);
                 });
+            }
+
+            // 把矢量图标画进页面上的小 canvas。
+            // data-tint 用于把整组白色描边图标染成深色，解决白底白图标不可见的问题；
+            // 多色图标（金币/火焰/星星等）不要设置 data-tint。
+            paintIconCanvas(cv, name) {
+                if (!cv) return;
+                const bctx = cv.getContext('2d');
+                bctx.clearRect(0, 0, cv.width, cv.height);
+                const s = Math.min(cv.width, cv.height);
+                this.drawIcon(name, cv.width / 2, cv.height / 2, s * 0.92, bctx, cv.dataset.tint || null);
             }
 
             drawHero() {
@@ -39,11 +47,20 @@
                 hctx.translate(W / 2, H / 2 + bob);
                 hctx.scale(3.1 * breath, 3.1 * (2 - breath));
 
-                // 阴影
-                hctx.fillStyle = 'rgba(20, 60, 40, 0.18)';
+                // 地面光斑：主角是悬浮在柔和光晕上的。
+                // 原来画的是硬边椭圆阴影，但主角离下方草坡很远，阴影反而强化了"悬空"的违和感。
+                hctx.save();
+                hctx.translate(0, 26 - bob * 0.3);
+                hctx.scale(1, 0.34);
+                const haloGrad = hctx.createRadialGradient(0, 0, 1, 0, 0, 36);
+                haloGrad.addColorStop(0, 'rgba(255, 255, 255, 0.62)');
+                haloGrad.addColorStop(0.45, 'rgba(255, 255, 255, 0.26)');
+                haloGrad.addColorStop(1, 'rgba(255, 255, 255, 0)');
+                hctx.fillStyle = haloGrad;
                 hctx.beginPath();
-                hctx.ellipse(0, 24 - bob * 0.3, 20, 7, 0, 0, Math.PI * 2);
+                hctx.arc(0, 0, 36, 0, Math.PI * 2);
                 hctx.fill();
+                hctx.restore();
 
                 // 脚
                 hctx.fillStyle = '#f43f5e';
@@ -129,6 +146,13 @@
                 const x = col * TILE_SIZE;
                 const y = row * TILE_SIZE;
 
+                // 预渲染贴图（含外描边 / 顶部受光 / 底部内阴影 / 落地投影）
+                const TS = global.TileSprites;
+                if (TS && TS.drawTileSprite) {
+                    TS.drawTileSprite(ctx, 'wall', 0, x, y, TILE_SIZE);
+                    return;
+                }
+
                 ctx.fillStyle = 'rgba(0, 0, 0, 0.18)';
                 drawRoundRect(ctx, x + 3, y + 6, TILE_SIZE - 6, TILE_SIZE - 6, 14);
                 ctx.fill();
@@ -168,6 +192,13 @@
                 const ctx = this.ctx;
                 const x = col * TILE_SIZE;
                 const y = row * TILE_SIZE;
+
+                const TS = global.TileSprites;
+                if (TS && TS.drawTileSprite) {
+                    // 3 个变体：木纹/加强板位置不同，降低成片木箱的重复感
+                    TS.drawTileSprite(ctx, 'crate', (col * 3 + row * 5) % 3, x, y, TILE_SIZE);
+                    return;
+                }
 
                 ctx.fillStyle = 'rgba(0,0,0,0.16)';
                 drawRoundRect(ctx, x + 4, y + 7, TILE_SIZE - 8, TILE_SIZE - 8, 12);
@@ -214,10 +245,18 @@
             }
 
             drawFrostCrate(col, row) {
-                this.drawWoodCrate(col, row);
                 const ctx = this.ctx;
                 const x = col * TILE_SIZE;
                 const y = row * TILE_SIZE;
+
+                const TS = global.TileSprites;
+                if (TS && TS.drawTileSprite) {
+                    // 冰壳直接画在木箱上（含雪花/裂冰/斜高光）
+                    TS.drawTileSprite(ctx, 'frost', (col * 3 + row * 5) % 3, x, y, TILE_SIZE);
+                    return;
+                }
+
+                this.drawWoodCrate(col, row);
 
                 ctx.fillStyle = 'rgba(125, 211, 252, 0.78)';
                 drawRoundRect(ctx, x + 3, y + 3, TILE_SIZE - 6, TILE_SIZE - 8, 12);
@@ -241,6 +280,13 @@
                 const y = row * TILE_SIZE;
                 const cx = x + TILE_SIZE / 2;
                 const cy = y + TILE_SIZE / 2;
+
+                const TS = global.TileSprites;
+                if (TS && TS.drawTileSprite) {
+                    TS.drawTileSprite(ctx, 'vine', 0, x, y, TILE_SIZE);
+                    return;
+                }
+
                 const sway = Math.sin(this.globalTime * 0.08 + col + row) * 2.5;
 
                 ctx.fillStyle = 'rgba(22, 163, 74, 0.25)';
@@ -579,6 +625,44 @@
                 const ctx = this.ctx;
                 const progress = exp.timer / exp.maxTimer;
                 const radiusScale = Math.sin(progress * Math.PI);
+
+                // 预渲染火焰帧：快速膨胀 -> 保持 -> 淡出，带不规则轮廓与飞散火星
+                const TS = global.TileSprites;
+                if (TS && TS.buildExplosionFrames) {
+                    const frames = TS.buildExplosionFrames();
+                    const life = Math.max(0, Math.min(0.999, 1 - progress));
+                    const idx = Math.min(frames.length - 1, Math.floor(life * frames.length));
+                    const sprite = frames[idx];
+                    const pulse = 1.7 + Math.sin(this.globalTime * 0.55) * 0.035;
+                    const size = TILE_SIZE * pulse;
+                    const half = size / 2;
+
+                    exp.cells.forEach(cell => {
+                        const cx = (cell.col + 0.5) * TILE_SIZE;
+                        const cy = (cell.row + 0.5) * TILE_SIZE;
+                        // 逐格微抖动，避免整片火焰像同一张贴图平铺
+                        const jx = Math.sin(this.globalTime * 0.11 + cell.col * 2.1 + cell.row * 1.3) * 1.8;
+                        const jy = Math.cos(this.globalTime * 0.09 + cell.row * 1.7 + cell.col * 0.9) * 1.8;
+                        ctx.drawImage(sprite, cx - half + jx, cy - half + jy, size, size);
+                    });
+
+                    // 狂暴弹：额外一圈彩色外焰
+                    if (exp.fever) {
+                        ctx.save();
+                        ctx.globalCompositeOperation = 'lighter';
+                        ctx.globalAlpha = 0.5 * radiusScale;
+                        exp.cells.forEach(cell => {
+                            const cx = (cell.col + 0.5) * TILE_SIZE;
+                            const cy = (cell.row + 0.5) * TILE_SIZE;
+                            ctx.fillStyle = `hsl(${(this.globalTime * 14 + cell.col * 24) % 360}, 95%, 62%)`;
+                            ctx.beginPath();
+                            ctx.arc(cx, cy, TILE_SIZE * 0.62 * radiusScale, 0, Math.PI * 2);
+                            ctx.fill();
+                        });
+                        ctx.restore();
+                    }
+                    return;
+                }
 
                 exp.cells.forEach(cell => {
                     const cx = (cell.col + 0.5) * TILE_SIZE;
@@ -1046,7 +1130,22 @@
                 }
             }
 
-            drawIcon(name, x, y, s, targetCtx = null) {
+            drawIcon(name, x, y, s, targetCtx = null, tint = null) {
+                if (tint) {
+                    // 先离屏绘制，再用 source-in 整体染色，只染色不改变原有透明度轮廓
+                    const size = Math.max(4, Math.ceil(s * 1.8));
+                    const tmp = document.createElement('canvas');
+                    tmp.width = size;
+                    tmp.height = size;
+                    const tctx = tmp.getContext('2d');
+                    this.drawIcon(name, size / 2, size / 2, s, tctx);
+                    tctx.globalCompositeOperation = 'source-in';
+                    tctx.fillStyle = tint;
+                    tctx.fillRect(0, 0, size, size);
+                    const out = targetCtx || this.ctx;
+                    out.drawImage(tmp, x - size / 2, y - size / 2);
+                    return;
+                }
                 const ctx = targetCtx || this.ctx;
                 ctx.save();
                 ctx.translate(x, y);
@@ -1392,6 +1491,20 @@
                         // 底座
                         ctx.fillRect(-2 * u, 4 * u, 4 * u, 3 * u);
                         ctx.fillRect(-5 * u, 7 * u, 10 * u, 2.6 * u);
+                        break;
+                    }
+                    case 'puzzle': {
+                        ctx.fillStyle = '#ffffff';
+                        drawRoundRect(ctx, -9 * u, -9 * u, 18 * u, 18 * u, 3 * u);
+                        ctx.fill();
+                        // 拼图凸起与凹槽，用透明挖空形成轮廓
+                        ctx.globalCompositeOperation = 'destination-out';
+                        ctx.beginPath(); ctx.arc(0, -9 * u, 3.6 * u, 0, Math.PI * 2); ctx.fill();
+                        ctx.beginPath(); ctx.arc(0, 9 * u, 3.6 * u, 0, Math.PI * 2); ctx.fill();
+                        ctx.beginPath(); ctx.arc(-9 * u, 0, 3.6 * u, 0, Math.PI * 2); ctx.fill();
+                        ctx.globalCompositeOperation = 'source-over';
+                        ctx.fillStyle = '#ffffff';
+                        ctx.beginPath(); ctx.arc(9 * u, 0, 3.6 * u, 0, Math.PI * 2); ctx.fill();
                         break;
                     }
                     case 'target': {

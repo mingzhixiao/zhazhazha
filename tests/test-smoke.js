@@ -26,7 +26,9 @@ describe('冒烟：HTML 关键 ID 齐全', () => {
         'diffSheet', 'helpModal', 'careerPop', 'heroCanvas',
         'gameCanvas', 'overlayModal', 'modalActionBtn', 'shopModal',
         'joystickZone', 'btnPlaceBomb', 'btnDetonateRemote', 'btnMegaBomb',
-        'topDiffSelect', 'btnSound', 'btnPause', 'btnRestart'
+        'topDiffSelect', 'btnSound', 'btnPause', 'btnRestart',
+        'confirmModal', 'confirmTitle', 'confirmDesc', 'confirmCancelBtn', 'confirmOkBtn',
+        'shopNotice', 'megaLabel', 'feverLabel'
     ];
     for (const id of requiredIds) {
         it(`#${id} 存在`, () => {
@@ -219,3 +221,68 @@ describe('防回归：game-dev-skills 游戏手感与系统优化（Game-Feel / 
     });
 });
 
+
+describe('冒烟：逻辑布阵独立玩法', () => {
+    const html = fs.readFileSync(path.join(ROOT, 'logic-mode.html'), 'utf8');
+
+    it('首页提供逻辑布阵入口', () => {
+        const index = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
+        assert.ok(index.includes('href="logic-mode.html"'), '首页缺少逻辑布阵入口');
+    });
+
+    it('页面自包含、不依赖运行时 CDN', () => {
+        assert.ok(!html.includes('cdn.tailwindcss.com'), '逻辑布阵仍依赖 Tailwind CDN');
+        assert.ok(!html.includes('<script src="http'), '逻辑布阵加载了外部脚本');
+    });
+
+    it('未锁定页面缩放（无障碍）', () => {
+        assert.ok(!html.includes('user-scalable=no'), '逻辑布阵仍禁用页面缩放');
+        assert.ok(!html.includes('maximum-scale=1.0'), '逻辑布阵仍锁定最大缩放');
+    });
+
+    it('提供返回主线入口', () => {
+        assert.ok(html.includes('href="index.html"'), '逻辑布阵缺少返回首页链接');
+    });
+});
+
+describe('冒烟：上线可用性', () => {
+    const html = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
+    const css = fs.readFileSync(path.join(ROOT, 'css/style.css'), 'utf8');
+    const logic = fs.readFileSync(path.join(ROOT, 'logic-mode.html'), 'utf8');
+
+    it('主要弹层具备 dialog 语义与标题关联', () => {
+        for (const [id, label] of [
+            ['tutorialOffer', 'tutorialOfferTitle'],
+            ['diffSheet', 'diffSheetTitle'],
+            ['helpModal', 'helpModalTitle'],
+            ['careerPop', 'careerPopTitle'],
+            ['shopModal', 'shopTitle']
+        ]) {
+            assert.ok(html.includes(`id="${id}"`) && html.includes('aria-modal="true"'), `${id} 缺少 aria-modal`);
+            assert.ok(html.includes(`aria-labelledby="${label}"`), `${id} 缺少 aria-labelledby`);
+        }
+    });
+
+    it('移动端顶栏热区与商店滚动留白已生效', () => {
+        assert.ok(css.includes(".header-util-btn { width: 36px; height: 36px; }"), '超窄屏热区未提升到 36px');
+        assert.ok(css.includes('width: 40px;'), '移动端热区未提升到 40px');
+        assert.ok(/#shopItems\s*\{[^}]*padding-bottom:\s*14px/.test(css), '商店缺少底部滚动留白');
+    });
+
+    it('逻辑布阵接入主站字体并适配矮屏', () => {
+        // 字体改为自托管（移除 Google Fonts 外链，见 CHANGELOG 第八轮），
+        // 断言同步为"引用本地 woff2 并声明 @font-face"。
+        assert.ok(logic.includes('@font-face'), '逻辑布阵缺少 @font-face 声明');
+        assert.ok(logic.includes('assets/fonts/fredoka-latin.woff2'), '逻辑布阵未引用自托管字体');
+        assert.ok(!/fonts\.googleapis\.com/.test(logic.replace(/\/\*[\s\S]*?\*\//g, '')), '逻辑布阵不应再依赖 fonts.googleapis.com');
+        assert.ok(logic.includes('@media (max-height: 880px)'), '逻辑布阵缺少矮屏适配');
+    });
+
+    it('主页面不依赖境外字体 CDN', () => {
+        const htmlNoComment = html.replace(/<!--[\s\S]*?-->/g, '');
+        assert.ok(!/fonts\.googleapis\.com|fonts\.gstatic\.com/.test(htmlNoComment), 'index.html 仍引用 Google Fonts');
+        assert.ok(htmlNoComment.includes('assets/fonts/fredoka-latin.woff2'), 'index.html 未预加载自托管字体');
+        assert.ok(css.includes('@font-face'), 'style.css 缺少 @font-face');
+        assert.ok(css.includes('assets/fonts/fredoka-latin.woff2'), 'style.css 未引用自托管字体文件');
+    });
+});

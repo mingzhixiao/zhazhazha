@@ -108,6 +108,8 @@
                 this.setupFullscreen();
                 this.setupMobaMode();
                 this.setupRotateMode();
+                this.setupWakeLock();
+                this.setupAdaptiveQuality();
                 this.bindEvents();
                 this.initLevel(1);
                 this.drawStaticIcons();
@@ -249,6 +251,9 @@
                 this.spawnEnemies(levelNum, diffCfg);
                 this.updateCamera(1, true);
                 this.updateHUD();
+                // 地图尺寸变化会决定画布是否需要"裁外墙铺满屏"以及像素预算，
+                // 入场后必须重算一次，否则第一关会沿用上一局的画布尺寸。
+                if (this._updateCanvasSize) this._updateCanvasSize();
             }
 
             createSingleEnemyAt(col, row, diffCfg, forceAngry = false) {
@@ -438,6 +443,41 @@
                 }
 
                 window.addEventListener('keydown', (e) => {
+                    if (e.code === 'Escape') {
+                        if (this.closeTopOverlay()) {
+                            e.preventDefault();
+                            return;
+                        }
+                    }
+                    // 任意弹层打开时锁住游戏按键，并让 Tab 在弹层内循环（含确认弹层）。
+                    // 注意不要 preventDefault Space/Enter：否则键盘无法激活弹层按钮。
+                    let activeDialog = null;
+                    for (const id of ['overlayModal', 'confirmModal', 'tutorialOffer', 'helpModal', 'careerPop', 'diffSheet', 'shopModal']) {
+                        const el = document.getElementById(id);
+                        if (el && !el.classList.contains('hidden')) { activeDialog = el; break; }
+                    }
+                    if (activeDialog) {
+                        if (e.code === 'Tab') {
+                            const focusables = [...activeDialog.querySelectorAll('button:not([disabled]), [href], select, input, [tabindex]:not([tabindex="-1"])')]
+                                .filter(el => el.offsetParent !== null && !el.classList.contains('hidden'));
+                            if (focusables.length) {
+                                e.preventDefault();
+                                const idx = focusables.indexOf(document.activeElement);
+                                const step = e.shiftKey ? -1 : 1;
+                                const next = idx === -1
+                                    ? focusables[e.shiftKey ? focusables.length - 1 : 0]
+                                    : focusables[(idx + step + focusables.length) % focusables.length];
+                                try { next.focus({ preventScroll: true }); } catch (err) {}
+                            }
+                        }
+                        return;
+                    }
+                    // 从按钮/下拉框回到键盘操作时先移除焦点，避免空格既放弹又触发按钮
+                    const ae = document.activeElement;
+                    if (ae && ae !== document.body && ['BUTTON', 'SELECT', 'INPUT', 'TEXTAREA'].includes(ae.tagName)
+                        && ['Space', 'Enter', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) {
+                        try { ae.blur(); } catch (err) {}
+                    }
                     if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(e.code)) {
                         e.preventDefault();
                     }
@@ -477,14 +517,36 @@
                 document.getElementById('topDiffSelect').addEventListener('change', (e) => {
                     this.sound.init();
                     this.sound.playClick();
-                    const idx = Number(e.target.value);
-                    this.setDifficulty(idx);
-                    this.score = 0;
-                    this.coins = 0;
-                    this.initLevel(1);
-                    this.state = 'PLAYING';
-                    this.hideModal();
-                    this.hideShop();
+                    const sel = e.target;
+                    const idx = Number(sel.value);
+                    const prev = this.difficultyIdx;
+                    if (idx === prev) return;
+                    const resumeState = this.state;
+                    const apply = () => {
+                        this.setDifficulty(idx);
+                        this.score = 0;
+                        this.coins = 0;
+                        this.initLevel(1);
+                        this.state = 'PLAYING';
+                        this.hideModal();
+                        this.hideShop();
+                    };
+                    // 已经在游戏中：切换难度意味着重开，必须确认，避免误触丢进度
+                    if (this.state === 'PLAYING' || this.state === 'PAUSED' || this.state === 'SHOP') {
+                        if (this.state === 'PLAYING') this.state = 'PAUSED';
+                        this.showConfirm({
+                            title: '切换难度？',
+                            desc: `将立即回到第 1 关，本局得分和金币清空。永久强化会保留。`,
+                            okText: '切换并重开',
+                            onConfirm: apply,
+                            onCancel: () => {
+                                sel.value = String(prev);
+                                this.state = resumeState;
+                            }
+                        });
+                    } else {
+                        apply();
+                    }
                 });
 
                 // 1. 虚拟摇杆（零延迟即时响应、全向模拟向量、大触控捕捉区）
@@ -787,9 +849,7 @@
                     const iconCanvas = document.getElementById('soundIconCanvas');
                     if (iconCanvas) {
                         iconCanvas.dataset.icon = on ? 'speaker' : 'speakerOff';
-                        const bctx = iconCanvas.getContext('2d');
-                        bctx.clearRect(0, 0, 16, 16);
-                        this.drawIcon(on ? 'speaker' : 'speakerOff', 8, 8, 14, bctx);
+                        this.paintIconCanvas(iconCanvas, on ? 'speaker' : 'speakerOff');
                     }
                     document.getElementById('soundText').textContent = on ? '音效' : '静音';
                 });
@@ -802,25 +862,44 @@
                 document.getElementById('btnRestart').addEventListener('click', () => {
                     this.sound.init();
                     this.sound.playClick();
-                    this.score = 0;
-                    this.coins = 0;
-                    this.initLevel(1);
-                    this.state = 'PLAYING';
-                    this.hideModal();
-                    this.hideShop();
+                    const restart = () => {
+                        this.score = 0;
+                        this.coins = 0;
+                        this.initLevel(1);
+                        this.state = 'PLAYING';
+                        this.hideModal();
+                        this.hideShop();
+                    };
+                    if (this.state === 'MENU' || this.state === 'GAME_OVER' || this.state === 'LEVEL_CLEAR') {
+                        restart();
+                        return;
+                    }
+                    const resumeState = this.state;
+                    if (this.state === 'PLAYING') this.state = 'PAUSED';
+                    this.showConfirm({
+                        title: '重新开始？',
+                        desc: '当前关卡进度、得分和本局金币会清空，已购买的永久强化会保留。',
+                        okText: '重新开始',
+                        onConfirm: restart,
+                        onCancel: () => { this.state = resumeState; }
+                    });
                 });
+
+                // 二次确认弹层
+                document.getElementById('confirmOkBtn').addEventListener('click', () => {
+                    this.sound.playClick();
+                    this.runConfirm();
+                });
+                document.getElementById('confirmCancelBtn').addEventListener('click', () => {
+                    this.sound.playClick();
+                    this.hideConfirm();
+                });
+                document.getElementById('confirmBackdrop').addEventListener('click', () => this.hideConfirm());
 
                 // 主按钮：菜单开始 / 结算重开 / 暂停继续 / 关卡通关 → 进商店
                 document.getElementById('modalActionBtn').addEventListener('click', () => {
                     this.sound.init();
                     this.sound.playClick();
-
-                    const isTouch = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
-                    const portrait = window.innerHeight > window.innerWidth;
-                    if (isTouch && portrait && !this.rotateMode && !this._rotateSuggested) {
-                        this._rotateSuggested = true;
-                        this.setRotateMode(true);
-                    }
 
                     if (this.state === 'MENU' || this.state === 'GAME_OVER') {
                         if (this.state === 'GAME_OVER') {
@@ -907,9 +986,7 @@
                     // 同步顶部栏音效图标
                     const iconCanvas = document.getElementById('soundIconCanvas');
                     if (iconCanvas) {
-                        const cctx = iconCanvas.getContext('2d');
-                        cctx.clearRect(0, 0, 16, 16);
-                        this.drawIcon(on ? 'speaker' : 'speakerOff', 8, 8, 14, cctx);
+                        this.paintIconCanvas(iconCanvas, on ? 'speaker' : 'speakerOff');
                     }
                     const st = document.getElementById('soundText');
                     if (st) st.textContent = on ? '音效' : '静音';
@@ -991,7 +1068,10 @@
             togglePause() {
                 if (this.state === 'PLAYING') {
                     this.state = 'PAUSED';
-                    this.showModal('游戏已暂停', '喝口奶茶休息一下，随时切换难度或继续炸翻全场！', '继续游戏', '');
+                    this.showModal('游戏已暂停', '喝口奶茶休息一下，点继续游戏回到战场，或结束本局回首页。', '继续游戏', 'pause');
+                    const homeBtn = document.getElementById('modalHomeBtn');
+                    homeBtn.textContent = '结束本局并回首页';
+                    homeBtn.classList.remove('hidden');
                 } else if (this.state === 'PAUSED') {
                     this.state = 'PLAYING';
                     this.hideModal();
@@ -1027,11 +1107,17 @@
                     this.showTutorialOffer();
                     return;
                 }
+                // 不再强制旋转屏幕：旋转模式改为顶部按钮主动开启，
+                // 首次竖屏进入时只给一条不打断操作的提示。
                 const isTouch = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
                 const portrait = window.innerHeight > window.innerWidth;
-                if (isTouch && portrait && !this.rotateMode && !this._rotateSuggested) {
+                if (isTouch && portrait && !this._rotateSuggested) {
                     this._rotateSuggested = true;
-                    this.setRotateMode(true);
+                    this._rotateHintTimer = setTimeout(() => {
+                        if (this.state === 'PLAYING' && !this.rotateMode) {
+                            this.showToast('想横屏？点顶部旋转按钮即可', 'rotate', 2200);
+                        }
+                    }, 1200);
                 }
                 this.hideStartScreen();
                 this.hideDiffSheet();
@@ -1059,7 +1145,8 @@
 
                 const feverBar = document.getElementById('hudFeverBar');
                 const feverLabel = document.getElementById('feverLabel');
-                if (this.feverTimer > 0) {
+                const feverHot = this.feverTimer > 0;
+                if (feverHot) {
                     const pct = Math.min(100, (this.feverTimer / 480) * 100);
                     feverBar.style.width = `${pct}%`;
                     feverLabel.textContent = '狂暴中!';
@@ -1067,11 +1154,16 @@
                     feverBar.style.width = `${Math.min(100, this.feverGauge)}%`;
                     feverLabel.textContent = '狂暴';
                 }
+                feverLabel.classList.toggle('is-ready', feverHot);
 
                 const megaBar = document.getElementById('hudMegaBar');
                 const megaReady = this.megaCharge >= MEGA_COST;
                 megaBar.style.width = megaReady ? '100%' : `${Math.min(100, (this.megaCharge / MEGA_COST) * 100)}%`;
-
+                const megaLabel = document.getElementById('megaLabel');
+                if (megaLabel) {
+                    megaLabel.textContent = megaReady ? '必杀就绪' : '必杀';
+                    megaLabel.classList.toggle('is-ready', megaReady);
+                }
                 const btnMega = document.getElementById('btnMegaBomb');
                 const megaBtnLabel = document.getElementById('megaBtnLabel');
                 if (megaReady) {
@@ -1088,11 +1180,12 @@
                 if (this.playerStats.ghostTimer > 0) buffs += `穿墙${Math.ceil(this.playerStats.ghostTimer / 60)}s `;
                 if (this.playerStats.flameVestTimer > 0) buffs += `防炸${Math.ceil(this.playerStats.flameVestTimer / 60)}s `;
                 if (megaReady) buffs += '必杀!';
-                document.getElementById('buffIcons').textContent = buffs;
+                const buffIcons = document.getElementById('buffIcons');
+                if (buffIcons) buffIcons.textContent = buffs.trim() || '无';
 
                 const mobileHint = document.getElementById('mobileBuffHint');
                 if (mobileHint) {
-                    mobileHint.textContent = megaReady ? '超必杀就绪! 按 L 引爆!' : (buffs ? `当前增益: ${buffs}` : '别炸毁道具(会爆怪)!');
+                    mobileHint.textContent = megaReady ? '超必杀就绪! 按 L 引爆!' : (buffs ? `当前增益: ${buffs.trim()}` : '别炸毁道具(会爆怪)!');
                 }
 
                 const btnDetonate = document.getElementById('btnDetonateRemote');
@@ -1105,16 +1198,17 @@
                 }
 
                 const questBanner = document.getElementById('questBanner');
-                if (this.enemies.length > 0) {
-                    questBanner.textContent = `消灭剩余怪物 (${this.enemies.length}) 以激活传送门！`;
-                    questBanner.className = 'flex-1 max-w-[320px] mx-1 px-2 py-1 rounded-xl bg-amber-100/90 border-2 border-amber-300 text-amber-900 font-black text-[10px] sm:text-xs text-center truncate shadow-inner transition-colors duration-300';
-                } else {
-                    if (this.portal && this.portal.revealed) {
-                        questBanner.textContent = '传送门已开启！快进去吧！';
+                if (questBanner) {
+                    const cleared = this.enemies.length === 0;
+                    questBanner.classList.toggle('quest-ready', cleared);
+                    questBanner.classList.toggle('quest-active', cleared);
+                    if (!cleared) {
+                        questBanner.textContent = `剩余 ${this.enemies.length} 怪 · 清空解锁传送门`;
+                    } else if (this.portal && this.portal.revealed) {
+                        questBanner.textContent = '传送门开启 · 快进去！';
                     } else {
-                        questBanner.textContent = '传送门已解封！炸开木箱找到它并进入！';
+                        questBanner.textContent = '传送门解封 · 炸箱找到入口';
                     }
-                    questBanner.className = 'flex-1 max-w-[320px] mx-1 px-2 py-1 rounded-xl bg-emerald-100 border-2 border-emerald-400 text-emerald-800 font-black text-[10px] sm:text-xs text-center truncate shadow-sm quest-active transition-colors duration-300';
                 }
 
                 this.updateMobaHud();
@@ -1242,7 +1336,7 @@
                 let near = 0;
                 for (let i = 0; i < this.enemies.length; i++) {
                     const e = this.enemies[i];
-                    if (Math.hypot(e.x - this.player.x, e.y - this.player.y) < TILE_SIZE * 3.4) near++;
+                    if (Math.hypot(e.x - this.player.x, e.y - this.player.y) < TILE_SIZE * 2.6) near++;
                 }
 
                 this.dangerLevel = near;
@@ -2498,8 +2592,9 @@
                         '重新开始冒险',
                         'ghost'
                     );
-                    // 游戏结束显示"回到首页"
-                    document.getElementById('modalHomeBtn').classList.remove('hidden');
+                    const homeBtn = document.getElementById('modalHomeBtn');
+                    homeBtn.textContent = '回到首页';
+                    homeBtn.classList.remove('hidden');
                 } else {
                     this.player.invincibleTimer = 140;
                     this.showToast('生命 -1', 'heart');
@@ -2863,6 +2958,14 @@
                 const ctx = this.ctx;
                 ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
+                // 地图外的底色：MOBA 模式视野（14 列）比 13 列地图宽，
+                // 不铺底会直接露出容器的纯色 #7bc96f，看起来像没画完。
+                const bgGrad = ctx.createLinearGradient(0, 0, 0, this.canvas.height);
+                bgGrad.addColorStop(0, '#6aa869');
+                bgGrad.addColorStop(1, '#548c58');
+                ctx.fillStyle = bgGrad;
+                ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+
                 // Game-feel (game-dev-skills): 基于 Decaying Trauma 模型计算平滑相机震动（非纯随机白噪）
                 let shakeX = 0, shakeY = 0;
                 if (this.trauma > 0.005) {
@@ -2907,20 +3010,33 @@
                 const startRow = Math.max(0, Math.floor((this.camera.y - offY) / TILE_SIZE) - 1);
                 const endRow = Math.min(this.mapRows - 1, Math.ceil((this.camera.y - offY + viewH) / TILE_SIZE) + 1);
 
-                for (let r = startRow; r <= endRow; r++) {
-                    for (let c = startCol; c <= endCol; c++) {
-                        const x = c * TILE_SIZE;
-                        const y = r * TILE_SIZE;
-                        const isLight = (r + c) % 2 === 0;
-                        ctx.fillStyle = isLight ? this._theme.light : this._theme.dark;
-                        ctx.fillRect(x, y, TILE_SIZE, TILE_SIZE);
+                // 地板：走预渲染贴图（含棋盘格柔光、草簇/沙纹/冰面/熔岩裂纹、主光源），
+                // 每次切关或换主题只生成一次；缺失贴图模块时回退逐格绘制。
+                const floorTS = typeof TileSprites !== "undefined" ? TileSprites : null;
+                if (floorTS && floorTS.buildFloor) {
+                    const themeKey = (this._theme && this._theme.name) || 'grass';
+                    const fk = themeKey + ':' + this.mapCols + 'x' + this.mapRows;
+                    if (!this._floorSprite || this._floorKey !== fk) {
+                        this._floorSprite = floorTS.buildFloor(themeKey, this.mapCols, this.mapRows, TILE_SIZE);
+                        this._floorKey = fk;
+                    }
+                    ctx.drawImage(this._floorSprite, 0, 0);
+                } else {
+                    for (let r = startRow; r <= endRow; r++) {
+                        for (let c = startCol; c <= endCol; c++) {
+                            const x = c * TILE_SIZE;
+                            const y = r * TILE_SIZE;
+                            const isLight = (r + c) % 2 === 0;
+                            ctx.fillStyle = isLight ? this._theme.light : this._theme.dark;
+                            ctx.fillRect(x, y, TILE_SIZE, TILE_SIZE);
 
-                        if (this.grid[r] && this.grid[r][c] === TILE.EMPTY && (r * 7 + c * 13) % 5 === 0) {
-                            ctx.fillStyle = this._theme.deco;
-                            ctx.beginPath();
-                            ctx.arc(x + 14, y + 46, 3, 0, Math.PI * 2);
-                            ctx.arc(x + 20, y + 48, 2.2, 0, Math.PI * 2);
-                            ctx.fill();
+                            if (this.grid[r] && this.grid[r][c] === TILE.EMPTY && (r * 7 + c * 13) % 5 === 0) {
+                                ctx.fillStyle = this._theme.deco;
+                                ctx.beginPath();
+                                ctx.arc(x + 14, y + 46, 3, 0, Math.PI * 2);
+                                ctx.arc(x + 20, y + 48, 2.2, 0, Math.PI * 2);
+                                ctx.fill();
+                            }
                         }
                     }
                 }
@@ -2956,8 +3072,9 @@
 
                 this.powerups.forEach(item => this.drawPowerup(item));
                 this.bombs.forEach(bomb => this.drawBomb(bomb));
-                this.explosions.forEach(exp => this.drawExplosion(exp));
                 this.enemies.forEach(enemy => this.drawEnemy(enemy));
+                // 火焰盖在怪物之上：爆炸是最强视觉事件，不应被小怪挡住
+                this.explosions.forEach(exp => this.drawExplosion(exp));
 
                 if (this.player) {
                     this.drawPlayer(this.player);
@@ -2967,6 +3084,17 @@
                 this.drawParticlesAndTexts();
 
                 ctx.restore();
+
+                // 屏幕暗角：把视觉焦点收拢到棋盘中央（贴图按画布尺寸缓存）
+                const vigTS = typeof TileSprites !== "undefined" ? TileSprites : null;
+                if (vigTS && vigTS.buildBoardVignette) {
+                    const vk = this.canvas.width + 'x' + this.canvas.height;
+                    if (!this._vigSprite || this._vigKey !== vk) {
+                        this._vigSprite = vigTS.buildBoardVignette(this.canvas.width, this.canvas.height);
+                        this._vigKey = vk;
+                    }
+                    ctx.drawImage(this._vigSprite, 0, 0);
+                }
 
                 // 大地图小地图雷达：每帧正常绘制，禁止跳帧/节流（主画布每帧重绘，跳帧会导致频闪）
                 this.drawMinimap();
@@ -2987,8 +3115,16 @@
 
                 if (this.hitFlash > 0) {
                     this.hitFlash--;
-                    ctx.fillStyle = `rgba(244, 63, 94, ${(this.hitFlash / 14) * 0.34})`;
-                    ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+                    // 边缘渐入的受击红晕：原来整屏铺 rgba(...,0.34) 纯色会把绿色棋盘
+                    // 与灰色砖墙一起染成粉紫，观感像渲染错误。改为只压暗画面边缘。
+                    const a = (this.hitFlash / 14) * 0.30;
+                    const hw = this.canvas.width;
+                    const hh = this.canvas.height;
+                    const hg = ctx.createRadialGradient(hw / 2, hh / 2, hh * 0.30, hw / 2, hh / 2, hh * 0.78);
+                    hg.addColorStop(0, 'rgba(244, 63, 94, 0)');
+                    hg.addColorStop(1, `rgba(244, 63, 94, ${a})`);
+                    ctx.fillStyle = hg;
+                    ctx.fillRect(0, 0, hw, hh);
                 }
 
                 if (this.dangerLevel > 0 && this.state === 'PLAYING') {
