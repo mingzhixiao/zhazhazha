@@ -285,4 +285,26 @@ describe('冒烟：上线可用性', () => {
         assert.ok(css.includes('@font-face'), 'style.css 缺少 @font-face');
         assert.ok(css.includes('assets/fonts/fredoka-latin.woff2'), 'style.css 未引用自托管字体文件');
     });
+
+    it('所有清怪路径都会尝试解锁传送门', () => {
+        // 回归保护：曾经 clearEnemiesNearPlayer 直接 filter 数组，
+        // 绕过了内联的解锁判定，导致"剩余 0 怪但传送门锁死"的死局。
+        const game = fs.readFileSync(path.join(ROOT, 'js/game.js'), 'utf8');
+        assert.ok(/tryUnlockPortal\(\)\s*\{/.test(game), '缺少传送门解锁的唯一入口 tryUnlockPortal');
+        const clearFn = game.match(/clearEnemiesNearPlayer\(\)\s*\{[\s\S]*?\n            \}/);
+        assert.ok(clearFn, '未找到 clearEnemiesNearPlayer');
+        assert.ok(/tryUnlockPortal\(\)/.test(clearFn[0]), '清怪后未调用 tryUnlockPortal');
+        assert.ok(!/if \(this\.enemies\.length === 0 && this\.portal\) \{/.test(game),
+            'damageEnemy 内不应再保留内联的解锁判定，应统一走 tryUnlockPortal');
+    });
+
+    it('全屏 MOBA HUD 不得拦截弹窗点击', () => {
+        // 回归保护：#mobaHud 是 inset:0 铺满全屏的纯展示层。
+        // 给它 pointer-events:auto 会让游戏结束/过关/商店/暂停等弹窗全部点不动。
+        const mobaHudRule = css.match(/body\.moba-mode #mobaHud\s*\{[^}]*\}/);
+        assert.ok(mobaHudRule, '未找到 body.moba-mode #mobaHud 规则');
+        assert.ok(!/pointer-events:\s*auto/.test(mobaHudRule[0]), '#mobaHud 不应开启 pointer-events:auto');
+        assert.ok(/pointer-events:\s*none/.test(mobaHudRule[0]), '#mobaHud 必须点击穿透');
+        assert.ok(css.includes("body.moba-mode #joystickContainer,"), '摇杆/操作键仍需保留可点击');
+    });
 });

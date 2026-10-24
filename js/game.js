@@ -786,6 +786,10 @@
                     if (!e.isPrimary) return;
                     if (e.pointerType === 'mouse') return;
                     if (this.state !== 'PLAYING') return;
+                    // MOBA / 旋转模式有专用摇杆与放弹键，棋盘上的点按不应再放弹。
+                    // 之前是靠 #mobaHud 铺满全屏拦住点击顺带实现的，但那个透明层
+                    // 同时把弹窗按钮也挡住了；现在 HUD 改为点击穿透，这里显式排除。
+                    if (document.body.classList.contains('moba-mode')) return;
                     e.preventDefault();
                     this.sound.init();
                     this.gesture = {
@@ -1613,6 +1617,15 @@
                 }
                 if (this.portal && this.portal.lockedHintCooldown > 0) {
                     this.portal.lockedHintCooldown -= dtScale;
+                }
+
+                // 兜底：只要进入实战且场内无怪，传送门就必须是开启状态。
+                // 正常路径在 damageEnemy / clearEnemiesNearPlayer 里已同步，
+                // 这里每帧再校验一次（两次属性比较，开销可忽略），
+                // 避免将来新增的清怪方式再次造成"没怪可打、门也不开"的死局。
+                if (this.state === 'PLAYING' && this.portal && !this.portal.active &&
+                    this.enemies.length === 0 && !(this.tutorial && this.tutorial.active)) {
+                    this.tryUnlockPortal();
                 }
 
                 if (this.comboTimer > 0) {
@@ -2502,6 +2515,7 @@
             }
 
             // 清除玩家周围 4 格内的敌人（新手复活用）
+            // 注意：清怪后必须走传送门解锁判定，否则清光全部怪物会变成死局。
             clearEnemiesNearPlayer() {
                 const pCol = Math.floor(this.player.x / TILE_SIZE);
                 const pRow = Math.floor(this.player.y / TILE_SIZE);
@@ -2510,6 +2524,7 @@
                     const er = Math.floor(e.y / TILE_SIZE);
                     return Math.abs(ec - pCol) + Math.abs(er - pRow) > 4;
                 });
+                return this.tryUnlockPortal();
             }
 
             damagePlayer(source = 'ENEMY', enemyType = null) {
@@ -2560,9 +2575,15 @@
                         this.noviceReviveUsed = true;
                         this.playerStats.lives = 2;
                         this.player.invincibleTimer = 180;
-                        this.clearEnemiesNearPlayer();
+                        const portalOpened = this.clearEnemiesNearPlayer();
                         this.sound.playPowerup();
-                        this.showToast('复活！周围怪物已清除，再接再厉', 'heart', 2500);
+                        this.showToast(
+                            portalOpened
+                                ? '复活！怪物已清光，传送门开启，快进去吧！'
+                                : '复活！周围怪物已清除，再接再厉',
+                            portalOpened ? 'swirl' : 'heart',
+                            2500
+                        );
                         this.updateHUD();
                         return;
                     }
@@ -2891,35 +2912,51 @@
                     });
                 }
 
-                if (this.enemies.length === 0 && this.portal) {
-                    this.portal.active = true;
-                    this.screenFlashTimer = 28;
-                    this.sound.playPortalUnlock();
-                    this.addShake(6);
+                this.tryUnlockPortal();
 
-                    const portalX = (this.portal.col + 0.5) * TILE_SIZE;
-                    const portalY = (this.portal.row + 0.5) * TILE_SIZE;
+                this.updateHUD();
+                return true;
+            }
 
-                    if (this.portal.revealed) {
-                        this.showToast('传送门已开启！快进去吧！', 'swirl', 2200);
-                    } else {
-                        this.showToast('怪物已清光！炸开木箱寻找传送门！', 'swirl', 2200);
-                    }
+            /**
+             * 传送门解锁的唯一判定入口。
+             * 任何移除怪物的路径都必须调用这里——之前复活清怪用的是
+             * `enemies.filter(...)` 直接改数组，绕过了内联的解锁判定，
+             * 导致"剩余 0 怪但传送门仍锁死"的死局（第一关即可触发）。
+             * @returns {boolean} 本次是否真的解锁
+             */
+            tryUnlockPortal() {
+                const portal = this.portal;
+                if (!portal || portal.active) return false;
+                if (this.enemies.length > 0) return false;
 
-                    for (let k = 0; k < 28; k++) {
-                        const angle = (Math.PI * 2 * k) / 28;
-                        const spd = 2 + Math.random() * 4.5;
-                        this.particles.push({
-                            x: portalX,
-                            y: portalY,
-                            vx: Math.cos(angle) * spd,
-                            vy: Math.sin(angle) * spd,
-                            radius: 5 + Math.random() * 4,
-                            color: ['#f43f5e', '#facc15', '#4ade80', '#38bdf8', '#a855f7'][k % 5],
-                            life: 40,
-                            maxLife: 40
-                        });
-                    }
+                portal.active = true;
+                this.screenFlashTimer = 28;
+                this.sound.playPortalUnlock();
+                this.addShake(6);
+
+                const portalX = (portal.col + 0.5) * TILE_SIZE;
+                const portalY = (portal.row + 0.5) * TILE_SIZE;
+
+                if (portal.revealed) {
+                    this.showToast('传送门已开启！快进去吧！', 'swirl', 2200);
+                } else {
+                    this.showToast('怪物已清光！炸开木箱寻找传送门！', 'swirl', 2200);
+                }
+
+                for (let k = 0; k < 28; k++) {
+                    const angle = (Math.PI * 2 * k) / 28;
+                    const spd = 2 + Math.random() * 4.5;
+                    this.particles.push({
+                        x: portalX,
+                        y: portalY,
+                        vx: Math.cos(angle) * spd,
+                        vy: Math.sin(angle) * spd,
+                        radius: 5 + Math.random() * 4,
+                        color: ['#f43f5e', '#facc15', '#4ade80', '#38bdf8', '#a855f7'][k % 5],
+                        life: 40,
+                        maxLife: 40
+                    });
                 }
 
                 this.updateHUD();

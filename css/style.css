@@ -452,8 +452,15 @@
         }
         body.moba-mode #joystickContainer,
         body.moba-mode #dpadContainer,
-        body.moba-mode #actionPad,
-        body.moba-mode #mobaHud { pointer-events: auto; }
+        body.moba-mode #actionPad { pointer-events: auto; }
+
+        /* #mobaHud 是纯展示层（内部只有 span 数字与小地图 canvas），
+           但它的容器是 inset:0 铺满整屏。以前给它 pointer-events:auto，
+           等于在整屏盖了一块透明玻璃：全屏/横屏一进 moba 模式，
+           游戏结束、过关、商店、暂停等所有弹窗的按钮都点不动
+           （elementFromPoint 命中的是 #mobaHud 而不是按钮）。
+           容器保持穿透，日后若内部出现真需要点击的元素，单独给它开 auto。 */
+        body.moba-mode #mobaHud { pointer-events: none; }
 
         /* 左侧：摇杆垂直居中并适度增大 */
         body.moba-mode #joystickContainer {
